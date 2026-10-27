@@ -12,7 +12,7 @@ const song: Song = {
   notes: [note(1, 'maria'), note(3, 'josef')],
   phrases: [{ index: 0, label: 'P1', start: 0, end: 4 }],
 }
-const f = (t: number) => ({ t, midi: 67, clarity: 0.9, rms: 0.1 })
+const f = (t: number) => ({ t, at: t, midi: 67, clarity: 0.9, rms: 0.1 })
 
 it('frame ignores frames outside entered notes and frames of other roles', () => {
   const s = new Session(song, ['maria'], 50)
