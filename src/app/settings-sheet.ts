@@ -49,7 +49,10 @@ export class GuSettingsSheet extends LitElement {
   private async startMic() {
     const { pitch } = getContext()
     this.borrowed = pitch.active()
-    if (!this.borrowed && (await pitch.start(() => 0)) !== 'ok') return void (this.mic = 'failed')
+    if (!this.borrowed && (await pitch.start(() => 0)) !== 'ok') {
+      this.mic = 'failed'
+      return
+    }
     this.unsubscribe = pitch.on('frame', (f) => {
       if (f.midi !== null) this.note = noteName(f.midi)
     })

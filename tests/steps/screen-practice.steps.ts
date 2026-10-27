@@ -51,7 +51,10 @@ function world(ctx: any) {
   ctx.playing = false
   ctx.startResult = 'ok'
   ctx.recorded = null
-  const on = (store: Record<string, ((x: any) => void)[]>) => (ev: string, fn: (x: any) => void) => void (store[ev] ??= []).push(fn)
+  const on = (store: Record<string, ((x: any) => void)[]>) => (ev: string, fn: (x: any) => void) => {
+    if (!store[ev]) store[ev] = []
+    store[ev].push(fn)
+  }
   ctx.engineL = {} as Record<string, ((x: any) => void)[]>
   ctx.pitchL = {} as Record<string, ((x: any) => void)[]>
   const log = (s: string) => ctx.calls.push(s)
@@ -150,12 +153,16 @@ const byLabel = (el: Element, label: string) => el.shadowRoot!.querySelector<HTM
 
 async function tick(ctx: any, t: number) {
   ctx.time = t
-  ctx.engineL.tick?.forEach((fn: (t: number) => void) => fn(t))
+  ctx.engineL.tick?.forEach((fn: (t: number) => void) => {
+    fn(t)
+  })
   await settle(ctx.el)
 }
 
 async function frame(ctx: any, f: Partial<PitchFrame>) {
-  ctx.pitchL.frame?.forEach((fn: (f: PitchFrame) => void) => fn({ t: ctx.time, midi: null, clarity: 1, rms: 0.1, ...f }))
+  ctx.pitchL.frame?.forEach((fn: (f: PitchFrame) => void) => {
+    fn({ t: ctx.time, midi: null, clarity: 1, rms: 0.1, ...f })
+  })
   await settle(ctx.el)
 }
 
@@ -227,7 +234,9 @@ export default steps(({ Given, When, Then }) => {
   const play = (ctx: any) => press(ctx, 'Abspielen')
   const enterNote = async (ctx: any, i: number) => {
     const n = ctx.data.song.notes[i]
-    ctx.engineL.enter?.forEach((fn: (n: Note) => void) => fn(n))
+    ctx.engineL.enter?.forEach((fn: (n: Note) => void) => {
+      fn(n)
+    })
     await tick(ctx, n.start + 0.5)
     await frame(ctx, { midi: n.midi })
   }

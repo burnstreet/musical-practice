@@ -45,7 +45,9 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     }
     const ctx = makeCtx()
     if (!ctx.audioWorklet) {
-      stream.getTracks().forEach((t) => t.stop())
+      stream.getTracks().forEach((t) => {
+        t.stop()
+      })
       return 'unsupported'
     }
     await ctx.audioWorklet.addModule(workletUrl)
@@ -54,14 +56,18 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     node.port.onmessage = (e: MessageEvent<Omit<PitchFrame, 't'>>) => {
       rms = e.data.rms
       const t = songTime() - ((ctx.baseLatency ?? 0) + (ctx.outputLatency ?? 0) + offsetMs / 1000)
-      listeners.forEach((fn) => fn({ ...e.data, t }))
+      listeners.forEach((fn) => {
+        fn({ ...e.data, t })
+      })
     }
     source.connect(node)
     cleanup = () => {
       node.port.onmessage = null
       source.disconnect()
       node.disconnect()
-      stream.getTracks().forEach((t) => t.stop())
+      stream.getTracks().forEach((t) => {
+        t.stop()
+      })
       void ctx.close()
     }
     running = true

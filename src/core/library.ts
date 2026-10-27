@@ -81,7 +81,9 @@ export function createLibrary(deps: LibraryDeps): Library {
     await lib.fetchManifest()
     const m = manifest
     const emit = (p: Partial<DownloadProgress>) =>
-      listeners.forEach((l) => l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p }))
+      listeners.forEach((l) => {
+        l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p })
+      })
     let doneBytes = 0
     if (!m) return emit({ done: true, error: 'no manifest' })
     const failed: string[] = []
@@ -120,9 +122,10 @@ export function createLibrary(deps: LibraryDeps): Library {
     sizeInfo: () => (manifest ? { songCount: manifest.songCount, totalBytes: manifest.totalBytes } : null),
     sync() {
       // Shell (boot) and start screen (unlock) may both call it: share one run.
-      return (syncing ??= runSync().finally(() => {
+      syncing ??= runSync().finally(() => {
         syncing = null
-      }))
+      })
+      return syncing
     },
     async fetchLibraryCipher() {
       if (!manifest) return null

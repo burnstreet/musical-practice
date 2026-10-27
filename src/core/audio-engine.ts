@@ -55,7 +55,10 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
   let isPlaying = false
   let prev = -1 // song time of the last tick; enter fires for notes starting in (prev, now]
   const listeners: Record<string, ((x?: any) => void)[]> = {}
-  const emit = (ev: string, x?: unknown) => listeners[ev]?.forEach((fn) => fn(x))
+  const emit = (ev: string, x?: unknown) =>
+    listeners[ev]?.forEach((fn) => {
+      fn(x)
+    })
 
   const muted = (t: number) => mode === 'backing' || (mode === 'others' && spans.some((s) => s.start - LEAD <= t && t < s.end))
 
@@ -134,7 +137,9 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     },
     unload() {
       if (voices) engine.pause()
-      urls.forEach((u) => deps.revokeObjectURL(u))
+      urls.forEach((u) => {
+        deps.revokeObjectURL(u)
+      })
       urls = []
     },
     async play() {
@@ -173,7 +178,8 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     time: () => voices.currentTime,
     playing: () => isPlaying,
     on(ev: string, fn: (x?: any) => void) {
-      ;(listeners[ev] ??= []).push(fn)
+      if (!listeners[ev]) listeners[ev] = []
+      listeners[ev].push(fn)
     },
   }
   return engine

@@ -77,7 +77,8 @@ async function mount(ctx: any): Promise<HTMLElement> {
   el.songId = 's'
   document.body.append(el)
   await el.updateComplete
-  return (ctx.el = el)
+  ctx.el = el
+  return el
 }
 const text = async (ctx: any) => deepText(await mount(ctx)).replace(/\s+/g, ' ')
 const press = async (ctx: any, label: string) => {

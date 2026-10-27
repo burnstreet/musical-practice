@@ -105,7 +105,12 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     ctx.strokeStyle = colour
     ctx.lineWidth = width
     ctx.beginPath()
-    pts.forEach((p, i) => p && (pts[i - 1] ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])))
+    pts.forEach((p, i) => {
+      if (p) {
+        if (pts[i - 1]) ctx.lineTo(p[0], p[1])
+        else ctx.moveTo(p[0], p[1])
+      }
+    })
     ctx.stroke()
   }
   const last = pts.at(-1)
