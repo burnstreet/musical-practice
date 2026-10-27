@@ -4,6 +4,7 @@ import { setContext, type AppContext, type Route, type ShellDeps } from './conte
 import { settings } from './settings'
 import './settings-sheet'
 import './headphone-sheet'
+import { leaveSession } from './screens/practice'
 
 /** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
 function guard(ctx: AppContext, hash: string): Route {
@@ -86,7 +87,7 @@ export class GuApp extends LitElement {
   private onHash = () => {
     const to = guard(this.ctx, location.hash)
     if (to !== location.hash) history.replaceState(null, '', to)
-    if (to === '#/songs' || to === '#/start') this.ctx.live = null
+    if (to === '#/songs' || to === '#/start') leaveSession(this.ctx) // clears live
     this.hash = to
   }
 

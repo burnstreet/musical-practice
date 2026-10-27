@@ -191,5 +191,59 @@ export default steps(({ Given, When, Then }) => {
     expect(byLabel(ctx.el, 'Abspielen')).not.toBeNull()
   })
 
-  void pass
+  // Mic and roles
+  Given(/^pitch\.start returns (denied|unsupported)$/, (ctx, r) => { world(ctx).startResult = r })
+  Then(/^the banner "([^"]+)" is visible and play works$/, async (ctx, banner) => {
+    await screen(ctx)
+    expect(text(ctx.el)).toContain(banner)
+    expect(byLabel(ctx.el, 'Mikrofon aus')).not.toBeNull()
+    await play(ctx)
+    expect(ctx.playing).toBe(true)
+    await enterNote(ctx, 1)
+    await press(ctx, 'Pause und Auswertung')
+    expect(location.hash).toBe('#/practice/08') // results disabled
+  })
+  Given(/^roles \[(\w+)\] selected for song "(\w+)"$/, (ctx, role) => {
+    world(ctx)
+    settings.set({ roles: [role as any], mode: 'others' })
+  })
+  Then(/^the hint "([^"]+)" is visible, no mic button, mode is all$/, async (ctx, hint) => {
+    await screen(ctx)
+    expect(text(ctx.el)).toContain(hint)
+    expect(byLabel(ctx.el, 'Mikrofon aktiv') ?? byLabel(ctx.el, 'Mikrofon aus')).toBeNull()
+    expect(ctx.calls).not.toContain('pitch.start')
+    expect(ctx.mode).toBe('all')
+    expect(button(ctx, 'Voicetrack').textContent).toContain('alle Stimmen')
+    await play(ctx)
+    await press(ctx, 'Pause und Auswertung')
+    expect(location.hash).toBe('#/songs')
+  })
+
+  // Tempo
+  When(/^I tap tempo three times$/, async (ctx) => {
+    await screen(ctx)
+    for (const t of [100, 90, 80]) await press(ctx, `Tempo ${t} Prozent`)
+  })
+  Then(/^the button shows "(\d+)%" and engine tempo is (\d+)$/, (ctx, shown, t) => {
+    expect(byLabel(ctx.el, `Tempo ${shown} Prozent`)!.textContent!.trim()).toBe(`${shown}%`)
+    expect(ctx.tempo).toBe(+t)
+    expect(text(ctx.el)).toContain('· F · 65 BPM') // 93 × 0.7
+  })
+
+  // Leaving
+  Given(/^two completed passes$/, async (ctx) => {
+    await screen(ctx)
+    await pass(ctx)
+    await pass(ctx)
+    expect(ctx.app.live.session.passes()).toHaveLength(2)
+  })
+  When(/^I navigate back$/, (ctx) => press(ctx, 'Zurück zur Auswahl'))
+  Then(/^history\.record was called with two passes and engine\.unload ran$/, (ctx) => {
+    expect(ctx.recorded).toMatchObject({ id: '08', roles: ['maria'] })
+    expect(ctx.recorded.passes).toHaveLength(2)
+    expect(ctx.calls).toContain('unload')
+    expect(ctx.calls).toContain('pitch.stop')
+    expect(ctx.app.live).toBeNull()
+    expect(location.hash).toBe('#/songs')
+  })
 })
