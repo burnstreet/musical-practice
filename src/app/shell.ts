@@ -4,6 +4,7 @@ import { setContext, type AppContext, type Route, type ShellDeps } from './conte
 import { settings } from './settings'
 import './settings-sheet'
 import './headphone-sheet'
+import './screens/start'
 
 /** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
 function guard(ctx: AppContext, hash: string): Route {
@@ -116,3 +117,4 @@ export class GuApp extends LitElement {
 }
 
 customElements.define('gu-app', GuApp)
+
