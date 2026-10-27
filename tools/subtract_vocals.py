@@ -10,6 +10,7 @@ Outputs (mix timeline, mono 44.1 kHz):
 
 Usage: python tools/subtract_vocals.py <id>
 """
+
 import json
 import sys
 from pathlib import Path
@@ -68,9 +69,11 @@ def main():
     res = float(np.sum(vocals**2) / np.sum(mix**2))
     freqs = np.fft.rfftfreq(N_FFT, 1 / SR)
     lo = (freqs > 40) & (freqs < 150)
-    print(f"{song_id}: lag {lag} samples ({lag / SR:.3f}s), residual energy {res:.3f} of mix, "
-          f"|g| 40-150Hz median {np.median(np.abs(g[lo])):.3f}, |g| 1-4kHz median "
-          f"{np.median(np.abs(g[(freqs > 1000) & (freqs < 4000)])):.3f}")
+    print(
+        f"{song_id}: lag {lag} samples ({lag / SR:.3f}s), residual energy {res:.3f} of mix, "
+        f"|g| 40-150Hz median {np.median(np.abs(g[lo])):.3f}, |g| 1-4kHz median "
+        f"{np.median(np.abs(g[(freqs > 1000) & (freqs < 4000)])):.3f}"
+    )
 
 
 if __name__ == "__main__":

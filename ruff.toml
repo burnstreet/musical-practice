@@ -1,0 +1,10 @@
+line-length = 140
+target-version = "py312"
+extend-exclude = [".venv", "tools/.venv"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B905", "E741"]
+
+[lint.per-file-ignores]
+"tools/tests/*" = ["F811", "F401", "F403"]

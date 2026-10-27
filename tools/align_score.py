@@ -12,6 +12,7 @@ start/end times from the audio (fields bar, beat, dur, lyric, pass kept).
 Usage: python tools/align_score.py <score.json> <pitch.json> <out.json>
          [--bpm 90] [--passes 2] [--repeat-bars 9-12]
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -66,8 +67,13 @@ def align_pass(score_midi, audio_midi, masked):
     a[masked] = np.nan
     C = cost_matrix(score_midi, a)
     C[:, masked] += 2.0  # keep away from already-used regions
-    D, wp = librosa.sequence.dtw(C=C, subseq=True, step_sizes_sigma=np.array([[1, 1], [1, 2], [2, 1]]),
-                                 weights_add=np.array([0, 0, 0]), weights_mul=np.array([1, 1, 1]))
+    D, wp = librosa.sequence.dtw(
+        C=C,
+        subseq=True,
+        step_sizes_sigma=np.array([[1, 1], [1, 2], [2, 1]]),
+        weights_add=np.array([0, 0, 0]),
+        weights_mul=np.array([1, 1, 1]),
+    )
     wp = wp[::-1]  # (score_frame, audio_frame), increasing
     cost = D[-1, wp[-1, 1]] / len(score_midi)
     return wp, cost
@@ -88,10 +94,19 @@ def notes_from_path(seq, spans, wp, t_audio, audio_midi=None, snap=False):
         if not a_frames:
             continue
         a0, a1 = min(a_frames), max(a_frames) + 1
-        note = {"start": round(float(t_audio[a0]), 3), "end": round(float(t_audio[min(a1, len(t_audio) - 1)]), 3),
-                "midi": n["midi"], "name": n["name"], "bar": n["bar"], "beat": n["beat"], "dur": n["dur"],
-                "lyric": n.get("lyric"), "section": n.get("section"), "role": n.get("role"),
-                "repeat": n.get("repeat", False)}
+        note = {
+            "start": round(float(t_audio[a0]), 3),
+            "end": round(float(t_audio[min(a1, len(t_audio) - 1)]), 3),
+            "midi": n["midi"],
+            "name": n["name"],
+            "bar": n["bar"],
+            "beat": n["beat"],
+            "dur": n["dur"],
+            "lyric": n.get("lyric"),
+            "section": n.get("section"),
+            "role": n.get("role"),
+            "repeat": n.get("repeat", False),
+        }
         if snap and audio_midi is not None:
             sung = audio_midi[a0:a1]
             sung = sung[np.isfinite(sung)]
@@ -156,16 +171,18 @@ def main():
         for k in range(args.passes):
             wp, cost = align_pass(sec_midi, audio_midi, masked)
             a0, a1 = wp[0, 1], wp[-1, 1]
-            if cost > args.max_cost or masked[a0:a1 + 1].mean() > 0.3:
+            if cost > args.max_cost or masked[a0 : a1 + 1].mean() > 0.3:
                 break
             notes = notes_from_path(sec_seq, sec_spans, wp, t_audio, audio_midi, snap=args.snap)
             for n in notes:
                 n["pass"] = k
             bpm_est = sung_beats / max(t_audio[a1] - t_audio[a0], 1e-3) * 60
             snapped = sum(1 for n in notes if n.get("snapped"))
-            print(f"{sec_name or 'score'} #{k}: audio {t_audio[a0]:.1f}-{t_audio[a1]:.1f}s, mean cost {cost:.3f}, "
-                  f"{len(notes)} notes, implied tempo {bpm_est:.0f} bpm" + (f", {snapped} snapped" if args.snap else ""))
-            masked[a0:a1 + 1] = True
+            print(
+                f"{sec_name or 'score'} #{k}: audio {t_audio[a0]:.1f}-{t_audio[a1]:.1f}s, mean cost {cost:.3f}, "
+                f"{len(notes)} notes, implied tempo {bpm_est:.0f} bpm" + (f", {snapped} snapped" if args.snap else "")
+            )
+            masked[a0 : a1 + 1] = True
             all_notes += notes
 
     all_notes.sort(key=lambda n: n["start"])
