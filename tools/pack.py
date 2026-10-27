@@ -96,18 +96,39 @@ def check_song(root, cfg_roles, s, work):
 def build_song(s, notes, dur):
     bpm, q = s["bpm"], 60 / s["bpm"]
     bar_len = 4 * q
-    first = notes[0]
-    t0 = first["start"] - first["beat"] * q - first["bar"] * bar_len
+    ordered = sorted(notes, key=lambda n: n["start"])
+    # Score bar numbers repeat on repeated sections: renumber bars sequentially in time order.
+    seq, known, prev = [], {}, None
+    for n in ordered:
+        bs = n["start"] - n["beat"] * q
+        if prev is None:
+            i = n["bar"]
+        elif n["bar"] > prev[0]:
+            i = seq[-1] + n["bar"] - prev[0]
+        elif n["bar"] == prev[0] and bs - prev[1] < bar_len / 2:
+            i = seq[-1]
+        else:  # score bar went back (or same bar a bar later): a repeat starts a new run
+            i = seq[-1] + max(1, round((bs - prev[1]) / bar_len))
+        seq.append(i)
+        known[i] = min(known.get(i, bs), bs)
+        prev = (n["bar"], bs)
+    idx = sorted(known)
+    bars = [known[idx[0]] - (idx[0] - m) * bar_len for m in range(idx[0])]
+    for a, b in zip(idx, idx[1:]):
+        bars += [known[a] + (known[b] - known[a]) * (m - a) / (b - a) for m in range(a, b)]
+    bars.append(known[idx[-1]])
+    while bars[-1] + bar_len <= dur:
+        bars.append(bars[-1] + bar_len)
+    bars = [round(b, 3) for b in bars]
     out = [
         {"start": n["start"], "end": n["end"], "midi": n["midi"], "syllable": n.get("syllable", n.get("lyric", "")),
-         "role": n["role"], "phrase": n["phrase"], "bar": n["bar"], "beat": n["beat"], "dur": n["dur"]}
-        for n in sorted(notes, key=lambda n: n["start"])
+         "role": n["role"], "phrase": n["phrase"], "bar": i, "beat": n["beat"], "dur": n["dur"]}
+        for n, i in zip(ordered, seq)
     ]
     phrases = []
     for p in sorted({n["phrase"] for n in out}):
         ns = [n for n in out if n["phrase"] == p]
         phrases.append({"index": p, "label": f"Phrase {p + 1}", "start": ns[0]["start"], "end": ns[-1]["end"]})
-    bars = [round(t0 + i * bar_len, 3) for i in range(int((dur - t0) / bar_len) + 1)]
     return {"id": s["id"], "bpm": bpm, "key": s["key"], "timeSig": [4, 4], "bars": bars, "notes": out, "phrases": phrases}
 
 

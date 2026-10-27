@@ -206,3 +206,13 @@ def test_song_file_follows_content_format(ctx):
     assert song["notes"][0]["syllable"] == "Sin" and "lyric" not in song["notes"][0]
     assert song["phrases"] == [{"index": 0, "label": "Phrase 1", "start": 1.0, "end": 3.8}, {"index": 1, "label": "Phrase 2", "start": 4.0, "end": 6.8}]
     assert song["bars"][0] == 1.0 and song["bars"][1] == 5.0
+
+
+def test_repeat_gets_later_bar_and_bars_increase():
+    n = [{"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "maria", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}
+         for p, t in enumerate((0.0, 10.0))]
+    song = pack.build_song({"id": "08", "bpm": 60, "key": "F"}, n, 20.0)
+    first, second = (x["bar"] for x in song["notes"])
+    assert first == 0 and second > 0
+    assert song["bars"][second] == 10.0
+    assert all(a < b for a, b in zip(song["bars"], song["bars"][1:]))
