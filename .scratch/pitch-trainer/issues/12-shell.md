@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (vault), 09 (pitch engine), 10 (library), 11 (history)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/shell.spec.md`. Artboards: `design/*.dc.html` for colours and layout. Decisions Q12, Q13, Q35, Q37 in `specs/overview.spec.md`.
 
@@ -20,3 +20,7 @@ PWA: `vite-plugin-pwa` with `injectManifest` and `src/app/sw.ts` (Workbox precac
 - [ ] `npm run build` emits a web manifest and a service worker; `content/` is not precached.
 - [ ] `tokens.css` holds exactly the token table of the spec; `lang="de"` on the document.
 - [ ] Lock flow: confirm dialog strings as in the spec, `vault.lock()` then route start.
+
+## Comments
+
+- 2026-10-27 agent: Merged 08b8491..51b6303: context.ts contract, shell routing, settings, sheets, PWA, fonts, tokens, composition root.

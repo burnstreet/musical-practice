@@ -4,10 +4,14 @@
 
 **Blocked by:** 12 (shell)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/screen-start.spec.md`. Artboards `design/Start.dc.html`, `design/StartDesktop.dc.html`. Context contract from ticket 12.
 
 - [ ] All scenarios pass via `tests/specs/screen-start.test.ts` + `tests/steps/screen-start.steps.ts` with a fake context.
 - [ ] Strings byte-identical to the spec table.
 - [ ] Phone (390) and desktop (1280) layouts per the artboards, touch targets ≥ 44 px.
+
+## Comments
+
+- 2026-10-27 agent: Merged 89d6c38: src/app/screens/start.ts.

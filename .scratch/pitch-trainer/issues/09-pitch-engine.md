@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (content format, for the shared `PitchFrame` type)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/pitch-engine.spec.md`. Constants in `src/core/pitch-constants.ts`.
 
@@ -13,3 +13,7 @@ Testing: the detector function (samples → `midi | null`, clarity) lives in a p
 - [ ] All scenarios pass via `tests/specs/pitch-engine.test.ts` + `tests/steps/pitch-engine.steps.ts`.
 - [ ] `npm run build` still succeeds with the worklet bundled.
 - [ ] `stop` releases the media track and closes nothing shared.
+
+## Comments
+
+- 2026-10-27 agent: Merged b347e78: pitch-constants, pitch-detect, pitch-worklet, pitch-engine; worklet bundled via ?worker&url.
