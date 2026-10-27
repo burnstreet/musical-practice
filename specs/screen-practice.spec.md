@@ -63,7 +63,7 @@ Strings:
 ## Piano roll (canvas)
 
 - Vertical: semitones, labels every semitone row (`C5`, `D5` …). Range follows my notes in view ±2 semitones, min 10 rows.
-- Horizontal: 5 s window, playhead at 1/3 width (1.5 s behind, 3.5 s ahead). Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`.
+- Horizontal: 5 s window, playhead at 30 % width (1.5 s behind, 3.5 s ahead). Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`.
 - Sung line: pitch frames of the last 1.5 s by their live stamp `at` (the newest point sits at the playhead, whatever latency the device reports), folded into the octave of the nearest target note at that time; `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
 
 ## Cents readout
