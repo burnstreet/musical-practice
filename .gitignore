@@ -16,3 +16,4 @@ tools/tests/.features/
 .pytest_cache/
 e2e/.tmp/
 test-results/
+.ruff_cache/
