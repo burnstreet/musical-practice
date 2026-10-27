@@ -16,14 +16,14 @@ function fake(ctx: any) {
   ctx.size = null
   ctx.synced = false
   ctx.routed = ''
-  vi.stubGlobal('fetch', async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }))
   ctx.c = {
     vault: { state: () => ctx.state, unlock: async () => ctx.answer },
     library: {
       fetchManifest: async () => (ctx.size ? manifest : null),
       sizeInfo: () => (ctx.size ? { songCount: 1, totalBytes: ctx.size } : null),
       sync: async () => { ctx.synced = true },
-      songs: () => [{ id: 's', title: '[song title]' }],
+      fetchLibraryCipher: async () => new ArrayBuffer(1),
+      songs: () => [{ id: 's', title: '[Titel]' }],
     },
     route: (to: string) => { ctx.routed = to },
   } as unknown as AppContext
@@ -76,7 +76,7 @@ export default steps(({ Given, When, Then }) => {
     const input = ctx.el.shadowRoot.querySelector('input') as HTMLInputElement
     expect(input.value).toBe('')
     expect(ctx.el.shadowRoot.activeElement).toBe(input)
-    expect(document.body.textContent + text(ctx)).not.toContain('[song title]')
+    expect(document.body.textContent + text(ctx)).not.toContain('[Titel]')
   })
   Then(/^library\.sync was called and the route is "([^"]+)"$/, (ctx, r) => {
     expect(ctx.synced).toBe(true)
