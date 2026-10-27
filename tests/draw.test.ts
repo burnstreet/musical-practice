@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { foldToTargetOctave, rowRange } from '../src/app/draw/roll'
-import { barsPerPage, keyFifths, labelSize, layoutBar, noteValue, pageOf, staffPos } from '../src/app/draw/staff'
+import { barsPerPage, keyFifths, layoutBar, layoutPage, noteValue, type PageOnset, pageOf, staffPos } from '../src/app/draw/staff'
 import type { Note } from '../src/core/content'
 
 describe('staff layout', () => {
@@ -77,44 +77,105 @@ describe('note values', () => {
 
 describe('bar spacing', () => {
   it('spaces equal values equally', () => {
-    expect(layoutBar([0, 1, 2, 3], 4, 400, 0)).toEqual([0, 100, 200, 300])
+    expect(layoutBar([0, 1, 2, 3], 4, 400, [0, 0, 0, 0, 0])).toEqual([0, 100, 200, 300])
   })
 
   it('gives longer notes more room, less than proportional', () => {
     // half + two quarters: 2^0.6 = 1.516 against 1, so the half takes 400 · 1.516 / 3.516 = 172.45
-    const [a, b, c] = layoutBar([0, 2, 3], 4, 400, 0)
+    const [a, b, c] = layoutBar([0, 2, 3], 4, 400, [0, 0, 0, 0])
     expect(a).toBe(0)
     expect(b).toBeCloseTo(172.45, 1)
     expect(c - b).toBeCloseTo(113.8, 1)
   })
 
   it('keeps the rest before the first note', () => {
-    expect(layoutBar([1, 2, 3], 4, 400, 0)).toEqual([100, 200, 300])
+    expect(layoutBar([1, 2, 3], 4, 400, [0, 0, 0, 0])).toEqual([100, 200, 300])
   })
 
   it('holds a minimum distance and takes it from the long notes', () => {
     // four sixteenths would get 23.7 each; they get 30 and the dotted half the rest
-    expect(layoutBar([0, 0.25, 0.5, 0.75, 1], 4, 200, 30)).toEqual([0, 30, 60, 90, 120])
+    expect(layoutBar([0, 0.25, 0.5, 0.75, 1], 4, 200, [0, 30, 30, 30, 30, 0])).toEqual([0, 30, 60, 90, 120])
   })
 
   it('squeezes evenly when even the minimum does not fit', () => {
-    expect(layoutBar([0, 0.5, 1, 1.5], 4, 60, 30)).toEqual([0, 15, 30, 45])
+    expect(layoutBar([0, 0.5, 1, 1.5], 4, 60, [0, 30, 30, 30, 30])).toEqual([0, 15, 30, 45])
   })
 })
 
-describe('syllable labels', () => {
-  it('keeps the size when the text fits', () => {
-    expect(labelSize(20, 30, 12, 9)).toBe(12)
+describe('lyric-aware page layout', () => {
+  // px at scale 1: head 16 (+12 before an accidental), bar pad 18, tail 10, 4 px between labels, empty bar 40
+  const opts = { barQ: 4, leftRoom: 40, head: 16, acc: 12, pad: 18, tail: 10, sep: 4, empty: 40, minScale: 10 / 12 }
+  const on = (bar: number, beat: number, label: number, acc = false): PageOnset => ({ bar, beat, label, acc })
+  /** Every label drawn, none overlapping another in its row, none past the page edges. */
+  const check = (onsets: PageOnset[], width: number, r: ReturnType<typeof layoutPage>) => {
+    expect(r.xs).toHaveLength(onsets.length)
+    const half = (k: number) => (onsets[k].label * r.scale) / 2
+    onsets.forEach((_, k) => {
+      expect(r.xs[k] - half(k), `left edge of ${k}`).toBeGreaterThanOrEqual(-opts.leftRoom - 1e-6)
+      expect(r.xs[k] + half(k), `right edge of ${k}`).toBeLessThanOrEqual(width + 1e-6)
+      const next = r.stagger ? k + 2 : k + 1 // staggered: odd labels on the second row
+      if (next < onsets.length) expect(r.xs[next] - r.xs[k], `labels ${k} and ${next}`).toBeGreaterThanOrEqual(half(k) + half(next) + opts.sep - 1e-6)
+    })
+  }
+
+  it('keeps the normal size and one row when the labels fit', () => {
+    const onsets = [on(0, 0, 20), on(0, 2, 30), on(1, 0, 25), on(1, 1, 40)]
+    const r = layoutPage([0, 1], onsets, { ...opts, width: 400 })
+    expect(r).toMatchObject({ scale: 1, stagger: false })
+    check(onsets, 400, r)
   })
-  it('shrinks to fit, down to the minimum', () => {
-    expect(labelSize(40, 30, 12, 9)).toBe(9)
-    expect(labelSize(36, 33, 12, 9)).toBeCloseTo(11)
+
+  it('gives a bar with long syllables more width than a sparse one', () => {
+    const onsets = [on(0, 0, 10), on(1, 0, 60), on(1, 1, 60), on(1, 2, 60), on(1, 3, 60)]
+    const r = layoutPage([0, 1], onsets, { ...opts, width: 400 })
+    expect(r.barW[1]).toBeGreaterThan(r.barW[0] * 2)
+    expect(r.barW[0] + r.barW[1]).toBeCloseTo(400)
+    check(onsets, 400, r)
   })
-  it('skips a label that does not fit at the minimum', () => {
-    expect(labelSize(60, 30, 12, 9)).toBeNull()
+
+  it('keeps labels apart across a bar line', () => {
+    const onsets = [on(0, 0, 10), on(0, 3.5, 50), on(1, 0, 50)]
+    const r = layoutPage([0, 1], onsets, { ...opts, width: 300 })
+    check(onsets, 300, r)
+  })
+
+  it('shrinks the lyric font before staggering', () => {
+    // 8 eighths of 40 px labels: 8 · 44 = 352 needed at normal size
+    const onsets = Array.from({ length: 8 }, (_, i) => on(Math.floor(i / 4), (i % 4) * 0.5, 40))
+    const r = layoutPage([0, 1], onsets, { ...opts, width: 330 })
+    expect(r.stagger).toBe(false)
+    expect(r.scale).toBeLessThan(1)
+    expect(r.scale).toBeGreaterThanOrEqual(opts.minScale)
+    check(onsets, 330, r)
+  })
+
+  it('staggers alternate labels onto a second row when even the small font does not fit', () => {
+    const onsets = Array.from({ length: 16 }, (_, i) => on(Math.floor(i / 8), (i % 8) * 0.5, 40, i % 3 === 0))
+    const r = layoutPage([0, 1], onsets, { ...opts, width: 500 })
+    expect(r.stagger).toBe(true)
+    check(onsets, 500, r)
+  })
+
+  it('puts each bar right after the previous one, its notes inside it', () => {
+    const onsets = [on(0, 0, 20), on(0, 2, 30), on(1, 1, 60), on(2, 0, 10), on(2, 3, 25)]
+    const r = layoutPage([0, 1, 2], onsets, { ...opts, width: 600 })
+    expect(r.barX[0]).toBe(0)
+    expect(r.barX[1]).toBeCloseTo(r.barW[0])
+    expect(r.barX[2]).toBeCloseTo(r.barW[0] + r.barW[1])
+    expect(r.barX[2] + r.barW[2]).toBeCloseTo(600)
+    onsets.forEach((p, k) => {
+      expect(r.xs[k]).toBeGreaterThanOrEqual(r.barX[p.bar] + opts.pad - 1e-6) // room for an accidental after the bar line
+      expect(r.xs[k]).toBeLessThanOrEqual(r.barX[p.bar] + r.barW[p.bar] - opts.tail + 1e-6)
+    })
+  })
+
+  it('leaves an empty bar its minimum width', () => {
+    const onsets = [on(0, 0, 30), on(0, 1, 30)]
+    const r = layoutPage([0, 1], onsets, { ...opts, width: 400 })
+    expect(r.barW[1]).toBeGreaterThan(0)
+    check(onsets, 400, r)
   })
 })
-
 describe('roll layout', () => {
   it('spans my notes in view ±2 semitones', () => {
     expect(rowRange([60, 72])).toEqual([58, 74])
