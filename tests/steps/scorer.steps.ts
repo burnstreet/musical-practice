@@ -220,6 +220,26 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.session.passes()).toEqual([])
   })
 
+  Given(/^a session for roles \[maria, josef\] with maria and josef both on note \[1.0,2.0\] midi 67$/, (ctx) => {
+    const s = song([{}, { role: 'josef' }])
+    s.notes[1] = { ...s.notes[0], role: 'josef' } // song() spaces notes; put the josef copy on the maria note
+    ctx.session = new Session(s, ['maria', 'josef'], 50)
+  })
+  When(/^I start a pass, enter both copies, feed frames at 67, end the pass$/, (ctx) => {
+    const s: Session = ctx.session
+    s.startPass()
+    s.enter(0)
+    s.enter(1)
+    frames(times(10, 67)).forEach((f) => {
+      s.frame(f)
+    })
+    ctx.result = s.endPass()
+  })
+  Then(/^scoredNotes is (\d+) and myNotes has (\d+) note$/, (ctx, n, m) => {
+    expect(ctx.result.scoredNotes).toBe(+n)
+    expect(ctx.session.myNotes()).toHaveLength(+m)
+  })
+
   // "sung is true, hit is true, cents is 10", "hitPct is 50, meanCents is -25, tendency is low" etc., checked against ctx.result
   Then(/^(\w+ is [^\s,]+(?:(?:, | and )\w+ is [^\s,]+)*)$/, (ctx, all) => {
     for (const [, k, v] of all.matchAll(/(\w+) is ([^\s,]+)/g)) {

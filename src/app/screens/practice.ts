@@ -6,7 +6,8 @@ import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
-import { type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
+import { barsPerPage, type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
+import { features } from '../features'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -34,9 +35,11 @@ const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height
 const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 28)
 const MIC = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></g>`,
+  18,
 )
 const MIC_OFF = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M4 4l16 16"/></g>`,
+  18,
 )
 
 /** Ends the live session: unload, mic off, history. Back button and the shell (routes to songs/start) call it; no-op without one. */
@@ -95,18 +98,21 @@ export class GuPractice extends LitElement {
     .legend i.other { background: var(--other); }
     canvas { display: block; width: 100%; }
     .staff canvas { height: 112px; }
+    .staff canvas.tall { height: 126px; } /* second lyric row, set by the staff drawing */
     .roll { grid-area: roll; }
     .roll canvas { height: 168px; }
-    @media (min-width: 960px) { .staff canvas { height: 136px; } .roll canvas { height: 216px; } }
+    @media (min-width: 960px) { .staff canvas { height: 136px; } .staff canvas.tall { height: 153px; } .roll canvas { height: 216px; } }
     .readout { grid-area: readout; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .readout .line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .readout big { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; margin-right: 8px; }
     .readout small { font-size: 13px; color: var(--muted); }
     .readout strong { font-size: 14px; }
-    .meter { position: relative; height: 8px; border-radius: 4px; background: var(--line); }
-    .meter .band { position: absolute; top: 0; bottom: 0; background: var(--accent); opacity: 0.5; border-radius: 4px; }
-    .meter .tick { position: absolute; left: 50%; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--text); }
-    .meter .dot { position: absolute; top: -5px; width: 18px; height: 18px; margin-left: -9px; border-radius: 9px; box-sizing: border-box; background: var(--text); border: 3px solid var(--surface); }
+    /* passive display: thin, labelled ends, no thumb at rest (must not read as a slider) */
+    .meter { position: relative; height: 3px; margin-top: 4px; background: var(--line); }
+    .meter .band { position: absolute; top: 0; bottom: 0; background: var(--accent); opacity: 0.5; }
+    .meter .tick { position: absolute; left: 50%; top: -2px; width: 1px; height: 7px; background: var(--muted); }
+    .meter .dot { position: absolute; top: -3px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--text); }
+    .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -4px; }
     .transport { grid-area: transport; align-self: end; display: flex; flex-direction: column; gap: 10px; }
     @media (min-width: 960px) { .transport { align-self: start; background: var(--surface); border-radius: 24px; padding: 20px 24px; } .transport .round { background: var(--bg); } }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
@@ -115,6 +121,7 @@ export class GuPractice extends LitElement {
     .buttons button.round { font-size: 13px; font-weight: 700; }
     .round[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
     .main { width: 72px; height: 72px; border-radius: 36px; background: var(--accent) !important; color: var(--ink) !important; }
+    .mic { display: flex; align-items: center; flex: none; }
     .mic.on { color: var(--accent); }
     .mic:not(.on) { color: var(--muted); }
   `
@@ -200,7 +207,12 @@ export class GuPractice extends LitElement {
       wired.add(pitch)
       pitch.on('frame', (f) => current?.onFrame(f))
     }
-    if (this.singsHere) this.mic = (await pitch.start(() => engine.time())) === 'ok'
+    if (this.singsHere)
+      this.mic =
+        (await pitch.start(
+          () => engine.time(),
+          () => engine.latency(),
+        )) === 'ok'
     ctx.live = { songId: this.songId, song: loaded, session: this.session }
     this.t = engine.time()
     this.loaded = loaded
@@ -218,8 +230,10 @@ export class GuPractice extends LitElement {
     const { engine, route } = getContext()
     engine.pause()
     this.playing = false
+    const passed = this.mic && this.session.endPass() // history still gets the pass
+    if (!features.results) return
     if (!this.singsHere) route('#/songs')
-    else if (this.mic && this.session.endPass()) route(`#/results/${this.songId}`)
+    else if (passed) route(`#/results/${this.songId}`)
   }
 
   private back() {
@@ -284,7 +298,9 @@ export class GuPractice extends LitElement {
     const { library, settings, openSettings } = getContext()
     const s = settings.get()
     const { bars, key, bpm } = loaded.song
-    const firstBar = pageOf(bars, this.t) * 4 + 1
+    // the staff page the canvas draws; before the first layout the canvas is missing and counts as narrow
+    const per = barsPerPage(this.renderRoot.querySelector<HTMLElement>('.staff canvas')?.clientWidth ?? 0)
+    const firstBar = pageOf(bars, this.t, per) * per + 1
     const readout = this.readout()
     const mine = library
       .roles()
@@ -296,7 +312,7 @@ export class GuPractice extends LitElement {
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
         <h1>Lied ${loaded.meta.number} · ${loaded.meta.title}</h1>
-        <p>Takt ${firstBar}–${firstBar + 3} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
+        <p>Takt ${firstBar}–${firstBar + per - 1} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
       </div>
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>
@@ -320,6 +336,7 @@ export class GuPractice extends LitElement {
         <div class="tick"></div>
         ${readout.cents === null ? '' : html`<div class="dot" style="left:${50 + Math.max(-100, Math.min(100, readout.cents)) / 2}%"></div>`}
       </div>
+      <div class="ends"><span>tief</span><span>hoch</span></div>
     </section>
     <div class="transport">
       <div class="progress">
@@ -332,11 +349,11 @@ export class GuPractice extends LitElement {
         <button class="round" aria-label="Zurück zum Anfang der Phrase" @click=${() => this.seek(this.phrase().start)}>${TO_START}</button>
         ${
           this.playing
-            ? html`<button class="round main" aria-label="Pause und Auswertung" @click=${this.pause}>${PAUSE}</button>`
+            ? html`<button class="round main" aria-label=${features.results ? 'Pause und Auswertung' : 'Pause'} @click=${this.pause}>${PAUSE}</button>`
             : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`
         }
         <button class="round" aria-label="Tempo ${this.tempo} Prozent" @click=${() => this.setTempo(NEXT_TEMPO[this.tempo])}>${this.tempo}%</button>
-        ${this.singsHere ? html`<span class="round mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
+        ${this.singsHere ? html`<span class="mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
       </div>
     </div>`
   }

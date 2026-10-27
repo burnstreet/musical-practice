@@ -1,5 +1,6 @@
 import { expect } from 'vitest'
 import { type AppContext, setContext } from '../../src/app/context'
+import { features } from '../../src/app/features'
 import type { GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
 import type { Note, Song, SongMeta } from '../../src/core/content'
@@ -44,6 +45,7 @@ function world(ctx: any) {
   document.body.innerHTML = ''
   localStorage.clear()
   history.replaceState(null, '', '#/practice/08')
+  features.results = false
   settings.set({ roles: ['maria'] })
   ctx.data = fixture()
   ctx.calls = [] as string[]
@@ -103,11 +105,13 @@ function world(ctx: any) {
       loop: () => ctx.loop ?? null,
       time: () => ctx.time,
       playing: () => ctx.playing,
+      latency: () => ctx.latency ?? 0,
       on: on(ctx.engineL),
     },
     pitch: {
-      start: async () => {
+      start: async (...args: (() => number)[]) => {
         log('pitch.start')
+        ctx.startArgs = args
         return ctx.startResult
       },
       stop: () => log('pitch.stop'),
@@ -171,8 +175,9 @@ export default steps(({ Given, When, Then }) => {
     world(ctx)
     Object.assign(ctx.data.song, { key, bpm: +bpm })
   })
-  When(/^the screen renders at bar (\d+)$/, async (ctx, bar) => {
+  When(/^the screen renders at bar (\d+) with the staff (\d+) px wide$/, async (ctx, bar, px) => {
     await screen(ctx)
+    Object.defineProperty(ctx.el.shadowRoot!.querySelector('.staff canvas'), 'clientWidth', { value: +px }) // happy-dom has no layout
     await tick(ctx, ctx.data.song.bars[+bar - 1] + 0.5)
   })
   Then(/^the subline reads "([^"]+)"$/, (ctx, s) => {
@@ -217,6 +222,23 @@ export default steps(({ Given, When, Then }) => {
     if (tol) settings.set({ tolerance: +tol as any })
     await frame(ctx, { midi: 74 + ((dir === 'above' ? 1 : -1) * +n) / 100 })
   })
+  Given(/^target D5 and no sung frame$/, async (ctx) => {
+    await screen(ctx)
+    await tick(ctx, 8.5)
+  })
+  const meter = (ctx: any) => ctx.el.shadowRoot!.querySelector('.meter')!.parentElement as HTMLElement
+  Then(/^the meter is labelled "(\w+)" and "(\w+)" and shows no dot$/, (ctx, lo, hi) => {
+    expect(meter(ctx).textContent).toContain(lo)
+    expect(meter(ctx).textContent).toContain(hi)
+    expect(meter(ctx).querySelector('.dot')).toBeNull()
+  })
+  Then(/^the meter shows a dot$/, (ctx) => expect(meter(ctx).querySelector('.dot')).not.toBeNull())
+  Then(/^neither the readout nor the mic indicator is a control$/, (ctx) => {
+    const mic = byLabel(ctx.el, 'Mikrofon aktiv')!
+    expect(mic.getAttribute('role')).toBe('img')
+    expect(mic.classList.contains('round')).toBe(false) // .round is the button look
+    expect(ctx.el.shadowRoot!.querySelector('.readout')!.querySelector('button, input, [role="slider"]')).toBeNull()
+  })
   Then(/^the readout shows (".+)$/, (ctx, list) => {
     for (const [, s] of list.matchAll(/"([^"]+)"/g)) {
       if (/^[A-G]#?\d$/.test(s))
@@ -232,6 +254,7 @@ export default steps(({ Given, When, Then }) => {
     await tap(ctx, b)
   }
   const play = (ctx: any) => press(ctx, 'Abspielen')
+  const pause = (ctx: any) => press(ctx, features.results ? 'Pause und Auswertung' : 'Pause')
   const enterNote = async (ctx: any, i: number) => {
     const n = ctx.data.song.notes[i]
     ctx.engineL.enter?.forEach((fn: (n: Note) => void) => {
@@ -243,7 +266,7 @@ export default steps(({ Given, When, Then }) => {
   const pass = async (ctx: any) => {
     await play(ctx)
     await enterNote(ctx, 1)
-    await press(ctx, 'Pause und Auswertung')
+    await pause(ctx)
   }
   Given(/^a pass with (at least one|no) entered note$/, async (ctx, which) => {
     await screen(ctx)
@@ -251,8 +274,14 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.playing).toBe(true)
     if (which !== 'no') await enterNote(ctx, 1)
   })
-  When(/^I press pause$/, (ctx) => press(ctx, 'Pause und Auswertung'))
-  Then(/^session\.endPass ran and the route is "([^"]+)"$/, (ctx, hash) => {
+  Given(/^the results screen is enabled$/, (ctx) => {
+    world(ctx)
+    features.results = true
+  })
+  When(/^I press pause$/, (ctx) => pause(ctx))
+  When(/^I press the back button$/, (ctx) => press(ctx, 'Zurück zur Auswahl'))
+  Then(/^the route is "([^"]+)"$/, (_ctx, hash) => expect(location.hash).toBe(hash))
+  Then(/^session\.endPass ran and the route (?:is|stays) "([^"]+)"$/, (ctx, hash) => {
     expect(ctx.app.live.session.passes()).toHaveLength(1)
     expect(location.hash).toBe(hash)
   })
@@ -263,6 +292,15 @@ export default steps(({ Given, When, Then }) => {
   })
 
   // Mic and roles
+  Given(/^engine latency ([\d.]+)$/, (ctx, s) => {
+    world(ctx).latency = +s
+  })
+  When(/^the screen opens$/, (ctx) => screen(ctx))
+  Then(/^pitch\.start got the song time and a playback latency of ([\d.]+)$/, (ctx, s) => {
+    ctx.time = 12
+    expect(ctx.startArgs[0]()).toBe(12)
+    expect(ctx.startArgs[1]()).toBeCloseTo(+s, 6)
+  })
   Given(/^pitch\.start returns (denied|unsupported)$/, (ctx, r) => {
     world(ctx).startResult = r
   })
@@ -272,9 +310,10 @@ export default steps(({ Given, When, Then }) => {
     expect(byLabel(ctx.el, 'Mikrofon aus')).not.toBeNull()
     await play(ctx)
     expect(ctx.playing).toBe(true)
+    features.results = true // even with the results screen on, a denied mic gives no results
     await enterNote(ctx, 1)
-    await press(ctx, 'Pause und Auswertung')
-    expect(location.hash).toBe('#/practice/08') // results disabled
+    await pause(ctx)
+    expect(location.hash).toBe('#/practice/08')
   })
   Given(/^roles \[(\w+)\] selected for song "(\w+)"$/, (ctx, role) => {
     world(ctx)
@@ -288,8 +327,8 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.mode).toBe('all')
     expect(button(ctx, 'Voicetrack').textContent).toContain('alle Stimmen')
     await play(ctx)
-    await press(ctx, 'Pause und Auswertung')
-    expect(location.hash).toBe('#/songs')
+    await pause(ctx)
+    expect(location.hash).toBe('#/practice/08') // listen only: pause just pauses
   })
 
   // Tempo
