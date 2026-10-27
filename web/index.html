@@ -32,6 +32,9 @@
   <div id="editTools" class="toolbar" hidden>
     <button id="selAll">Select all</button>
     <button id="selNone">Clear</button>
+    <select id="roleSel"></select>
+    <button id="roleBtn">Rolle setzen</button>
+    <button id="phraseBtn">Phrasenanfang</button>
     <button id="saveBtn" disabled>Save</button>
     <button id="reloadBtn">Reload</button>
     <span class="hint">Click/drag box: select (Shift adds) &middot; drag note: move group &middot; drag note edge: resize &middot; &larr;/&rarr;: 10 ms (Shift: 100 ms, Ctrl: start only, Alt: end only)</span>
@@ -48,6 +51,6 @@
   <div id="status"></div>
 </main>
 <script src="vendor/opensheetmusicdisplay.min.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
