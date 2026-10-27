@@ -1,1 +1,11 @@
-audio
+# Copyrighted material (recordings, lyrics, scores and anything derived from
+# them) must only ever be committed in encrypted form.
+sources
+scores/
+web/data/*.mp3
+web/data/*.json
+web/data/*.png
+!web/data/index.json
+work/
+tools/.venv/
+__pycache__/
