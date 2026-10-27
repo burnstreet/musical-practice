@@ -6,7 +6,7 @@ import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
-import { type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
+import { barsPerPage, type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
 import { features } from '../features'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
@@ -297,7 +297,9 @@ export class GuPractice extends LitElement {
     const { library, settings, openSettings } = getContext()
     const s = settings.get()
     const { bars, key, bpm } = loaded.song
-    const firstBar = pageOf(bars, this.t) * 4 + 1
+    // the staff page the canvas draws; before the first layout the canvas is missing and counts as narrow
+    const per = barsPerPage(this.renderRoot.querySelector<HTMLElement>('.staff canvas')?.clientWidth ?? 0)
+    const firstBar = pageOf(bars, this.t, per) * per + 1
     const readout = this.readout()
     const mine = library
       .roles()
@@ -309,7 +311,7 @@ export class GuPractice extends LitElement {
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
         <h1>Lied ${loaded.meta.number} · ${loaded.meta.title}</h1>
-        <p>Takt ${firstBar}–${firstBar + 3} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
+        <p>Takt ${firstBar}–${firstBar + per - 1} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
       </div>
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>

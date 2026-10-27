@@ -1,4 +1,4 @@
-import type { Note, RoleId, Song } from '../../core/content'
+import { type Note, type RoleId, type Song, visibleNotes } from '../../core/content'
 import type { Tolerance } from '../../core/scorer'
 import type { PitchFrame } from '../../core/types'
 
@@ -77,8 +77,56 @@ export function staffPos(midi: number, fifths: number): { step: number; acc: '' 
   return { step: (oct - 4) * 7 + i - 2, acc }
 }
 
-/** Staff page (4 bars) for the playhead; flips when the playhead enters bar 4k. */
-export const pageOf = (bars: number[], t: number) => Math.floor(Math.max(0, bars.filter((b) => b <= t).length - 1) / 4)
+/** Bars per staff page for the canvas CSS width: 2 on a phone, else 4. Canvas and the practice header both use it. */
+export const barsPerPage = (cssWidth: number): 2 | 4 => (cssWidth < 560 ? 2 : 4)
+
+/** Staff page (`per` bars) for the playhead; flips when the playhead enters bar per·k. */
+export const pageOf = (bars: number[], t: number, per: number) => Math.floor(Math.max(0, bars.filter((b) => b <= t).length - 1) / per)
+
+/** Written values in quarters, sixteenth to whole, dotted up to the dotted half. */
+const VALUES = [0.25, 0.5, 1, 2, 4].flatMap((base) => (base < 4 ? [false, true] : [false]).map((dot) => ({ base, dot })))
+/** Written value for a `dur` in quarters: the nearest value by ratio (1.4 → dotted quarter, 5 → whole). */
+export function noteValue(dur: number): { base: number; dot: boolean } {
+  const off = (v: { base: number; dot: boolean }) => Math.abs(Math.log((v.base * (v.dot ? 1.5 : 1)) / dur))
+  return VALUES.reduce((a, v) => (off(v) < off(a) ? v : a))
+}
+
+/** Engraver-style spacing: room grows with duration ^ 0.6, not linearly. */
+const SPACING = 0.6
+/**
+ * x offsets (0..width) of the distinct sorted onsets (beats) of one bar. Each onset gets room for the time to the next
+ * onset or the bar end, raised to SPACING; a rest before the first onset keeps its room. No onset is closer than
+ * `minGap` to the next (less when even that does not fit): short notes take the minimum, long ones give it up.
+ */
+export function layoutBar(onsets: number[], barQ: number, width: number, minGap: number): number[] {
+  if (!onsets.length) return []
+  const gap = Math.min(minGap, width / onsets.length)
+  const lead = Math.max(0, onsets[0]) ** SPACING
+  const weights = onsets.map((o, i) => Math.max(0, (onsets[i + 1] ?? Math.max(barQ, o)) - o) ** SPACING)
+  const fixed = weights.map(() => false)
+  let scale = 0
+  for (;;) {
+    const free = width - gap * fixed.filter(Boolean).length
+    const freeWeight = lead + weights.reduce((a, w, i) => a + (fixed[i] ? 0 : w), 0)
+    scale = freeWeight > 0 ? free / freeWeight : 0
+    const short = weights.findIndex((w, i) => !fixed[i] && w * scale < gap)
+    if (short < 0) break
+    fixed[short] = true
+  }
+  const xs: number[] = []
+  let x = lead * scale
+  weights.forEach((w, i) => {
+    xs.push(x)
+    x += fixed[i] ? gap : w * scale
+  })
+  return xs
+}
+
+/** Font size for a label `textWidth` wide at `size` in `room` px: shrunk to fit, null below `min` (skip it). */
+export function labelSize(textWidth: number, room: number, size: number, min: number): number | null {
+  const fit = textWidth <= room ? size : (size * room) / textWidth
+  return fit >= min - 1e-9 ? fit : null
+}
 
 /** Sizes the backing store to the element times devicePixelRatio and clears; returns the CSS size. */
 export function fit(ctx: CanvasRenderingContext2D): { w: number; h: number } {
@@ -93,7 +141,11 @@ export function fit(ctx: CanvasRenderingContext2D): { w: number; h: number } {
   return { w, h }
 }
 
-/** Treble staff, 4 bars per page. No-op without a context (happy-dom). */
+/** Room after a bar line before the first head (accidental), and the closest two onsets may get (head + dot). */
+const PAD = 16
+const MIN_GAP = 22
+
+/** Treble staff, `barsPerPage` bars per page. No-op without a context (happy-dom). */
 export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): void {
   if (!ctx) return
   const { w, h } = fit(ctx)
@@ -103,8 +155,9 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const y = (step: number) => 70 * s - (step * gap) / 2
   const fifths = keyFifths(song.key)
   const startX = 46 * s + Math.abs(fifths) * 8 * s
-  const barW = (w - 4 - startX) / 4
-  const page = pageOf(song.bars, t)
+  const per = barsPerPage(w)
+  const barW = (w - 4 - startX) / per
+  const page = pageOf(song.bars, t, per)
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
 
   // Lines, bar lines, clef, key signature
@@ -112,8 +165,14 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.globalAlpha = 0.7
   ctx.lineWidth = 1
   ctx.beginPath()
-  for (let i = 0; i < 5; i++) ctx.moveTo(4, y(i * 2)), ctx.lineTo(w - 4, y(i * 2))
-  for (let i = 1; i <= 4; i++) ctx.moveTo(startX + i * barW, y(8)), ctx.lineTo(startX + i * barW, y(0))
+  for (let i = 0; i < 5; i++) {
+    ctx.moveTo(4, y(i * 2))
+    ctx.lineTo(w - 4, y(i * 2))
+  }
+  for (let i = 1; i <= per; i++) {
+    ctx.moveTo(startX + i * barW, y(8))
+    ctx.lineTo(startX + i * barW, y(0))
+  }
   ctx.stroke()
   ctx.globalAlpha = 1
   ctx.textAlign = 'left'
@@ -125,8 +184,18 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const sig = fifths > 0 ? SHARP_STEPS : FLAT_STEPS
   for (let i = 0; i < Math.min(7, Math.abs(fifths)); i++) ctx.fillText(GLYPH[fifths > 0 ? '#' : 'b'], 40 * s + i * 8 * s, y(sig[i]))
 
-  const notes = song.notes.filter((n) => n.bar >= page * 4 && n.bar < page * 4 + 4)
-  const x = (n: Note) => startX + (n.bar - page * 4) * barW + barW * (0.12 + (0.76 * n.beat) / barQ)
+  const first = page * per
+  const notes = visibleNotes(song.notes, roles).filter((n) => n.bar >= first && n.bar < first + per)
+  // x per (bar, beat): spacing laid out bar by bar
+  const at = new Map<string, number>()
+  for (let b = first; b < first + per; b++) {
+    const onsets = [...new Set(notes.filter((n) => n.bar === b).map((n) => n.beat))].sort((p, q) => p - q)
+    const xs = layoutBar(onsets, barQ, barW - PAD * s, MIN_GAP * s)
+    onsets.forEach((o, i) => {
+      at.set(`${b}:${o}`, startX + (b - first) * barW + PAD * s + xs[i])
+    })
+  }
+  const x = (n: Note) => at.get(`${n.bar}:${n.beat}`)!
   const mine = (n: Note) => roles.includes(n.role)
   const colour = (n: Note) => (mine(n) ? COLORS.accent : COLORS.other)
   const sounding = notes.filter((n) => n.start <= t && t < n.end)
@@ -141,15 +210,22 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     ctx.globalAlpha = 1
   }
 
-  // Role name above each run of same-role notes
+  // Role name above each run of same-role notes; one that would overprint the previous is left out
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
   ctx.font = `700 ${11 * s}px ${FONT}`
+  let right = -Infinity
   for (let i = 0; i < notes.length; ) {
     let j = i
     while (j + 1 < notes.length && notes[j + 1].role === notes[i].role) j++
-    ctx.fillStyle = colour(notes[i])
-    ctx.fillText(names[notes[i].role] ?? notes[i].role, (x(notes[i]) + x(notes[j])) / 2, 18 * s)
+    const label = names[notes[i].role] ?? notes[i].role
+    const cx = (x(notes[i]) + x(notes[j])) / 2
+    const half = ctx.measureText(label).width / 2
+    if (cx - half > right + 4 * s) {
+      ctx.fillStyle = colour(notes[i])
+      ctx.fillText(label, cx, 18 * s)
+      right = cx + half
+    }
     i = j + 1
   }
 
@@ -157,26 +233,71 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     const nx = x(n)
     const { step, acc } = staffPos(n.midi, fifths)
     const ny = y(step)
+    const { base, dot } = noteValue(n.dur)
     const up = step < 4
     const stemX = nx + (up ? 5 : -5) * s
+    const tip = ny + (up ? -28 : 28) * s
+    const rx = (base === 4 ? 6.5 : 5.5) * s
     ctx.strokeStyle = ctx.fillStyle = colour(n)
     ctx.lineWidth = 1.5
     ctx.beginPath()
-    for (let st = -2; st >= step; st -= 2) ctx.moveTo(nx - 9 * s, y(st)), ctx.lineTo(nx + 9 * s, y(st)) // ledger lines below
-    for (let st = 10; st <= step; st += 2) ctx.moveTo(nx - 9 * s, y(st)), ctx.lineTo(nx + 9 * s, y(st)) // and above
-    ctx.moveTo(stemX, ny)
-    ctx.lineTo(stemX, ny + (up ? -28 : 28) * s)
+    for (let st = -2; st >= step; st -= 2) {
+      ctx.moveTo(nx - rx - 3.5 * s, y(st)) // ledger lines below
+      ctx.lineTo(nx + rx + 3.5 * s, y(st))
+    }
+    for (let st = 10; st <= step; st += 2) {
+      ctx.moveTo(nx - rx - 3.5 * s, y(st)) // and above
+      ctx.lineTo(nx + rx + 3.5 * s, y(st))
+    }
+    if (base < 4) {
+      ctx.moveTo(stemX, ny)
+      ctx.lineTo(stemX, tip)
+    }
     ctx.stroke()
+    // flags: one for an eighth, two for a sixteenth, on the right of the stem, curling back to the head
+    const flags = base === 0.5 ? 1 : base === 0.25 ? 2 : 0
+    const dir = up ? 1 : -1
+    ctx.lineWidth = 1.8 * s
+    for (let k = 0; k < flags; k++) {
+      const fy = tip + dir * k * 6 * s
+      ctx.beginPath()
+      ctx.moveTo(stemX, fy)
+      ctx.bezierCurveTo(stemX + 1 * s, fy + dir * 6 * s, stemX + 8 * s, fy + dir * 8 * s, stemX + 6 * s, fy + dir * 16 * s)
+      ctx.stroke()
+    }
+    // head: hollow for half and whole
     ctx.beginPath()
-    ctx.ellipse(nx, ny, 5.5 * s, 4 * s, -Math.PI / 9, 0, 2 * Math.PI)
-    ctx.fill()
+    ctx.ellipse(nx, ny, rx, 4 * s, base === 4 ? -Math.PI / 18 : -Math.PI / 9, 0, 2 * Math.PI)
+    if (base >= 2) {
+      ctx.lineWidth = 1.6 * s
+      ctx.stroke()
+    } else ctx.fill()
+    if (dot) {
+      ctx.beginPath()
+      ctx.arc(nx + rx + 4 * s, step % 2 === 0 ? y(step + 1) : ny, 1.7 * s, 0, 2 * Math.PI) // a dot on a line sits in the space above
+      ctx.fill()
+    }
     if (acc) {
       ctx.font = `${14 * s}px ${MUSIC}`
       ctx.textBaseline = 'middle'
       ctx.fillText(GLYPH[acc], nx - 13 * s, ny)
       ctx.textBaseline = 'alphabetic'
     }
-    ctx.font = `${n === current && mine(n) ? 700 : 400} ${12 * s}px ${FONT}`
-    ctx.fillText(n.syllable, nx, 100 * s)
   }
+
+  // Syllables: one per onset (mine first), centred, shrunk to the room between neighbours or left out
+  const heads = [...new Set(notes.map(x))].sort((p, q) => p - q)
+  heads.forEach((hx, i) => {
+    const here = notes.filter((n) => x(n) === hx)
+    const n = here.find(mine) ?? here[0]
+    if (!n.syllable) return
+    const room = Math.min(2 * hx, hx - (heads[i - 1] ?? -Infinity), (heads[i + 1] ?? Infinity) - hx, 2 * (w - hx)) - 2 * s
+    const weight = n === current && mine(n) ? 700 : 400
+    ctx.font = `${weight} ${12 * s}px ${FONT}`
+    const size = labelSize(ctx.measureText(n.syllable).width, room, 12 * s, 9 * s)
+    if (size === null) return
+    ctx.font = `${weight} ${size}px ${FONT}`
+    ctx.fillStyle = colour(n)
+    ctx.fillText(n.syllable, hx, 100 * s)
+  })
 }
