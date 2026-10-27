@@ -1,4 +1,5 @@
 import { css, html, LitElement } from 'lit'
+import { type Calibration, type CalibrationRun, offsetFor, runCalibration } from '../core/calibration'
 import { noteName, type Tolerance } from '../core/scorer'
 import { getContext } from './context'
 import { sheetStyles } from './sheet'
@@ -12,7 +13,14 @@ const TOLERANCES: [Tolerance, string][] = [
 
 /** Settings sheet. Shell renders it while open; it fires `close` when done. */
 export class GuSettingsSheet extends LitElement {
-  static properties = { confirming: { state: true }, mic: { state: true }, level: { state: true }, note: { state: true }, inputs: { state: true } }
+  static properties = {
+    confirming: { state: true },
+    mic: { state: true },
+    level: { state: true },
+    note: { state: true },
+    inputs: { state: true },
+    cal: { state: true },
+  }
   static styles = [
     sheetStyles,
     css`
@@ -31,6 +39,11 @@ export class GuSettingsSheet extends LitElement {
   declare note: string
   /** Audio inputs; labels appear once the mic was allowed. */
   declare inputs: { deviceId: string; label: string }[]
+  /** Latency calibration: idle, running, its result, or why it gave none. */
+  declare cal: 'idle' | 'running' | Calibration | 'unclear' | 'no-mic'
+  /** Runner; tests swap it. */
+  calibrate = runCalibration
+  private run: { run: CalibrationRun; restore: () => void } | null = null
   private timer = 0
   private unsubscribe = () => {}
   /** The practice screen's mic was already running: only listen, leave it on at the end. */
@@ -43,6 +56,7 @@ export class GuSettingsSheet extends LitElement {
     this.level = 0
     this.note = ''
     this.inputs = []
+    this.cal = 'idle'
   }
 
   connectedCallback() {
@@ -62,6 +76,38 @@ export class GuSettingsSheet extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this.stopMic()
+    this.cancelCal()
+  }
+
+  /** Clicks on the playback context, mic on its clock; on success the offset the pitch engine still needs. */
+  private async measure() {
+    const { engine, pitch, settings } = getContext()
+    this.stopMic()
+    if (engine.playing()) engine.pause() // clicks, not the song
+    const id = settings.get().micDeviceId
+    const clocks = pitch.active() ? pitch.clocks() : null // the practice mic gets its clocks back
+    const restore = () => (clocks ? void pitch.start(...clocks, id) : pitch.stop())
+    const run = this.calibrate(engine, pitch, id)
+    this.run = { run, restore }
+    this.cal = 'running'
+    const result = await run.done
+    if (this.run?.run !== run) return // cancelled
+    this.run = null
+    if (result && result !== 'no-mic') {
+      const ms = offsetFor(result.ms, engine.latency(), pitch.inputLatency())
+      settings.set({ micOffsetMs: ms })
+      pitch.setOffsetMs(ms)
+    }
+    restore()
+    this.cal = result ?? 'unclear'
+  }
+
+  private cancelCal() {
+    if (!this.run) return
+    this.run.run.cancel()
+    this.run.restore()
+    this.run = null
+    this.cal = 'idle'
   }
 
   private async startMic() {
@@ -91,6 +137,7 @@ export class GuSettingsSheet extends LitElement {
 
   private close() {
     this.stopMic()
+    this.cancelCal()
     this.dispatchEvent(new Event('close'))
   }
 
@@ -131,7 +178,19 @@ export class GuSettingsSheet extends LitElement {
         <p>${s.micOffsetMs} ms</p>
         <p>Wenn dein Ton zu früh oder zu spät angezeigt wird.</p>
         <p>Gemessen: Wiedergabe ${ms(engine.latency())} ms · Mikrofon ${ms(pitch.inputLatency())} ms</p>
-
+        <button ?disabled=${this.cal === 'running'} @click=${this.measure}>Verzögerung messen</button>
+        <p>Sag „ta“ genau mit jedem Klick – oder halte den Kopfhörer ans Mikrofon.</p>
+        ${
+          this.cal === 'running'
+            ? html`<p role="status">Messung läuft …</p><button @click=${this.cancelCal}>Abbrechen</button>`
+            : this.cal === 'unclear'
+              ? html`<p role="alert">Nicht eindeutig – bitte nochmal.</p>`
+              : this.cal === 'no-mic'
+                ? html`<p role="alert">Kein Zugriff auf das Mikrofon.</p>`
+                : this.cal !== 'idle'
+                  ? html`<p role="status">Gemessen: ${this.cal.ms} ms (±${this.cal.spreadMs} ms)</p>`
+                  : ''
+        }
         <h3><label for="mic">Mikrofon</label></h3>
         <select id="mic" @change=${(e: Event) => this.chooseMic((e.target as HTMLSelectElement).value)}>
           <option value="" ?selected=${!s.micDeviceId}>Automatisch (eingebautes Mikrofon)</option>
