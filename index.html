@@ -2,11 +2,14 @@
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1F5FAB" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <title>Gesangs-Übetool</title>
+    <style>html, body { margin: 0; background: #1F5FAB; }</style>
   </head>
   <body>
-    <gu-app></gu-app>
+    <!-- <gu-app> is appended by src/main.ts once its modules are wired -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

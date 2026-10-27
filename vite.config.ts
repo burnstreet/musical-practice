@@ -1,8 +1,34 @@
+import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  // web/ holds the old vanilla editor; keep it out of the app build
-  publicDir: false,
+  // relative base: works under the GitHub Pages project path
+  base: './',
+  plugins: [
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src/app',
+      filename: 'sw.ts',
+      injectRegister: false, // the shell registers via workbox-window (src/app/sw-register.ts)
+      injectManifest: {
+        globPatterns: ['**/*.{html,js,css,woff2}'], // manifest and its icons are added by the plugin
+        globIgnores: ['content/**'], // library stores content in IndexedDB
+      },
+      manifest: {
+        name: 'Gesangs-Übetool',
+        short_name: 'Üben',
+        lang: 'de',
+        display: 'standalone',
+        start_url: './',
+        theme_color: '#1F5FAB',
+        background_color: '#1F5FAB',
+        icons: [
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      },
+    }),
+  ],
   test: {
     environment: 'happy-dom',
     include: ['tests/**/*.test.ts'],

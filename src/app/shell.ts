@@ -1,7 +1,9 @@
-import { LitElement, html } from 'lit'
+import { LitElement, css, html } from 'lit'
+import { sheetStyles } from './sheet'
 import { setContext, type AppContext, type Route, type ShellDeps } from './context'
 import { settings } from './settings'
 import './settings-sheet'
+import './headphone-sheet'
 
 /** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
 function guard(ctx: AppContext, hash: string): Route {
@@ -13,11 +15,19 @@ function guard(ctx: AppContext, hash: string): Route {
 export class GuApp extends LitElement {
   /** Set before the element connects: main.ts with the real modules, tests with fakes. */
   static deps: ShellDeps | null = null
-  static properties = { hash: { state: true }, toast: { state: true }, settingsOpen: { state: true } }
+  static styles = [sheetStyles, css`
+    :host { display: block; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+    .hint { margin: 16px; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+    .hint p { color: var(--text); margin: 0 0 12px; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 20px; border-radius: 999px; background: var(--accent); color: var(--ink); font-weight: 700; z-index: 20; }
+  `]
+  static properties = { hash: { state: true }, toast: { state: true }, settingsOpen: { state: true }, headphoneDone: { state: true } }
 
   declare hash: string
   declare toast: string
   declare settingsOpen: boolean
+  /** Set while the headphone sheet is up; resolves the pending ensureHeadphoneSheet. */
+  declare headphoneDone: (() => void) | null
   ctx!: AppContext
   /** Resolves when boot (manifest, vault init, first route) is done. */
   ready!: Promise<void>
@@ -27,6 +37,7 @@ export class GuApp extends LitElement {
     this.hash = ''
     this.toast = ''
     this.settingsOpen = false
+    this.headphoneDone = null
   }
 
   connectedCallback() {
@@ -39,7 +50,8 @@ export class GuApp extends LitElement {
       live: null,
       route: (to) => { location.hash = to },
       openSettings: () => { this.settingsOpen = true },
-      ensureHeadphoneSheet: async () => {},
+      ensureHeadphoneSheet: () =>
+        settings.get().headphoneSheetSeen ? Promise.resolve() : new Promise<void>((r) => { this.headphoneDone = r }),
     }
     setContext(this.ctx)
     window.addEventListener('hashchange', this.onHash)
@@ -65,6 +77,12 @@ export class GuApp extends LitElement {
     }
   }
 
+  private onHeadphone = (e: CustomEvent<{ dontShow: boolean }>) => {
+    if (e.detail.dontShow) settings.set({ headphoneSheetSeen: true })
+    this.headphoneDone?.()
+    this.headphoneDone = null
+  }
+
   private onHash = () => {
     const to = guard(this.ctx, location.hash)
     if (to !== location.hash) history.replaceState(null, '', to)
@@ -73,8 +91,16 @@ export class GuApp extends LitElement {
   }
 
   render() {
-    return html`${this.screen()}
+    const hint = this.hash === '#/songs' && !settings.get().installHintSeen && this.ctx.isIosSafariTab()
+    return html`${hint
+        ? html`<aside class="hint">
+            <p>Zum Startbildschirm hinzufügen, damit die Lieder gespeichert bleiben: Teilen-Symbol, dann „Zum Home-Bildschirm“.</p>
+            <button @click=${() => { settings.set({ installHintSeen: true }); this.requestUpdate() }}>Verstanden</button>
+          </aside>`
+        : ''}
+      ${this.screen()}
       ${this.settingsOpen ? html`<gu-settings-sheet @close=${() => (this.settingsOpen = false)}></gu-settings-sheet>` : ''}
+      ${this.headphoneDone ? html`<gu-headphone-sheet @done=${this.onHeadphone}></gu-headphone-sheet>` : ''}
       ${this.toast ? html`<div class="toast" role="status">${this.toast}</div>` : ''}`
   }
 
