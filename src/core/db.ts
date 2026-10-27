@@ -1,9 +1,9 @@
-/** Shared IndexedDB open: database `gu` v2 with stores `vault`, `files`, `meta`. Upgrade keeps existing stores. */
+/** Shared IndexedDB open: database `gu` v3 with stores `vault`, `files`, `meta`, `history`. Upgrade keeps existing stores. */
 export function openDb(name = 'gu'): Promise<IDBDatabase> {
   return new Promise((res, rej) => {
-    const r = indexedDB.open(name, 2)
+    const r = indexedDB.open(name, 3)
     r.onupgradeneeded = () => {
-      for (const s of ['vault', 'files', 'meta']) if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s)
+      for (const s of ['vault', 'files', 'meta', 'history']) if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s)
     }
     r.onsuccess = () => res(r.result)
     r.onerror = () => rej(r.error)
@@ -17,3 +17,4 @@ export async function withStore<T>(open: () => Promise<IDBDatabase>, store: stri
   const db = await open()
   try { return await done(f(db.transaction(store, mode).objectStore(store))) } finally { db.close() }
 }
+
