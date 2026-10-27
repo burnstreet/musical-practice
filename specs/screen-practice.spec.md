@@ -62,14 +62,14 @@ Strings:
 
 ## Piano roll (canvas)
 
-- Vertical: semitones, labels every semitone row (`C5`, `D5` …). Range follows my notes in view ±2 semitones, min 10 rows.
+- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …). Range follows my notes in view ±2 semitones, min 10 rows.
 - Horizontal: 5 s window, playhead at 30 % width (1.5 s behind, 3.5 s ahead). Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`.
 - Sung line: pitch frames of the last 1.5 s by their live stamp `at` (the newest point sits at the playhead, whatever latency the device reports), folded into the octave of the nearest target note at that time; `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
 
 ## Cents readout
 
 - Sung = latest voiced frame whose `at` lies in the last 150 ms. Target = my note containing that `at` (onset grace ignored here). Scoring keeps the compensated `t`.
-- Shows sung note name folded into target octave, `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`.
+- Shows sung note name (no octave, as everywhere), `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`.
 - Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at cents clamped ±100 only while a voiced frame exists.
 - Mic indicator in the transport row: small status icon, no button styling.
 
@@ -104,7 +104,7 @@ Feature: Practice screen
 
   Scenario: cents text
     Given target D5 and a sung frame 14 cents above
-    Then the readout shows "D5", "Ziel D5" and "+14 Cent · sauber"
+    Then the readout shows "D", "Ziel D" and "+14 Cent · sauber"
     Given a sung frame 40 cents below with tolerance 50
     Then the readout shows "-40 Cent · leicht zu tief"
     Given a sung frame 80 cents above
@@ -130,7 +130,7 @@ Feature: Practice screen
 
   Scenario: octave folded readout
     Given target D5 and a sung frame at D4 plus 5 cents
-    Then the readout shows "D5" and "+5 Cent · sauber"
+    Then the readout shows "D" and "+5 Cent · sauber"
 
   Scenario: pause stays on practice
     Given a pass with at least one entered note

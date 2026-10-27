@@ -24,7 +24,7 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
 
   // the sung A4 against target A4 shows up as a live reading
-  await expect(page.getByText(/Ziel A4/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Ziel A\b/)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/\d+ Cent · sauber/)).toBeVisible({ timeout: 15_000 })
 
   // results screen is off (features.results): pause just pauses
