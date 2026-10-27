@@ -52,9 +52,11 @@ Strings:
 
 - Treble clef, key signature from `song.key`, 5 lines. No beams, no rests, no ties. Accidentals only on pitches outside the key.
 - Note value from `dur` (quarters), quantised to the nearest written value: whole (hollow, no stem), half (hollow, stem), quarter (filled, stem), eighth / sixteenth (filled, stem, 1 / 2 flags); augmentation dot for dotted values (dotted sixteenth to dotted half).
-- Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room; onsets at least a minimum apart (head + dot), short notes take it from long ones.
+- Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room. Minimum distance between onsets = head (more before an accidental) and half of each neighbour's syllable + 4 px; short notes take it from long ones.
+- Bar widths on a page follow each bar's minimum width. Too dense: lyric font shrinks down to 10 px, then every other syllable moves to a second lyric row (canvas class `tall`, a bit higher). Syllables are never left out.
+- Bar lines: solid, text colour, 1.5 px, full staff height, at every bar start on the page and at the page end. Bar number (muted, 10 px) over each bar's start, matching `sub`.
 - Notes drawn = `visibleNotes(song.notes, roles)`: one line where I sing (same for the piano roll).
-- Mine: accent colour. Others: `--other`. Syllable under each onset (mine first), mine bold at the current note; shrunk down to 9 px to fit between neighbours, else left out. Role name above each run of same-role notes, left out where it would overprint the previous one.
+- Mine: accent colour. Others: `--other`. Syllable under each onset (mine first), mine bold at the current note. Role name above each run of same-role notes, left out where it would overprint the previous one.
 - Current note highlighted with a translucent box. Page = `barsPerPage` bars, flips when the playhead enters the next page.
 
 ## Piano roll (canvas)
