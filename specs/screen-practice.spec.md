@@ -27,6 +27,7 @@ Strings:
 | centsSlight | `{±n} Cent · leicht zu hoch` / `leicht zu tief` |
 | centsFar | `{±n} Cent · zu hoch` / `zu tief` |
 | noTarget | `–` |
+| meterEnds | `tief` (left) / `hoch` (right), under the meter |
 | loop | aria `Phrase wiederholen` (toggle) |
 | phraseStart | aria `Zurück zum Anfang der Phrase` |
 | pause | aria `Pause`; with `features.results` on `Pause und Auswertung` |
@@ -63,7 +64,8 @@ Strings:
 
 - Target = my note containing the current time (with onset grace ignored here). Sung = latest voiced frame in the last 150 ms.
 - Shows sung note name folded into target octave, `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`.
-- Meter: bar with tolerance band, centre tick, dot at cents clamped ±100.
+- Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at cents clamped ±100 only while a voiced frame exists.
+- Mic indicator in the transport row: small status icon, no button styling.
 
 ## Transport
 
@@ -95,6 +97,13 @@ Feature: Practice screen
     Then the readout shows "-40 Cent · leicht zu tief"
     Given a sung frame 80 cents above
     Then the readout shows "+80 Cent · zu hoch"
+
+  Scenario: readout and mic are passive indicators
+    Given target D5 and no sung frame
+    Then the meter is labelled "tief" and "hoch" and shows no dot
+    Given a sung frame 14 cents above
+    Then the meter shows a dot
+    And neither the readout nor the mic indicator is a control
 
   Scenario: octave folded readout
     Given target D5 and a sung frame at D4 plus 5 cents

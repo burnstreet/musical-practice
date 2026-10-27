@@ -221,6 +221,23 @@ export default steps(({ Given, When, Then }) => {
     if (tol) settings.set({ tolerance: +tol as any })
     await frame(ctx, { midi: 74 + ((dir === 'above' ? 1 : -1) * +n) / 100 })
   })
+  Given(/^target D5 and no sung frame$/, async (ctx) => {
+    await screen(ctx)
+    await tick(ctx, 8.5)
+  })
+  const meter = (ctx: any) => ctx.el.shadowRoot!.querySelector('.meter')!.parentElement as HTMLElement
+  Then(/^the meter is labelled "(\w+)" and "(\w+)" and shows no dot$/, (ctx, lo, hi) => {
+    expect(meter(ctx).textContent).toContain(lo)
+    expect(meter(ctx).textContent).toContain(hi)
+    expect(meter(ctx).querySelector('.dot')).toBeNull()
+  })
+  Then(/^the meter shows a dot$/, (ctx) => expect(meter(ctx).querySelector('.dot')).not.toBeNull())
+  Then(/^neither the readout nor the mic indicator is a control$/, (ctx) => {
+    const mic = byLabel(ctx.el, 'Mikrofon aktiv')!
+    expect(mic.getAttribute('role')).toBe('img')
+    expect(mic.classList.contains('round')).toBe(false) // .round is the button look
+    expect(ctx.el.shadowRoot!.querySelector('.readout')!.querySelector('button, input, [role="slider"]')).toBeNull()
+  })
   Then(/^the readout shows (".+)$/, (ctx, list) => {
     for (const [, s] of list.matchAll(/"([^"]+)"/g)) {
       if (/^[A-G]#?\d$/.test(s))
@@ -262,7 +279,7 @@ export default steps(({ Given, When, Then }) => {
   })
   When(/^I press pause$/, (ctx) => pause(ctx))
   When(/^I press the back button$/, (ctx) => press(ctx, 'Zurück zur Auswahl'))
-  Then(/^the route is "([^"]+)"$/, (ctx, hash) => expect(location.hash).toBe(hash))
+  Then(/^the route is "([^"]+)"$/, (_ctx, hash) => expect(location.hash).toBe(hash))
   Then(/^session\.endPass ran and the route (?:is|stays) "([^"]+)"$/, (ctx, hash) => {
     expect(ctx.app.live.session.passes()).toHaveLength(1)
     expect(location.hash).toBe(hash)
