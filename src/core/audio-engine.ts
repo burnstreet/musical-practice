@@ -17,6 +17,8 @@ export interface AudioEngine {
   loop(): Phrase | null
   time(): number
   playing(): boolean
+  /** Seconds from song time to the speaker (context base + output latency), 0 when unknown. */
+  latency(): number
   on(ev: 'tick', fn: (t: number) => void): void
   on(ev: 'loop', fn: (phrase: Phrase) => void): void
   on(ev: 'ended', fn: () => void): void
@@ -177,6 +179,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     loop: () => loop,
     time: () => voices.currentTime,
     playing: () => isPlaying,
+    latency: () => (ac?.baseLatency ?? 0) + (ac?.outputLatency ?? 0),
     on(ev: string, fn: (x?: any) => void) {
       if (!listeners[ev]) listeners[ev] = []
       listeners[ev].push(fn)

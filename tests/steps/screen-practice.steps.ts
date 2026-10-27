@@ -103,11 +103,13 @@ function world(ctx: any) {
       loop: () => ctx.loop ?? null,
       time: () => ctx.time,
       playing: () => ctx.playing,
+      latency: () => ctx.latency ?? 0,
       on: on(ctx.engineL),
     },
     pitch: {
-      start: async () => {
+      start: async (...args: (() => number)[]) => {
         log('pitch.start')
+        ctx.startArgs = args
         return ctx.startResult
       },
       stop: () => log('pitch.stop'),
@@ -263,6 +265,15 @@ export default steps(({ Given, When, Then }) => {
   })
 
   // Mic and roles
+  Given(/^engine latency ([\d.]+)$/, (ctx, s) => {
+    world(ctx).latency = +s
+  })
+  When(/^the screen opens$/, (ctx) => screen(ctx))
+  Then(/^pitch\.start got the song time and a playback latency of ([\d.]+)$/, (ctx, s) => {
+    ctx.time = 12
+    expect(ctx.startArgs[0]()).toBe(12)
+    expect(ctx.startArgs[1]()).toBeCloseTo(+s, 6)
+  })
   Given(/^pitch\.start returns (denied|unsupported)$/, (ctx, r) => {
     world(ctx).startResult = r
   })

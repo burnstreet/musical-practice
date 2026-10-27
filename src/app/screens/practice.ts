@@ -200,7 +200,12 @@ export class GuPractice extends LitElement {
       wired.add(pitch)
       pitch.on('frame', (f) => current?.onFrame(f))
     }
-    if (this.singsHere) this.mic = (await pitch.start(() => engine.time())) === 'ok'
+    if (this.singsHere)
+      this.mic =
+        (await pitch.start(
+          () => engine.time(),
+          () => engine.latency(),
+        )) === 'ok'
     ctx.live = { songId: this.songId, song: loaded, session: this.session }
     this.t = engine.time()
     this.loaded = loaded
