@@ -9,6 +9,8 @@ targets:
 
 Lit element `<gu-results>`. Shows the latest `PassResult` of the live session. Pure display.
 
+Switched off for now: `features.results = false` (`src/app/features.ts`). Pause stays on practice and the shell sends the results route to practice. The screen and its tests stay; flip the flag to bring it back.
+
 Strings:
 
 | id | text |

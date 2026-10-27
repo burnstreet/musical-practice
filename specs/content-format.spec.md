@@ -144,6 +144,33 @@ Feature: Role spans
     Then I get spans [1.0,2.0]
 ```
 
+## Visible notes
+
+`visibleNotes(notes, roles)` = the notes staff, piano roll and session use. The singer always sees one line where they sing. Songs store a duet as two identical notes (same start, end, midi) of two roles.
+
+- My notes (role in `roles`) with the same start, end and midi as an earlier one of mine are dropped.
+- Other roles' notes overlapping in time any of my notes are dropped. Elsewhere other roles' notes stay.
+- Order kept. No role of `roles` sings in the song: notes unchanged.
+  `[@test] ../tests/steps/content-format.steps.ts`
+
+```gherkin
+Feature: Visible notes
+  Scenario: duet in unison shows once
+    Given notes maria 67 at [1.0,2.0], josef 67 at [1.0,2.0], maria 69 at [2.0,3.0]
+    When I take the visible notes for [maria, josef]
+    Then I get maria 67 at [1.0,2.0] and maria 69 at [2.0,3.0]
+
+  Scenario: others hidden where I sing
+    Given notes maria 67 at [1.0,2.0], chor 60 at [1.5,2.5], chor 62 at [2.0,3.0], josef 64 at [3.0,4.0]
+    When I take the visible notes for [maria]
+    Then I get maria 67 at [1.0,2.0], chor 62 at [2.0,3.0] and josef 64 at [3.0,4.0]
+
+  Scenario: no part keeps everything
+    Given notes maria 67 at [1.0,2.0], josef 67 at [1.0,2.0]
+    When I take the visible notes for [esel]
+    Then I get maria 67 at [1.0,2.0] and josef 67 at [1.0,2.0]
+```
+
 ## Audio stems
 
 - MP3, mono, 128 kbps, 44.1 kHz. Voices = full mix. Backing = aligned playback or Demucs accompaniment.

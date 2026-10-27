@@ -5,7 +5,8 @@ import type { PitchFrame } from './types'
 export type StartResult = 'ok' | 'denied' | 'unsupported'
 
 export interface PitchEngine {
-  start(songTime: () => number): Promise<StartResult>
+  /** playbackLatency: seconds from song time to the singer's ear (AudioEngine.latency), read per frame. */
+  start(songTime: () => number, playbackLatency?: () => number): Promise<StartResult>
   stop(): void
   setOffsetMs(ms: number): void
   /** Returns the unsubscribe function. */
@@ -31,7 +32,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
   let cleanup = () => {}
   let running = false
 
-  async function start(songTime: () => number): Promise<StartResult> {
+  async function start(songTime: () => number, playbackLatency = () => 0): Promise<StartResult> {
     const getUserMedia = deps.getUserMedia ?? defaultGetUserMedia()
     const makeCtx =
       deps.createContext ?? (typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined' ? () => new AudioContext() : undefined)
@@ -55,7 +56,8 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     const source = ctx.createMediaStreamSource(stream)
     node.port.onmessage = (e: MessageEvent<Omit<PitchFrame, 't'>>) => {
       rms = e.data.rms
-      const t = songTime() - ((ctx.baseLatency ?? 0) + (ctx.outputLatency ?? 0) + offsetMs / 1000)
+      // the singer reacted to what played out playbackLatency ago; the mic adds its input latency on top
+      const t = songTime() - playbackLatency() - (ctx.baseLatency ?? 0) - offsetMs / 1000
       listeners.forEach((fn) => {
         fn({ ...e.data, t })
       })

@@ -24,6 +24,7 @@ export interface AudioEngine {
   setLoop(phrase: Phrase | null): void
   time(): number                                   // song seconds, tempo-independent
   playing(): boolean
+  latency(): number                                // s from song time to the speaker: context baseLatency + outputLatency, 0 when missing or not loaded
   on(ev: 'tick', fn: (t: number) => void): void    // every animation frame while playing
   on(ev: 'loop', fn: (phrase: Phrase) => void): void
   on(ev: 'ended', fn: () => void): void
@@ -37,6 +38,7 @@ export interface AudioEngine {
 - Sync: each tick compare backing to voices. Drift over 25 ms: set backing time to voices time.
 - Loop: when `time()` reaches `phrase.end`, seek to `phrase.start`, emit `loop`. Null clears.
 - `ended`: voices element ends and no loop. Engine pauses.
+- `latency()`: what the singer hears lags `time()` by this. The pitch engine subtracts it from frame stamps.
 - `enter` fires for every note whose `start` lies in (previous tick time, current time], and for notes containing the target after a seek.
   `[@test] ../tests/steps/audio-engine.steps.ts`
 
@@ -92,6 +94,15 @@ Feature: Enter events
     Given a note [5.0,6.0]
     When I seek to 5.5
     Then enter fires once for that note
+
+Feature: Latency
+  Scenario: playback latency from the context
+    Given a loaded song on a context with baseLatency 0.010 and outputLatency 0.030
+    Then latency() is 0.040
+
+  Scenario: latency unknown
+    Given a loaded song
+    Then latency() is 0.000
 
 Feature: End
   Scenario: song ends

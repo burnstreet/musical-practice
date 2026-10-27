@@ -51,12 +51,15 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.frame.midi).toBeNull()
   })
 
-  Given(/^songTime returns ([\d.]+), baseLatency ([\d.]+), outputLatency ([\d.]+) and offset (-?\d+) ms$/, async (ctx, t, base, out, off) => {
-    Object.assign(ctx, { base: +base, out: +out })
-    fakes(ctx, stream(ctx))
-    ctx.engine.setOffsetMs(+off)
-    expect(await ctx.engine.start(() => +t)).toBe('ok')
-  })
+  Given(
+    /^songTime returns ([\d.]+), (?:playback latency ([\d.]+), )?mic baseLatency ([\d.]+), mic outputLatency ([\d.]+) and offset (-?\d+) ms$/,
+    async (ctx, t, play, base, out, off) => {
+      Object.assign(ctx, { base: +base, out: +out })
+      fakes(ctx, stream(ctx))
+      ctx.engine.setOffsetMs(+off)
+      expect(await ctx.engine.start(() => +t, play ? () => +play : undefined)).toBe('ok')
+    },
+  )
   When(/^a frame arrives$/, (ctx) => ctx.port.onmessage({ data: { midi: 69, clarity: 1, rms: 0.2 } }))
   Then(/^its t is ([\d.]+)$/, (ctx, t) => {
     expect(ctx.frames).toHaveLength(1)
