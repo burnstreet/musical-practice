@@ -18,7 +18,7 @@ export interface History {
 }
 
 const MAX = 20
-const keyOf = (songId: string, roles: RoleId[]) => songId + '|' + [...roles].sort().join(',')
+const keyOf = (songId: string, roles: RoleId[]) => `${songId}|${[...roles].sort().join(',')}`
 
 export function createHistory(deps: { vault?: Vault; db?: () => Promise<IDBDatabase>; now?: () => string } = {}): History {
   const open = deps.db ?? (() => openDb())

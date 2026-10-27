@@ -57,7 +57,10 @@ const statsSong = (ctx: any) => {
   ctx.roles = ['maria']
   ctx.byNote = new Map()
 }
-const statsFrames = (ctx: any) => STATS.forEach((c, i) => enter(ctx, i, c))
+const statsFrames = (ctx: any) =>
+  STATS.forEach((c, i) => {
+    enter(ctx, i, c)
+  })
 
 export default steps(({ Given, When, Then }) => {
   Given(/^target midi ([\d.]+) and sung midi ([\d.]+)$/, (ctx, t, s) => {
@@ -113,7 +116,9 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^a pass where every scored note is a hit with \|cents\| under 10$/, (ctx) => {
     statsSong(ctx)
-    ;[5, -5, 8, 0].forEach((c, i) => enter(ctx, i, Array(6).fill(c)))
+    ;[5, -5, 8, 0].forEach((c, i) => {
+      enter(ctx, i, Array(6).fill(c))
+    })
     pass(ctx)
   })
   Given(/^a pass where phrase 0 has cents near 0 and 2 of 4 notes unsung, first unsung syllable "(.*)"$/, (ctx, syl) => {
@@ -136,8 +141,12 @@ export default steps(({ Given, When, Then }) => {
     ctx.byNote = new Map()
   })
   Given(/^frames inside josef notes only$/, (ctx) => {
-    ;[0, 2].forEach((i) => enter(ctx, i))
-    ;[1, 3].forEach((i) => enter(ctx, i, [0, 0, 0]))
+    ;[0, 2].forEach((i) => {
+      enter(ctx, i)
+    })
+    ;[1, 3].forEach((i) => {
+      enter(ctx, i, [0, 0, 0])
+    })
   })
   Then(/^scoredNotes counts only entered maria notes and josef frames change nothing$/, (ctx) => {
     expect(ctx.result.scoredNotes).toBe(2)
@@ -167,9 +176,13 @@ export default steps(({ Given, When, Then }) => {
     const s: Session = ctx.session
     s.startPass()
     s.enter(0)
-    frames(times(10, 60)).forEach((f) => s.frame(f))
+    frames(times(10, 60)).forEach((f) => {
+      s.frame(f)
+    })
     s.enter(0)
-    frames(times(10, 67)).forEach((f) => s.frame(f))
+    frames(times(10, 67)).forEach((f) => {
+      s.frame(f)
+    })
     ctx.result = s.endPass()
   })
   Then(/^note 0 is a hit$/, (ctx) => {
@@ -186,7 +199,10 @@ export default steps(({ Given, When, Then }) => {
       s.startPass()
       ctx.song.notes.forEach((n: Note, i: number) => {
         s.enter(i)
-        if (i < pct / 20) sing(n, [0, 0, 0]).forEach((f) => s.frame(f))
+        if (i < pct / 20)
+          sing(n, [0, 0, 0]).forEach((f) => {
+            s.frame(f)
+          })
       })
       s.endPass()
     }

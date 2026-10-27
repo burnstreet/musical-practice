@@ -137,7 +137,9 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
       clock.t = t
       const run = frames
       frames = []
-      run.forEach((f) => f())
+      run.forEach((f) => {
+        f()
+      })
     },
   })
   engine.on('enter', (n) => ctx.enters.push(n))

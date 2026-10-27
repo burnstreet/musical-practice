@@ -190,7 +190,9 @@ export class GuPractice extends LitElement {
     this.loop = engine.loop()
     if (!wired.has(engine)) {
       wired.add(engine)
-      engine.on('tick', (t) => current && (current.t = t))
+      engine.on('tick', (t) => {
+        if (current) current.t = t
+      })
       engine.on('enter', (n) => current?.mic && current.session.enter(current.loaded!.song.notes.indexOf(n)))
       engine.on('ended', () => current?.pause())
     }

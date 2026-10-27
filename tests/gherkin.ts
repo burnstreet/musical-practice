@@ -56,10 +56,12 @@ function parseGherkin(text: string): Feature[] {
   const features: Feature[] = []
   for (const raw of text.split('\n')) {
     const line = raw.trim()
-    let m: RegExpMatchArray | null
-    if ((m = line.match(/^Feature:\s*(.*)$/))) features.push({ name: m[1], scenarios: [] })
-    else if ((m = line.match(/^Scenario:\s*(.*)$/))) features.at(-1)!.scenarios.push({ name: m[1], steps: [] })
-    else if ((m = line.match(/^(?:Given|When|Then|And|But|\*)\s+(.*)$/))) features.at(-1)!.scenarios.at(-1)!.steps.push(m[1])
+    const feature = line.match(/^Feature:\s*(.*)$/)
+    const scenario = line.match(/^Scenario:\s*(.*)$/)
+    const step = line.match(/^(?:Given|When|Then|And|But|\*)\s+(.*)$/)
+    if (feature) features.push({ name: feature[1], scenarios: [] })
+    else if (scenario) features.at(-1)!.scenarios.push({ name: scenario[1], steps: [] })
+    else if (step) features.at(-1)!.scenarios.at(-1)!.steps.push(step[1])
   }
   return features
 }

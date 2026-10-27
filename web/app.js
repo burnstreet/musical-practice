@@ -37,7 +37,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     cursorPos = null
 
   const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
-  const hexA = (hex, a) => 'rgba(' + parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16) + ',' + a + ')'
+  const hexA = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`
   const hzToMidi = (hz) => 69 + 12 * Math.log2(hz / 440)
   const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12)
   const win = () => ZOOMS[zoomIdx]
@@ -90,7 +90,9 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       pitchMidi[i] = v
       if (!isNaN(v)) mids.push(v)
     })
-    song.notes.forEach((n) => mids.push(n.midi))
+    song.notes.forEach((n) => {
+      mids.push(n.midi)
+    })
     if (mids.length) {
       mids.sort((a, b) => a - b)
       const k = Math.floor(mids.length * 0.005)
@@ -158,7 +160,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     try {
       const tStart = performance.now()
       const ac = new (window.AudioContext || window.webkitAudioContext)()
-      const raw = await (await fetch('data/' + file)).arrayBuffer()
+      const raw = await (await fetch(`data/${file}`)).arrayBuffer()
       console.log('spec: fetched', file, raw.byteLength, 'bytes', Math.round(performance.now() - tStart), 'ms')
       const ab = await ac.decodeAudioData(raw)
       console.log('spec: decoded', ab.duration.toFixed(1), 's', Math.round(performance.now() - tStart), 'ms')
@@ -235,7 +237,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       console.log('spec: done', frames, 'frames x', rows, 'rows', Math.round(performance.now() - tStart), 'ms')
       $('specStatus').textContent = ''
     } catch (e) {
-      $('specStatus').textContent = 'no spectrogram: ' + e.message
+      $('specStatus').textContent = `no spectrogram: ${e.message}`
     }
   }
 
@@ -320,7 +322,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       ctx.moveTo(x, 0)
       ctx.lineTo(x, H)
       ctx.stroke()
-      ctx.fillText(Math.round(gg * 100) / 100 + 's', x + 2, 2)
+      ctx.fillText(`${Math.round(gg * 100) / 100}s`, x + 2, 2)
     }
 
     ctx.save()
@@ -348,7 +350,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
         ctx.fillStyle = '#1d2330'
         ctx.textBaseline = 'middle'
         ctx.textAlign = 'left'
-        ctx.font = Math.min(12, bh - 1) + 'px system-ui,sans-serif'
+        ctx.font = `${Math.min(12, bh - 1)}px system-ui,sans-serif`
         ctx.fillText(n.name || midiName(n.midi), x + 3, y + bh / 2)
       }
       if (n.phraseStart) {
@@ -383,13 +385,13 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
         y = yOf(m),
         c = Math.max(0, Math.min(1, p[i][2] || 0))
       if (prev >= 0 && p[i][0] - p[prev][0] <= hop * stride * 2.5 + 1e-6 && Math.abs(m - pitchMidi[prev]) < 3) {
-        ctx.strokeStyle = 'rgba(214,69,40,' + (0.12 + 0.88 * c).toFixed(2) + ')'
+        ctx.strokeStyle = `rgba(214,69,40,${(0.12 + 0.88 * c).toFixed(2)})`
         ctx.beginPath()
         ctx.moveTo(xOf(p[prev][0]), yOf(pitchMidi[prev]))
         ctx.lineTo(x, y)
         ctx.stroke()
       } else {
-        ctx.fillStyle = 'rgba(214,69,40,' + (0.12 + 0.88 * c).toFixed(2) + ')'
+        ctx.fillStyle = `rgba(214,69,40,${(0.12 + 0.88 * c).toFixed(2)})`
         ctx.fillRect(x - 1, y - 1, 2, 2)
       }
       prev = i
@@ -481,13 +483,13 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
         followCursor: false,
         drawingParameters: 'compact',
       })
-      await o.load('data/' + s.sheet)
+      await o.load(`data/${s.sheet}`)
       if (song !== s) return
       o.render()
       o.cursor.show()
       osmd = o
     } catch (e) {
-      box.textContent = 'Noten konnten nicht geladen werden: ' + e.message
+      box.textContent = `Noten konnten nicht geladen werden: ${e.message}`
     }
   }
   // move the sheet cursor to the bar/beat of the note sounding at t
@@ -501,7 +503,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       }
     }
     if (!cur) return
-    const key = cur.bar + ':' + cur.beat
+    const key = `${cur.bar}:${cur.beat}`
     if (key === cursorPos) return
     cursorPos = key
     const c = osmd.cursor
@@ -534,7 +536,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
         const m = hzToMidi(p[i][1]),
           r = Math.round(m)
         const cents = Math.round((m - r) * 100)
-        ps = p[i][1].toFixed(1) + ' Hz (' + midiName(r) + (cents >= 0 ? '+' : '') + cents + 'c)'
+        ps = `${p[i][1].toFixed(1)} Hz (${midiName(r)}${cents >= 0 ? '+' : ''}${cents}c)`
       }
     }
     $('rPitch').textContent = ps
@@ -605,7 +607,9 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
         selected.add(hit.i)
       }
       const orig = new Map()
-      selected.forEach((i) => orig.set(i, { start: song.notes[i].start, end: song.notes[i].end }))
+      selected.forEach((i) => {
+        orig.set(i, { start: song.notes[i].start, end: song.notes[i].end })
+      })
       drag = { type: hit.part, t0: g.tAt(x), orig, moved: false }
       canvas.style.cursor = hit.part === 'move' ? 'grabbing' : 'ew-resize'
     } else {
@@ -666,12 +670,12 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     const body = JSON.stringify(song)
     $('status').textContent = ''
     try {
-      const r = await fetch('save/' + entry.file, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
-      if (!r.ok) throw new Error('HTTP ' + r.status)
+      const r = await fetch(`save/${entry.file}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
       const j = await r.json()
       dirty = false
       $('saveBtn').disabled = true
-      $('status').textContent = 'Saved to ' + j.saved + ' (copy: ' + j.backup + ')'
+      $('status').textContent = `Saved to ${j.saved} (copy: ${j.backup})`
       $('status').className = 'ok'
     } catch (e) {
       // server has no save endpoint: offer a download instead
@@ -680,7 +684,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       a.download = entry.file
       a.click()
       $('status').className = ''
-      $('status').textContent = 'Server save failed (' + e.message + '); downloaded ' + entry.file + ' instead. Run tools/serve.py for direct saving.'
+      $('status').textContent = `Server save failed (${e.message}); downloaded ${entry.file} instead. Run tools/serve.py for direct saving.`
     }
   }
 
@@ -700,7 +704,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       rb.checked = s.stems[k] === s.audio
       rb.onchange = () => switchStem(s.stems[k])
       lab.appendChild(rb)
-      lab.appendChild(document.createTextNode(' ' + (STEM_LABELS[k] || k)))
+      lab.appendChild(document.createTextNode(` ${STEM_LABELS[k] || k}`))
       box.appendChild(lab)
     })
     if (keys.length && !box.querySelector('input:checked')) box.querySelector('input').checked = true
@@ -709,7 +713,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     const t = audio.currentTime || 0,
       wasPlaying = !audio.paused
     $('status').textContent = ''
-    audio.src = 'data/' + file
+    audio.src = `data/${file}`
     const restore = () => {
       audio.removeEventListener('loadedmetadata', restore)
       try {
@@ -725,8 +729,8 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     $('status').textContent = ''
     $('status').className = ''
     try {
-      const r = await fetch('data/' + en.file, { cache: 'no-store' })
-      if (!r.ok) throw new Error(en.file + ': HTTP ' + r.status)
+      const r = await fetch(`data/${en.file}`, { cache: 'no-store' })
+      if (!r.ok) throw new Error(`${en.file}: HTTP ${r.status}`)
       const s = await r.json()
       s.pitch = s.pitch || []
       s.notes = s.notes || []
@@ -747,7 +751,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       buildStems(s)
       buildRoles(s)
       loadSheet(s)
-      if (!noAudio) audio.src = 'data/' + s.audio
+      if (!noAudio) audio.src = `data/${s.audio}`
       else audio.removeAttribute('src')
       const startT = parseFloat(new URLSearchParams(location.search).get('t'))
       if (startT > 0) {
@@ -767,33 +771,33 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
           }
         }
         img.onerror = () => {
-          if (song === s) $('specStatus').textContent = 'spectrogram image missing: ' + s.spec.file
+          if (song === s) $('specStatus').textContent = `spectrogram image missing: ${s.spec.file}`
         }
-        img.src = 'data/' + s.spec.file
+        img.src = `data/${s.spec.file}`
       } else {
         const specFile = (s.stems && s.stems.vocals) || s.audio
         if (specFile) buildSpectrogram(specFile, s)
       }
     } catch (e) {
       song = null
-      $('status').textContent = 'Could not load song: ' + e.message
+      $('status').textContent = `Could not load song: ${e.message}`
     }
   }
 
   async function init() {
-    $('zoomLbl').textContent = win() + ' s'
+    $('zoomLbl').textContent = `${win()} s`
     resize()
     window.addEventListener('resize', resize)
     audio.addEventListener('error', () => {
-      if (song && !noAudio) $('status').textContent = 'Audio file could not be loaded (' + (audio.getAttribute('src') || '') + ').'
+      if (song && !noAudio) $('status').textContent = `Audio file could not be loaded (${audio.getAttribute('src') || ''}).`
     })
     $('zoomIn').onclick = () => {
       zoomIdx = Math.max(0, zoomIdx - 1)
-      $('zoomLbl').textContent = win() + ' s'
+      $('zoomLbl').textContent = `${win()} s`
     }
     $('zoomOut').onclick = () => {
       zoomIdx = Math.min(ZOOMS.length - 1, zoomIdx + 1)
-      $('zoomLbl').textContent = win() + ' s'
+      $('zoomLbl').textContent = `${win()} s`
     }
     $('timerBtn').onclick = toggle
     $('editChk').onchange = () => setEditMode($('editChk').checked)
@@ -813,7 +817,10 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       setDirty()
     }
     $('selAll').onclick = () => {
-      song && song.notes.forEach((_, i) => selected.add(i))
+      song &&
+        song.notes.forEach((_, i) => {
+          selected.add(i)
+        })
     }
     $('selNone').onclick = () => selected.clear()
     $('reloadBtn').onclick = () => entry && loadSong(entry)
@@ -831,7 +838,9 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       if (!editMode || !song) return
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') {
         e.preventDefault()
-        song.notes.forEach((_, i) => selected.add(i))
+        song.notes.forEach((_, i) => {
+          selected.add(i)
+        })
       } else if (e.code === 'Escape') selected.clear()
       else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && selected.size) {
         e.preventDefault()
@@ -855,7 +864,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       const r = await fetch('data/index.json', { cache: 'no-store' })
       list = await r.json()
     } catch (e) {
-      $('status').textContent = 'Could not load data/index.json: ' + e.message
+      $('status').textContent = `Could not load data/index.json: ${e.message}`
       return
     }
     const sel = $('songSel')
@@ -870,7 +879,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     const want = new URLSearchParams(location.search).get('s')
     const first = Math.max(
       0,
-      list.findIndex((e) => e.file === want + '.json'),
+      list.findIndex((e) => e.file === `${want}.json`),
     )
     sel.value = first
     if (list.length) await loadSong(list[first])

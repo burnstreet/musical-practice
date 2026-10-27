@@ -7,7 +7,15 @@ import { steps } from '../gherkin'
 // fake-indexeddb cannot clone a CryptoKey, so steps inject an in-memory store.
 const memStore = (): VaultStore => {
   let rec: VaultRecord | undefined
-  return { get: async () => rec, put: async (r) => void (rec = r), delete: async () => void (rec = undefined) }
+  return {
+    get: async () => rec,
+    put: async (r) => {
+      rec = r
+    },
+    delete: async () => {
+      rec = undefined
+    },
+  }
 }
 
 const SALT = Buffer.alloc(16, 7)

@@ -101,7 +101,10 @@ const serverFetch = (ctx: any) =>
 let n = 0
 const setup = (ctx: any, st: VaultState = 'unlocked') => {
   ctx.vault = fakeVault(st)
-  ctx.db = () => openDb(`gu-test-${(ctx.dbName ??= ++n)}`)
+  ctx.db = () => {
+    ctx.dbName ??= ++n
+    return openDb(`gu-test-${ctx.dbName}`)
+  }
   ctx.events = []
   ctx.lib = createLibrary({ vault: ctx.vault, fetch: serverFetch(ctx), retryDelayMs: 0, db: ctx.db })
   ctx.lib.onProgress((p: any) => ctx.events.push(p))
