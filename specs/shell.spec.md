@@ -78,7 +78,7 @@ Feature: Updates
 Opened from the gear button on songs and practice screens. Items, top to bottom:
 
 1. `Toleranz`: segmented `Leicht (75 Cent)` / `Normal (50 Cent)` / `Streng (30 Cent)`.
-2. `Verzögerung Mikrofon`: slider −300…+300 ms, step 10, value shown as `{n} ms`. Help text: `Wenn dein Ton zu früh oder zu spät angezeigt wird.` Read-only below: `Gemessen: Wiedergabe {a} ms · Mikrofon {b} ms` (`engine.latency()`, `pitch.inputLatency()`, rounded; the mic value is 0 until the mic ran).
+2. `Verzögerung Mikrofon`: slider −300…+300 ms, step 10, value shown as `{n} ms`. Help text: `Gleicht die Verzögerung von Kopfhörer und Mikrofon für die Bewertung aus. Am besten messen lassen.` Read-only below: `Gemessen: Wiedergabe {a} ms · Mikrofon {b} ms` (`engine.latency()`, `pitch.inputLatency()`, rounded; the mic value is 0 until the mic ran).
 3. `Verzögerung messen`: button under the measured line, opens the calibration panel (see Latency calibration).
 4. `Mikrofon`: select, `Automatisch (eingebautes Mikrofon)` (`micDeviceId` '') plus every audio input by label (`Mikrofon {n}` while labels are hidden before permission). Saves `micDeviceId`; `pitch.setDevice` restarts a running mic on it.
 5. `Mikrofon testen`: button starts pitch engine, shows level bar and detected note name, stops on sheet close.
