@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (scaffold)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/builder.spec.md` → Editor additions. The editor is vanilla JS (`web/app.js`, `web/index.html`), served by `tools/serve.py`, which must additionally serve `sources/config.json` at `/config.json`.
 
@@ -14,3 +14,7 @@ Testing: the scenarios run under Vitest via `tests/specs/editor.test.ts` + `test
 - [ ] `serve.py` serves `/config.json` from `sources/config.json` (404 when absent).
 - [ ] Role dropdown is filled from `/config.json`; when it is missing, the dropdown falls back to roles already present in the song.
 - [ ] Vertical marker drawn at notes with `phraseStart`.
+
+## Comments
+
+- 2026-10-27 agent: Merged 7c485b4, ed8db90: web/edit-ops.js, editor toolbar, serve.py /config.json.

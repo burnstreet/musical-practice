@@ -4,10 +4,14 @@
 
 **Blocked by:** 12 (shell)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/screen-songs.spec.md`. Artboards `design/Songs.dc.html`, `design/SongsDesktop.dc.html`. Context contract from ticket 12.
 
 - [ ] All scenarios pass via `tests/specs/screen-songs.test.ts` + `tests/steps/screen-songs.steps.ts` with a fake context.
 - [ ] Strings byte-identical to the spec table.
 - [ ] Badge refreshes when the role selection changes.
+
+## Comments
+
+- 2026-10-27 agent: Merged 5b5128a, eefd60a: src/app/screens/songs.ts; MB unit aligned to 1e6 in the review fix pass.

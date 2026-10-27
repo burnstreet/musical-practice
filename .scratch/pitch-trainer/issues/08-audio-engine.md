@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (content format)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/audio-engine.spec.md`. ADRs 0003 and 0005. Role spans from `roleSpans` in `src/core/content.ts`.
 
@@ -13,3 +13,7 @@ Testing: constructor takes a factory for media elements, an audio context factor
 - [ ] All scenarios pass via `tests/specs/audio-engine.test.ts` + `tests/steps/audio-engine.steps.ts`.
 - [ ] `unload` revokes object URLs created in `load`.
 - [ ] Mode change while playing re-schedules gains with a 30 ms ramp.
+
+## Comments
+
+- 2026-10-27 agent: Merged 353e187, 76d5859: src/core/audio-engine.ts; tempo()/loop() getters added in the review fix pass.

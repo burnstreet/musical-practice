@@ -4,10 +4,14 @@
 
 **Blocked by:** 02 (content format)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/scorer.spec.md` (all features). Types from `src/core/content.ts` / `src/core/types.ts`. Vocabulary: `GLOSSARY.md` → Scoring.
 
 - [ ] All scenarios pass via `tests/specs/scorer.test.ts` + `tests/steps/scorer.steps.ts`.
 - [ ] Tip strings match the spec byte for byte (German quotes „ “).
 - [ ] `Session.frame` ignores frames outside entered notes and frames of other roles' notes.
+
+## Comments
+
+- 2026-10-27 agent: Merged 87564a5..7e8eb2d: src/core/scorer.ts, session.ts; statistics scenario uses non-uniform frames (spec inconsistency noted).

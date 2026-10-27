@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (content format)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/vault.spec.md`. Crypto parameters: `specs/content-format.spec.md` → Crypto. ADR 0004.
 
@@ -13,3 +13,7 @@ Testing: `fake-indexeddb` (dev dependency from ticket 01) and Node WebCrypto. St
 - [ ] All scenarios pass via `tests/specs/vault.test.ts` + `tests/steps/vault.steps.ts`.
 - [ ] Iteration count for tests may be lowered through the manifest's `iterations` field (the spec puts it in the manifest for this reason); production manifests carry 600000.
 - [ ] `decrypt` while locked rejects.
+
+## Comments
+
+- 2026-10-27 agent: Merged 12c2454: src/core/vault.ts with injectable VaultStore; IndexedDB path untested (CryptoKey not clonable in fake-indexeddb).

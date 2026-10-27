@@ -4,10 +4,14 @@
 
 **Blocked by:** 06 (scorer), 08 (audio engine), 12 (shell)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/screen-results.spec.md`. Artboards `design/Auswertung.dc.html`, `design/AuswertungDesktop.dc.html`. Reads `context.live.session` and drives `context.engine`; never scores anything itself. Chart and trend as inline SVG (simplest to test for presence of points).
 
 - [ ] All scenarios pass via `tests/specs/screen-results.test.ts` + `tests/steps/screen-results.steps.ts` with a fake context and engine.
 - [ ] Strings byte-identical to the spec table.
 - [ ] No "Aufnahme anhören" anywhere.
+
+## Comments
+
+- 2026-10-27 agent: Merged 777d53b: src/app/screens/results.ts.
