@@ -4,7 +4,7 @@
 
 **Blocked by:** 06 (scorer), 08 (audio engine), 09 (pitch engine), 12 (shell)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/screen-practice.spec.md` except the Staff and Piano roll sections. Artboards `design/Main.dc.html`, `design/MainDesktop.dc.html`. Context contract from ticket 12: set `context.live` on enter.
 
@@ -13,3 +13,7 @@ Leave `src/app/draw/staff.ts` and `src/app/draw/roll.ts` as two exported functio
 - [ ] All scenarios pass via `tests/specs/screen-practice.test.ts` + `tests/steps/screen-practice.steps.ts` with fake engine, pitch engine and context.
 - [ ] Strings byte-identical to the spec table; note names like `D5` use German-free English note names as in the spec examples.
 - [ ] Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`; pause ends the pass and routes to results only when a result exists.
+
+## Comments
+
+- 2026-10-27 agent: Merged 8345f09, 5a78197: src/app/screens/practice.ts, leaveSession in shell; draw stubs.

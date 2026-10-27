@@ -4,7 +4,7 @@
 
 **Blocked by:** 15 (practice screen)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/screen-practice.spec.md` → Staff, Piano roll. Decisions Q19, Q32. Artboards `design/Main.dc.html`, `design/MainDesktop.dc.html` for the look.
 
@@ -13,3 +13,7 @@ Testing: no Gherkin scenarios cover drawing. Add unit tests for the pure layout 
 - [ ] Helpers tested; `npm test` green.
 - [ ] Canvases scale with `devicePixelRatio` and resize with the element.
 - [ ] Spec constants respected: 1.5 s behind / 3.5 s ahead, min 10 rows, ±2 semitone margin, 4 px white line with dark outline.
+
+## Comments
+
+- 2026-10-27 agent: Merged dd820bd: src/app/draw/staff.ts, roll.ts, tests/draw.test.ts; visually checked on a synthetic song only.

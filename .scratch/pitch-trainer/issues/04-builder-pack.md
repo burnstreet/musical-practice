@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (scaffold)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/builder.spec.md` → Completeness check, Stems, Packing. Crypto and file layout: `specs/content-format.spec.md` → Crypto, Public manifest, Library, Song file. ADRs 0004 and 0006.
 
@@ -17,3 +17,7 @@ Notes:
 - [ ] Features `Completeness`, `Stem preparation`, `Packing` pass via `tools/tests/test_pack.py` + `tools/tests/steps_pack.py`.
 - [ ] Manifest validates against the content-format rules (ids 16 hex chars, salt 16 bytes base64, `totalBytes` = sum of `.bin` sizes).
 - [ ] Missing `PITCH_PASSWORD` exits 2 with a message.
+
+## Comments
+
+- 2026-10-27 agent: Merged e77b715: tools/pack.py with --root/--out/--strict/--new-salt; bars/phrase rework in the review fix pass.

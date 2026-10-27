@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/overview.spec.md` → Testing Decisions. Stack decisions (Q3): TypeScript, Lit, Vite, Vitest. Repo already has `web/` (old vanilla editor, untouched) and `tools/` (Python, venv at `tools/.venv`).
 
@@ -29,3 +29,7 @@ Python runner:
 - [ ] `tools/.venv/Scripts/python.exe -m pytest tools/tests` passes and the generated feature folder contains `completeness`, `stem-preparation`, `packing`, `phrase-derivation` features but no `editor-role-painting`.
 - [ ] `README.md` at repo root: how to run tests, dev server, build (five lines).
 - [ ] `.gitignore` extended for `node_modules`, `dist`, generated features.
+
+## Comments
+
+- 2026-10-27 agent: Scaffold merged (a3caab6, f42ea4f): Vite/Lit/Vitest, tests/gherkin.ts runner, pytest-bdd conftest.
