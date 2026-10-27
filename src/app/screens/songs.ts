@@ -1,6 +1,7 @@
 import { LitElement, css, html } from 'lit'
 import { getContext } from '../context'
 import type { Mode } from '../../core/audio-engine'
+import type { RoleId } from '../../core/content'
 import type { DownloadProgress } from '../../core/library'
 
 const MB = 1024 * 1024
@@ -52,7 +53,7 @@ export class GuSongs extends LitElement {
     selected: { state: true }, badges: { state: true }, progress: { state: true }, open: { state: true }, mode: { state: true },
   }
 
-  declare selected: string[]
+  declare selected: RoleId[]
   declare badges: Record<string, number | null>
   declare progress: DownloadProgress | null
   declare open: string | null
@@ -81,7 +82,7 @@ export class GuSongs extends LitElement {
     if (sel === this.selected) this.badges = Object.fromEntries(entries)
   }
 
-  private toggle(id: string) {
+  private toggle(id: RoleId) {
     this.selected = this.selected.includes(id) ? this.selected.filter((r) => r !== id) : [...this.selected, id]
     getContext().settings.set({ roles: this.selected })
     void this.loadBadges()
