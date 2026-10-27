@@ -4,6 +4,7 @@ import { setContext, type AppContext, type Route, type ShellDeps } from './conte
 import { settings } from './settings'
 import './settings-sheet'
 import './headphone-sheet'
+import './screens/results'
 import './screens/start'
 import './screens/songs'
 
