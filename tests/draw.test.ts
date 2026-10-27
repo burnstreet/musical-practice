@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Note } from '../src/core/content'
-import { fold, rowRange } from '../src/app/draw/roll'
+import { foldToTargetOctave, rowRange } from '../src/app/draw/roll'
 import { keyFifths, pageOf, staffPos } from '../src/app/draw/staff'
 
 describe('staff layout', () => {
@@ -58,20 +58,20 @@ describe('roll layout', () => {
   const mine = [n(1, 2, 62), n(3, 4, 70)]
 
   it('folds a sung pitch into the octave of the target at that time', () => {
-    expect(fold(50.3, 1.5, mine)).toBeCloseTo(62.3)
-    expect(fold(74, 1.5, mine)).toBe(62)
-    expect(fold(68, 1.5, mine)).toBe(68) // 6 above stays rather than jumping down
-    expect(fold(55.5, 1.5, mine)).toBeCloseTo(67.5)
-    expect(fold(58, 3.5, mine)).toBe(70)
+    expect(foldToTargetOctave(50.3, 1.5, mine)).toBeCloseTo(62.3)
+    expect(foldToTargetOctave(74, 1.5, mine)).toBe(62)
+    expect(foldToTargetOctave(68, 1.5, mine)).toBe(68) // 6 above stays rather than jumping down
+    expect(foldToTargetOctave(55.5, 1.5, mine)).toBeCloseTo(67.5)
+    expect(foldToTargetOctave(58, 3.5, mine)).toBe(70)
   })
 
   it('folds between notes to the nearest one in time', () => {
-    expect(fold(58, 2.4, mine)).toBe(58) // nearer the 62, and 58 is already in its octave
-    expect(fold(46, 2.8, mine)).toBe(70)
-    expect(fold(46, 0, mine)).toBe(58)
+    expect(foldToTargetOctave(58, 2.4, mine)).toBe(58) // nearer the 62, and 58 is already in its octave
+    expect(foldToTargetOctave(46, 2.8, mine)).toBe(70)
+    expect(foldToTargetOctave(46, 0, mine)).toBe(58)
   })
 
   it('leaves the pitch alone without any note', () => {
-    expect(fold(46, 0, [])).toBe(46)
+    expect(foldToTargetOctave(46, 0, [])).toBe(46)
   })
 })

@@ -1,12 +1,10 @@
 import { LitElement, css, html } from 'lit'
-import type { Tolerance } from '../core/scorer'
+import { noteName, type Tolerance } from '../core/scorer'
 import { getContext } from './context'
 import { sheetStyles } from './sheet'
 
 export const HEADPHONE_TEXT = 'Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.'
 const TOLERANCES: [Tolerance, string][] = [[75, 'Leicht (75 Cent)'], [50, 'Normal (50 Cent)'], [30, 'Streng (30 Cent)']]
-const NAMES = ['C', 'Cis', 'D', 'Dis', 'E', 'F', 'Fis', 'G', 'Gis', 'A', 'Ais', 'H']
-const noteName = (midi: number) => NAMES[Math.round(midi) % 12] + (Math.floor(Math.round(midi) / 12) - 1)
 
 /** Settings sheet. Shell renders it while open; it fires `close` when done. */
 export class GuSettingsSheet extends LitElement {
@@ -24,7 +22,9 @@ export class GuSettingsSheet extends LitElement {
   declare level: number
   declare note: string
   private timer = 0
-  private listening = false
+  private unsubscribe = () => {}
+  /** The practice screen's mic was already running: only listen, leave it on at the end. */
+  private borrowed = false
 
   constructor() {
     super()
@@ -41,11 +41,9 @@ export class GuSettingsSheet extends LitElement {
 
   private async startMic() {
     const { pitch } = getContext()
-    if (!this.listening) {
-      this.listening = true
-      pitch.on('frame', (f) => { if (this.mic === 'on' && f.midi !== null) this.note = noteName(f.midi) })
-    }
-    if ((await pitch.start(() => 0)) !== 'ok') return void (this.mic = 'failed')
+    this.borrowed = pitch.active()
+    if (!this.borrowed && (await pitch.start(() => 0)) !== 'ok') return void (this.mic = 'failed')
+    this.unsubscribe = pitch.on('frame', (f) => { if (f.midi !== null) this.note = noteName(f.midi) })
     this.mic = 'on'
     this.timer = window.setInterval(() => (this.level = pitch.level()), 100)
   }
@@ -53,7 +51,8 @@ export class GuSettingsSheet extends LitElement {
   private stopMic() {
     if (this.mic !== 'on') return
     clearInterval(this.timer)
-    getContext().pitch.stop()
+    this.unsubscribe()
+    if (!this.borrowed) getContext().pitch.stop()
     this.mic = 'off'
     this.note = ''
     this.level = 0

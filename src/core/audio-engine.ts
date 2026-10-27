@@ -13,6 +13,8 @@ export interface AudioEngine {
   setMode(m: Mode): void
   setTempo(t: Tempo): void
   setLoop(phrase: Phrase | null): void
+  tempo(): Tempo
+  loop(): Phrase | null
   time(): number
   playing(): boolean
   on(ev: 'tick', fn: (t: number) => void): void
@@ -128,6 +130,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       notes = song.song.notes
       spans = roleSpans(notes, roles)
       prev = -1
+      loop = null // new song: a loop of the previous one would not fit
     },
     unload() {
       if (voices) engine.pause()
@@ -163,6 +166,8 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       if (isPlaying) schedule()
     },
     setLoop(p) { loop = p },
+    tempo: () => (voices ? Math.round(voices.playbackRate * 100) : 100) as Tempo,
+    loop: () => loop,
     time: () => voices.currentTime,
     playing: () => isPlaying,
     on(ev: string, fn: (x?: any) => void) { (listeners[ev] ??= []).push(fn) },

@@ -21,7 +21,7 @@ function given(ctx: any, p: any = {}, count = 3) {
   const passes = Array.from({ length: count }, (_, i) => (i === count - 1 ? pass(p) : pass({ hitPct: 10 * (i + 1) })))
   setContext({
     settings, engine: ctx.engine, route: (to: string) => ctx.routed.push(to),
-    live: { songId: 's', song: { song: { phrases } }, session: { passes: () => passes, trend: () => passes.map((x) => x.hitPct) } },
+    live: { songId: 's', song: { meta: { number: 8, title: '[Titel]' }, song: { phrases } }, session: { passes: () => passes, trend: () => passes.map((x) => x.hitPct) } },
   } as any)
 }
 
@@ -60,7 +60,11 @@ export default steps(({ Given, When, Then }) => {
   When(/^I press "(.*)"$/, (ctx, l) => press(ctx, l))
   Then(/^it shows (.*)$/, async (ctx, list) => {
     const t = await text(ctx)
-    for (const m of list.matchAll(/"([^"]*)"/g)) expect(t).toContain(m[1])
+    const values = [...(await mount(ctx)).shadowRoot!.querySelectorAll('.v')].map((v) => v.textContent!.trim())
+    for (const m of list.matchAll(/"([^"]*)"/g)) {
+      if (/^(sauber|(leicht )?zu (hoch|tief))$/.test(m[1])) expect(values).toContain(m[1]) // tendency value exactly, not a substring
+      else expect(t).toContain(m[1])
+    }
   })
   Then(/^no "Verlauf" element$/, async (ctx) => expect(await text(ctx)).not.toContain('Verlauf'))
   Then(/^"Verlauf" shows three points$/, async (ctx) => {

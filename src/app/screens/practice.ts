@@ -1,17 +1,15 @@
 import { LitElement, css, html, svg } from 'lit'
 import type { Mode, Tempo } from '../../core/audio-engine'
-import type { Note, Phrase } from '../../core/content'
-import { foldCents } from '../../core/scorer'
+import type { Phrase } from '../../core/content'
+import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { getContext, type AppContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
-import { draw as drawStaff, type DrawState } from '../draw/staff'
+import { draw as drawStaff, pageOf, type DrawState } from '../draw/staff'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = { all: ['alle Stimmen', 'others'], others: ['nur für andere', 'backing'], backing: ['nur Playback', 'all'] }
 const NEXT_TEMPO: Record<Tempo, Tempo> = { 100: 90, 90: 80, 80: 70, 70: 100 }
-const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-const noteName = (midi: number) => NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1)
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
 // Icons from the artboards
@@ -37,7 +35,7 @@ export function leaveSession(ctx: AppContext): void {
   ctx.history.record(live.songId, ctx.settings.get().roles, live.session.passes()).catch(console.error)
 }
 
-/** The mounted screen. Engine and pitch engine have no `off`, so they are wired once and forward here. */
+/** The mounted screen. The engine has no `off`, so engine and pitch engine are wired once and forward here. */
 let current: GuPractice | null = null
 const wired = new WeakSet<object>()
 
@@ -110,8 +108,8 @@ export class GuPractice extends LitElement {
   declare mic: boolean
   declare tempo: Tempo
   declare loop: Phrase | null
-  /** The role set has notes in this song; otherwise listen only. */
-  hasPart = false
+  /** The role set has notes in this song; otherwise listen only (`noPart` hint). */
+  singsHere = false
   session!: Session
   /** Pitch frames of the last 1.5 s, oldest first. */
   frames: PitchFrame[] = []
@@ -164,8 +162,11 @@ export class GuPractice extends LitElement {
     const loaded = back?.song ?? (await library.getSong(this.songId))
     if (!back) await engine.load(loaded, s.roles)
     this.session = back?.session ?? new Session(loaded.song, s.roles, s.tolerance)
-    this.hasPart = this.session.myNotes().length > 0
-    this.setMode(this.hasPart ? s.mode : 'all', false)
+    this.singsHere = this.session.myNotes().length > 0
+    this.setMode(this.singsHere ? s.mode : 'all', false)
+    // Results may have set a drill loop and tempo on the engine.
+    this.tempo = engine.tempo()
+    this.loop = engine.loop()
     if (!wired.has(engine)) {
       wired.add(engine)
       engine.on('tick', (t) => current && (current.t = t))
@@ -176,7 +177,7 @@ export class GuPractice extends LitElement {
       wired.add(pitch)
       pitch.on('frame', (f) => current?.onFrame(f))
     }
-    if (this.hasPart) this.mic = (await pitch.start(() => engine.time())) === 'ok'
+    if (this.singsHere) this.mic = (await pitch.start(() => engine.time())) === 'ok'
     ctx.live = { songId: this.songId, song: loaded, session: this.session }
     this.t = engine.time()
     this.loaded = loaded
@@ -194,7 +195,7 @@ export class GuPractice extends LitElement {
     const { engine, route } = getContext()
     engine.pause()
     this.playing = false
-    if (!this.hasPart) route('#/songs')
+    if (!this.singsHere) route('#/songs')
     else if (this.mic && this.session.endPass()) route(`#/results/${this.songId}`)
   }
 
@@ -240,52 +241,48 @@ export class GuPractice extends LitElement {
 
   /** Big note, target label, cents text and meter position. */
   private readout() {
-    const target = [...this.session.myNotes()].reverse().find((n: Note) => n.start <= this.t && this.t <= n.end)
-    const newest = this.frames.at(-1)
-    const sung = [...this.frames].reverse().find((f) => f.midi !== null && f.t >= newest!.t - 0.15)
-    const label = target ? `Ziel ${noteName(target.midi)}` : ''
-    if (!target || !sung) return { big: '–', label, text: '', cents: null }
-    const c = Math.round(foldCents(sung.midi!, target.midi))
-    const tol = getContext().settings.get().tolerance
-    const dir = c > 0 ? 'zu hoch' : 'zu tief'
-    const word = Math.abs(c) <= 15 ? 'sauber' : Math.abs(c) <= tol ? `leicht ${dir}` : dir
-    return { big: noteName(Math.round(target.midi + c / 100)), label, text: `${c > 0 ? '+' : ''}${c} Cent · ${word}`, cents: c }
+    const { engine, settings } = getContext()
+    const s = settings.get()
+    const d = liveDeviation(this.loaded!.song, s.roles, engine.time(), this.frames, s.tolerance)
+    if (!d) return { big: '–', label: '', text: '', cents: null }
+    const dir = d.cents > 0 ? 'zu hoch' : 'zu tief'
+    const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
+    return { big: noteName(d.sungMidiFolded), label: `Ziel ${noteName(d.note.midi)}`, text: `${d.cents > 0 ? '+' : ''}${d.cents} Cent · ${word}`, cents: d.cents }
   }
 
   render() {
-    const l = this.loaded
-    if (!l) return ''
+    const loaded = this.loaded
+    if (!loaded) return ''
     const { library, settings, openSettings } = getContext()
     const s = settings.get()
-    const { bars, key, bpm } = l.song
-    const bar = Math.max(0, bars.filter((b) => b <= this.t).length - 1)
-    const a = bar - (bar % 4) + 1
-    const r = this.readout()
+    const { bars, key, bpm } = loaded.song
+    const firstBar = pageOf(bars, this.t) * 4 + 1
+    const readout = this.readout()
     const mine = library.roles().filter((x) => s.roles.includes(x.id)).map((x) => x.name).join(', ')
-    const dur = l.meta.durationSec
+    const dur = loaded.meta.durationSec
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
-        <h1>Lied ${l.meta.number} · ${l.meta.title}</h1>
-        <p>Takt ${a}–${a + 3} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
+        <h1>Lied ${loaded.meta.number} · ${loaded.meta.title}</h1>
+        <p>Takt ${firstBar}–${firstBar + 3} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
       </div>
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>
-    ${!this.hasPart
+    ${!this.singsHere
       ? html`<p class="note" role="status">Deine Rolle singt hier nicht. Nur Zuhören.</p>`
       : !this.mic ? html`<p class="note" role="alert">Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.</p>` : ''}
-    <button class="mode" ?disabled=${!this.hasPart} @click=${() => this.setMode(MODES[this.mode][1])}><span>Voicetrack</span><b>${MODES[this.mode][0]}${CHEVRON}</b></button>
+    <button class="mode" ?disabled=${!this.singsHere} @click=${() => this.setMode(MODES[this.mode][1])}><span>Voicetrack</span><b>${MODES[this.mode][0]}${CHEVRON}</b></button>
     <section class="card staff">
       <div class="legend"><span><i></i>Meine Stimme · ${mine}</span><span><i class="other"></i>Andere</span></div>
       <canvas></canvas>
     </section>
     <section class="card roll"><canvas></canvas></section>
     <section class="card readout" aria-live="polite">
-      <div class="line"><span><big>${r.big}</big><small>${r.label}</small></span><strong>${r.text}</strong></div>
+      <div class="line"><span><big>${readout.big}</big><small>${readout.label}</small></span><strong>${readout.text}</strong></div>
       <div class="meter">
         <div class="band" style="left:${50 - s.tolerance / 2}%;width:${s.tolerance}%"></div>
         <div class="tick"></div>
-        ${r.cents === null ? '' : html`<div class="dot" style="left:${50 + Math.max(-100, Math.min(100, r.cents)) / 2}%"></div>`}
+        ${readout.cents === null ? '' : html`<div class="dot" style="left:${50 + Math.max(-100, Math.min(100, readout.cents)) / 2}%"></div>`}
       </div>
     </section>
     <div class="transport">
@@ -301,7 +298,7 @@ export class GuPractice extends LitElement {
           ? html`<button class="round main" aria-label="Pause und Auswertung" @click=${this.pause}>${PAUSE}</button>`
           : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`}
         <button class="round" aria-label="Tempo ${this.tempo} Prozent" @click=${() => this.setTempo(NEXT_TEMPO[this.tempo])}>${this.tempo}%</button>
-        ${this.hasPart ? html`<span class="round mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
+        ${this.singsHere ? html`<span class="round mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
       </div>
     </div>`
   }

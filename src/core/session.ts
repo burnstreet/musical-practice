@@ -1,4 +1,5 @@
-import type { Note, PitchFrame, RoleId, Song } from './content'
+import type { Note, RoleId, Song } from './content'
+import type { PitchFrame } from './types'
 import { scorePass, type PassResult, type Tolerance } from './scorer'
 
 /** Routes pitch frames into entered notes of the role set and keeps the passes of one session. */

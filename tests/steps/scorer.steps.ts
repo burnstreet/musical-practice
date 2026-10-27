@@ -2,7 +2,8 @@ import { expect } from 'vitest'
 import { steps } from '../gherkin'
 import { foldCents, scoreNote, scorePass, type Tolerance } from '../../src/core/scorer'
 import { Session } from '../../src/core/session'
-import type { Note, PitchFrame, RoleId, Song } from '../../src/core/content'
+import type { Note, RoleId, Song } from '../../src/core/content'
+import type { PitchFrame } from '../../src/core/types'
 
 const note = (start: number, end: number, midi: number, o: Partial<Note> = {}): Note =>
   ({ start, end, midi, syllable: 'la', role: 'maria' as RoleId, phrase: 0, bar: 0, beat: 0, dur: 1, ...o })

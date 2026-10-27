@@ -1,4 +1,5 @@
-import type { Note, PitchFrame, RoleId, Song } from './content'
+import type { Note, RoleId, Song } from './content'
+import type { PitchFrame } from './types'
 
 export type Tolerance = 75 | 50 | 30
 export type Tendency = 'high' | 'low' | 'ok'
@@ -16,6 +17,25 @@ export interface PassResult {
 export function foldCents(sungMidi: number, targetMidi: number): number {
   const d = (sungMidi - targetMidi) * 100
   return d - 1200 * Math.ceil((d - 600) / 1200)
+}
+
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+/** English note name with sharps, C4 = 60. Rounds fractional midi. */
+export function noteName(midi: number): string {
+  const m = Math.round(midi)
+  return NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
+}
+
+export interface LiveDeviation { note: Note; sungMidiFolded: number; cents: number; level: 'ok' | 'slight' | 'far' }
+
+/** Live readout: my note sounding at `t` vs the latest voiced frame within 150 ms before `t`. Cents rounded. */
+export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null {
+  const note = [...song.notes].reverse().find((n) => roles.includes(n.role) && n.start <= t && t <= n.end)
+  const sung = [...frames].reverse().find((f) => f.midi !== null && f.t >= t - 0.15 && f.t <= t)
+  if (!note || !sung) return null
+  const cents = Math.round(foldCents(sung.midi!, note.midi))
+  const level = Math.abs(cents) <= 15 ? 'ok' : Math.abs(cents) <= tol ? 'slight' : 'far'
+  return { note, sungMidiFolded: note.midi + cents / 100, cents, level }
 }
 
 /** Voiced frames after the onset grace of 0.1 s. */
