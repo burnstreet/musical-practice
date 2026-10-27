@@ -9,11 +9,12 @@ import './screens/results'
 import './screens/start'
 import './screens/songs'
 
-/** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
-function guard(ctx: AppContext, hash: string): Route {
+/** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song; results without its live session go to practice. */
+export function guard(ctx: AppContext, hash: string): Route {
   if (ctx.vault.state() !== 'unlocked') return '#/start'
-  const m = hash.match(/^#\/(?:practice|results)\/(.+)$/)
-  return m && ctx.library.isReady(m[1]) ? (hash as Route) : '#/songs'
+  const m = hash.match(/^#\/(practice|results)\/(.+)$/)
+  if (!m || !ctx.library.isReady(m[2])) return '#/songs'
+  return m[1] === 'results' && ctx.live?.songId !== m[2] ? `#/practice/${m[2]}` : (hash as Route)
 }
 
 export class GuApp extends LitElement {
