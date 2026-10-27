@@ -114,4 +114,76 @@ export default steps(({ Given, When, Then }) => {
     expect(g.at((+s + +e) / 2)).toBeLessThan(1)
     expect(g.at(+e)).toBeCloseTo(0)
   })
+
+  Given(/^a loaded song$/, (ctx) => setup(ctx))
+  When(/^I set tempo (\d+) and play for 1 real second$/, async (ctx, t) => {
+    ctx.engine.setTempo(+t)
+    await ctx.engine.play()
+    run(ctx, 1)
+  })
+  Then(/^both elements report playbackRate ([\d.]+) and preservesPitch true$/, (ctx, r) => {
+    for (const el of [ctx.voices, ctx.backing]) expect(el).toMatchObject({ playbackRate: +r, preservesPitch: true })
+  })
+  Then(/^time\(\) is about ([\d.]+)$/, (ctx, t) => expect(ctx.engine.time()).toBeCloseTo(+t, 1))
+
+  Given(/^(?:playing at 100 and )?the backing element reports ([\d.]+) s behind voices$/, async (ctx, d) => {
+    await setup(ctx)
+    await ctx.engine.play()
+    run(ctx, 1)
+    ctx.backing.jump(ctx.voices.currentTime - +d)
+    ctx.sets = ctx.backing.sets
+  })
+  When(/^a tick runs$/, (ctx) => ctx.tickAt(ctx.clock.t + 1 / 60))
+  Then(/^backing time is set equal to voices time$/, (ctx) => {
+    expect(ctx.backing.sets).toBe(ctx.sets + 1)
+    expect(ctx.backing.currentTime).toBeCloseTo(ctx.voices.currentTime, 6)
+  })
+  Then(/^backing time is untouched$/, (ctx) => {
+    expect(ctx.backing.sets).toBe(ctx.sets)
+    expect(ctx.voices.currentTime - ctx.backing.currentTime).toBeCloseTo(0.02, 6)
+  })
+
+  Given(/^phrase (\d+) spanning \[([\d.]+),([\d.]+)\] set as loop$/, async (ctx, i, s, e) => {
+    const phrases = [phrase(0, 0, 5), phrase(1, 5, 10), phrase(+i, +s, +e)]
+    await setup(ctx, [], ['maria'], phrases)
+    ctx.engine.seek(+s)
+    ctx.engine.setLoop(phrases[+i])
+    await ctx.engine.play()
+  })
+  When(/^time\(\) passes ([\d.]+)$/, (ctx) => {
+    while (!ctx.loops.length && ctx.clock.t < 100) ctx.tickAt(ctx.clock.t + 1 / 60)
+  })
+  Then(/^time\(\) is ([\d.]+), a loop event names phrase (\d+), and playback continues$/, (ctx, t, i) => {
+    expect(ctx.engine.time()).toBeCloseTo(+t, 6)
+    expect(ctx.loops.map((p: Phrase) => p.index)).toEqual([+i])
+    expect(ctx.engine.playing()).toBe(true)
+    ctx.tickAt(ctx.clock.t + 0.5)
+    expect(ctx.engine.time()).toBeCloseTo(+t + 0.5, 6)
+  })
+
+  Given(/^notes starting at ([\d.]+) and ([\d.]+)$/, (ctx, a, b) => setup(ctx, [note(+a, +a + 0.1), note(+b, +b + 0.1)]))
+  When(/^ticks occur at ([\d.]+) and ([\d.]+)$/, async (ctx, a, b) => {
+    await ctx.engine.play()
+    ctx.tickAt(+a)
+    expect(ctx.enters).toEqual([])
+    ctx.tickAt(+b)
+  })
+  Then(/^enter fires for both notes in order$/, (ctx) => {
+    ctx.tickAt(ctx.clock.t + 1 / 60) // later ticks must not re-fire
+    expect(ctx.enters.map((n: Note) => n.start)).toEqual([1.0, 1.2])
+  })
+
+  Given(/^a note \[([\d.]+),([\d.]+)\]$/, (ctx, s, e) => setup(ctx, [note(+s, +e)]))
+  When(/^I seek to ([\d.]+)$/, (ctx, t) => ctx.engine.seek(+t))
+  Then(/^enter fires once for that note$/, (ctx) => expect(ctx.enters.map((n: Note) => n.start)).toEqual([5.0]))
+
+  Given(/^no loop set$/, async (ctx) => {
+    await setup(ctx)
+    await ctx.engine.play()
+  })
+  When(/^the voices element ends$/, (ctx) => ctx.voices.dispatchEvent(new Event('ended')))
+  Then(/^ended fires and playing\(\) is false$/, (ctx) => {
+    expect(ctx.ended).toBe(1)
+    expect(ctx.engine.playing()).toBe(false)
+  })
 })
