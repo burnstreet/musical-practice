@@ -15,7 +15,9 @@ export interface PitchFrame { t: number; at: number; midi: number | null; clarit
 export type StartResult = 'ok' | 'denied' | 'unsupported'
 
 export interface PitchEngine {
-  start(songTime: () => number, playbackLatency?: () => number): Promise<StartResult>   // requests mic; latency in s, default 0
+  start(songTime: () => number, playbackLatency?: () => number, deviceId?: string): Promise<StartResult>   // requests mic; latency in s, default 0; deviceId '' = auto
+  setDevice(deviceId: string): Promise<StartResult>       // restarts with the same clocks when running
+  devices(): Promise<{ deviceId: string; label: string }[]> // audio inputs, labels only after permission
   stop(): void
   setOffsetMs(ms: number): void                           // user setting, -300..300
   on(ev: 'frame', fn: (f: PitchFrame) => void): void
@@ -33,6 +35,7 @@ Constants (one file `pitch-constants.ts`): window 1024, hop 256, clarity thresho
 - Both AudioContexts (mic here, playback in the audio engine) are created with `latencyHint: 'interactive'`.
 - `start` returns `denied` on permission error, `unsupported` when AudioWorklet or getUserMedia missing. Mic constraints: `echoCancellation false, noiseSuppression false, autoGainControl false`.
 - `stop` releases the track.
+- Input device: output goes to the headphones, input should be the phone's own mic (a Bluetooth headset mic adds latency and forces call quality). `deviceId` set: request `deviceId: { exact }`; if that fails for any reason but denied permission (device gone), fall back to the default device. `deviceId` '' (auto): open the default device (permission), then `enumerateDevices` and `pickMic`: the first audio input whose label (case-insensitive) contains `built-in`, `eingebaut`, `iphone`, `ipad`, `speakerphone`, `phone microphone` or `internal` and none of `bluetooth`, `headset`, `airpods`, `buds`, `hands-free`. When it is another device than the open one, reopen on it (keep the default if that fails). No match: the default device.
   `[@test] ../tests/steps/pitch-engine.steps.ts`
 
 ```gherkin
@@ -73,6 +76,25 @@ Feature: Time stamps
     Given songTime returns 10.000, mic baseLatency 0.010, mic outputLatency 0.030 and offset 0 ms
     When a frame arrives
     Then its at is 9.989 and its t is 9.979
+
+Feature: Input device
+  Scenario: auto picks the built-in mic, not the headset
+    Given audio inputs "AirPods Pro", "iPhone Mikrofon"
+    Then pickMic chooses "iPhone Mikrofon"
+    Given audio inputs "Headset (Bluetooth)", "Internal Microphone"
+    Then pickMic chooses "Internal Microphone"
+    Given audio inputs "Galaxy Buds phone microphone", "USB Mic"
+    Then pickMic chooses the default device
+
+  Scenario: auto reopens on the built-in mic after permission
+    Given the default device is "AirPods Pro" and inputs "AirPods Pro", "Eingebautes Mikrofon"
+    When I start with device auto
+    Then the mic is "Eingebautes Mikrofon" and the AirPods track is stopped
+
+  Scenario: chosen device gone falls back to the default
+    Given the chosen device "gone" is not available
+    When I start with device "gone"
+    Then the result is "ok" on the default device
 
 Feature: Permission
   Scenario: mic denied

@@ -12,7 +12,7 @@ const TOLERANCES: [Tolerance, string][] = [
 
 /** Settings sheet. Shell renders it while open; it fires `close` when done. */
 export class GuSettingsSheet extends LitElement {
-  static properties = { confirming: { state: true }, mic: { state: true }, level: { state: true }, note: { state: true } }
+  static properties = { confirming: { state: true }, mic: { state: true }, level: { state: true }, note: { state: true }, inputs: { state: true } }
   static styles = [
     sheetStyles,
     css`
@@ -21,6 +21,7 @@ export class GuSettingsSheet extends LitElement {
     .meter div { height: 100%; background: var(--accent); }
     .confirm { margin-top: 16px; padding: 16px; border-radius: 14px; background: var(--ink); }
     .head { display: flex; justify-content: space-between; align-items: center; }
+    select { width: 100%; min-height: 44px; font: inherit; }
   `,
   ]
 
@@ -28,6 +29,8 @@ export class GuSettingsSheet extends LitElement {
   declare mic: 'off' | 'on' | 'failed'
   declare level: number
   declare note: string
+  /** Audio inputs; labels appear once the mic was allowed. */
+  declare inputs: { deviceId: string; label: string }[]
   private timer = 0
   private unsubscribe = () => {}
   /** The practice screen's mic was already running: only listen, leave it on at the end. */
@@ -39,6 +42,21 @@ export class GuSettingsSheet extends LitElement {
     this.mic = 'off'
     this.level = 0
     this.note = ''
+    this.inputs = []
+  }
+
+  connectedCallback() {
+    super.connectedCallback()
+    void this.loadInputs()
+  }
+
+  private async loadInputs() {
+    this.inputs = await getContext().pitch.devices()
+  }
+
+  private async chooseMic(id: string) {
+    getContext().settings.set({ micDeviceId: id })
+    await getContext().pitch.setDevice(id)
   }
 
   disconnectedCallback() {
@@ -49,7 +67,7 @@ export class GuSettingsSheet extends LitElement {
   private async startMic() {
     const { pitch } = getContext()
     this.borrowed = pitch.active()
-    if (!this.borrowed && (await pitch.start(() => 0)) !== 'ok') {
+    if (!this.borrowed && (await pitch.start(() => 0, undefined, getContext().settings.get().micDeviceId)) !== 'ok') {
       this.mic = 'failed'
       return
     }
@@ -57,6 +75,7 @@ export class GuSettingsSheet extends LitElement {
       if (f.midi !== null) this.note = noteName(f.midi)
     })
     this.mic = 'on'
+    void this.loadInputs() // labels are readable now
     this.timer = window.setInterval(() => (this.level = pitch.level()), 100)
   }
 
@@ -83,8 +102,9 @@ export class GuSettingsSheet extends LitElement {
   }
 
   render() {
-    const { settings, pitch } = getContext()
+    const { settings, pitch, engine } = getContext()
     const s = settings.get()
+    const ms = (sec: number) => Math.round(sec * 1000)
     const offset = (e: Event) => {
       const ms = +(e.target as HTMLInputElement).value
       settings.set({ micOffsetMs: ms })
@@ -110,6 +130,13 @@ export class GuSettingsSheet extends LitElement {
         <input id="offset" type="range" min="-300" max="300" step="10" .value=${String(s.micOffsetMs)} @input=${offset} />
         <p>${s.micOffsetMs} ms</p>
         <p>Wenn dein Ton zu früh oder zu spät angezeigt wird.</p>
+        <p>Gemessen: Wiedergabe ${ms(engine.latency())} ms · Mikrofon ${ms(pitch.inputLatency())} ms</p>
+
+        <h3><label for="mic">Mikrofon</label></h3>
+        <select id="mic" @change=${(e: Event) => this.chooseMic((e.target as HTMLSelectElement).value)}>
+          <option value="" ?selected=${!s.micDeviceId}>Automatisch (eingebautes Mikrofon)</option>
+          ${this.inputs.map((d, i) => html`<option value=${d.deviceId} ?selected=${s.micDeviceId === d.deviceId}>${d.label || `Mikrofon ${i + 1}`}</option>`)}
+        </select>
 
         <h3>Mikrofon testen</h3>
         ${
