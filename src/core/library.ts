@@ -1,10 +1,10 @@
 import { parseLibrary, parseManifest, parseSong, type Library as LibraryData, type Manifest, type Role, type Song, type SongMeta } from './content'
 import { openDb, withStore } from './db'
+import type { LoadedSong } from './types'
 import type { Vault } from './vault'
 
+export type { LoadedSong }
 export interface DownloadProgress { doneBytes: number; totalBytes: number; readySongs: string[]; done: boolean; error?: string }
-// Declared here because src/core/types.ts has no LoadedSong on this branch.
-export interface LoadedSong { meta: SongMeta; song: Song; voices: Blob; backing: Blob }
 
 export interface Library {
   fetchManifest(): Promise<Manifest | null>
