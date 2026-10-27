@@ -16,3 +16,4 @@ tools/tests/.features/
 e2e/.tmp/
 test-results/
 .ruff_cache/
+.claude/worktrees/
