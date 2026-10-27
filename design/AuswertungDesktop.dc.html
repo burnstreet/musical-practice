@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Auswertung Desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height:800px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:24px 40px 40px;display:flex;flex-direction:column;gap:28px">
+
+<header style="display:flex;align-items:center;gap:16px">
+<a href="SongsDesktop.dc.html" aria-label="Schließen" style="width:48px;height:48px;border-radius:24px;background:#17498C;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+</a>
+<div><div style="font-family:'Fraunces',serif;font-size:26px;font-weight:600">Lied 3 · [Liedtitel]</div><div style="font-size:14px;color:#CFE0F5;margin-top:2px">Auswertung · Durchgang 3</div></div>
+</header>
+
+<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:stretch">
+
+<div style="flex:1 1 360px;max-width:440px;background:#17498C;border-radius:28px;padding:32px;display:flex;flex-direction:column;align-items:center;gap:24px">
+<div style="position:relative;width:200px;height:200px">
+<svg width="200" height="200" viewBox="0 0 120 120" role="img" aria-label="86 Prozent Treffsicherheit"><circle cx="60" cy="60" r="50" fill="none" stroke="#3F78BF" stroke-width="12"/><circle cx="60" cy="60" r="50" fill="none" stroke="#C8E05A" stroke-width="12" stroke-linecap="round" stroke-dasharray="270 314" transform="rotate(-90 60 60)"/></svg>
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-family:'Fraunces',serif;font-size:56px;font-weight:600;line-height:1">86%</span><span style="font-size:14px;color:#CFE0F5;margin-top:4px">getroffen</span></div>
+</div>
+<div style="display:flex;gap:32px;flex-wrap:wrap;justify-content:center">
+<div style="text-align:center"><div style="font-size:13px;color:#CFE0F5">Ø Abweichung</div><div style="font-size:20px;font-weight:700;margin-top:2px">18 Cent</div></div>
+<div style="text-align:center"><div style="font-size:13px;color:#CFE0F5">Tendenz</div><div style="font-size:20px;font-weight:700;margin-top:2px">leicht zu hoch</div></div>
+<div style="text-align:center"><div style="font-size:13px;color:#CFE0F5">Tonumfang</div><div style="font-size:20px;font-weight:700;margin-top:2px">B3 – A4</div></div>
+</div>
+</div>
+
+<div style="flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:24px">
+
+<div style="background:#17498C;border-radius:28px;padding:24px 28px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="font-size:16px;font-weight:700">Abweichung je Phrase</div>
+<svg viewBox="0 0 640 140" width="100%" role="img" aria-label="Abweichung je Phrase: Phrase 1 und 2 nahe Null, Phrase 3 deutlich zu tief, Phrase 4 leicht zu hoch" style="display:block;height:auto">
+<line x1="0" y1="70" x2="640" y2="70" stroke="#A9D3F7" stroke-width="1.5"/>
+<rect x="0" y="45" width="640" height="50" fill="#A9D3F7" fill-opacity="0.15"/>
+<rect x="45" y="58" width="90" height="12" rx="5" fill="#C8E05A"/>
+<rect x="205" y="65" width="90" height="5" rx="2.5" fill="#C8E05A"/>
+<rect x="365" y="70" width="90" height="60" rx="8" fill="#FFFFFF"/>
+<rect x="525" y="42" width="90" height="28" rx="8" fill="#C8E05A"/>
+</svg>
+<div style="display:flex;justify-content:space-around;font-size:13px;color:#CFE0F5"><span>Phrase 1</span><span>Phrase 2</span><span>Phrase 3</span><span>Phrase 4</span></div>
+</div>
+
+<div style="display:flex;gap:14px;align-items:flex-start;background:#17498C;border-radius:20px;padding:20px 24px">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8E05A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+<div style="font-size:16px;line-height:1.5"><b>Phrase 3 ist zu tief.</b> Ab „ge-gan-gen“ rutscht die Stimme um bis zu 45 Cent ab. Übe die Stelle langsamer.</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:auto">
+<a href="MainDesktop.dc.html" style="flex:2 1 260px;height:56px;border-radius:28px;background:#C8E05A;color:#0F2F57;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center">Phrase 3 bei 80 % üben</a>
+<a href="MainDesktop.dc.html" style="flex:1 1 160px;height:56px;border-radius:28px;background:#17498C;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center">Nochmal ganz</a>
+<button style="flex:1 1 160px;height:56px;border-radius:28px;background:#17498C;border:0;color:#FFFFFF;font-size:15px;font-weight:700">Aufnahme anhören</button>
+</div>
+
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

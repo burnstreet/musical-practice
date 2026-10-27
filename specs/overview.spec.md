@@ -9,7 +9,7 @@ targets:
 
 # Gesangs-Übetool: overview
 
-Supersedes `musical-pitch-trainer-prd.md`. Design: https://claude.ai/artifact/WVyVL88zMdxYrpHFmDaVhh (canvas "Gesangs-Übetool Weihnachtsmusical 2026", 4 phone artboards + 4 desktop artboards).
+Supersedes `musical-pitch-trainer-prd.md`. Design: https://claude.ai/artifact/WVyVL88zMdxYrpHFmDaVhh (canvas "Gesangs-Übetool Weihnachtsmusical 2026", 4 phone artboards + 4 desktop artboards). Committed copy of the artboards in `design/`.
 
 Module specs in this folder. Business modules know no UI. Screens know no audio, crypto or scoring internals.
 
