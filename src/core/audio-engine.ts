@@ -35,7 +35,7 @@ export interface AudioEngineDeps {
 
 const browser: AudioEngineDeps = {
   createElement: () => new Audio(),
-  createContext: () => new AudioContext(),
+  createContext: () => new AudioContext({ latencyHint: 'interactive' }),
   requestFrame: (cb) => void requestAnimationFrame(() => cb()),
   createObjectURL: (b) => URL.createObjectURL(b),
   revokeObjectURL: (u) => URL.revokeObjectURL(u),

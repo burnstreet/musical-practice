@@ -7,6 +7,11 @@ import { steps } from '../gherkin'
 
 const RATE = 48000
 const sine = (hz: number) => Float32Array.from({ length: WINDOW }, (_, i) => 0.5 * Math.sin((2 * Math.PI * hz * i) / RATE))
+/** Fundamental plus decaying harmonics, like a sung vowel; detection must not jump an octave. */
+const voice = (hz: number) =>
+  Float32Array.from({ length: WINDOW }, (_, i) =>
+    [1, 0.6, 0.4, 0.25, 0.15].reduce((a, g, k) => a + 0.3 * g * Math.sin((2 * Math.PI * hz * (k + 1) * i) / RATE + k), 0),
+  )
 
 // Fakes: a context with latencies, a worklet node whose port we poke, a stream with a stoppable track.
 const fakes = (ctx: any, getUserMedia: () => Promise<any>) => {
@@ -17,6 +22,7 @@ const fakes = (ctx: any, getUserMedia: () => Promise<any>) => {
     },
   }
   const audio = {
+    sampleRate: RATE,
     baseLatency: ctx.base,
     outputLatency: ctx.out,
     audioWorklet: { addModule: async () => {} },
@@ -37,11 +43,28 @@ export default steps(({ Given, When, Then }) => {
   Given(/^a (\d+) Hz sine fed as audio$/, (ctx, hz) => {
     ctx.samples = sine(+hz)
   })
+  Given(/^voice-like tones at (.*) Hz fed as audio$/, (ctx, list) => {
+    ctx.tones = list.split(', ').map(Number)
+  })
+  Then(/^each midi is within 0\.1 of its tone and clarity is above 0\.9$/, (ctx) => {
+    ctx.tones.forEach((hz: number, i: number) => {
+      expect(ctx.results[i].midi, `${hz} Hz`).toBeCloseTo(69 + 12 * Math.log2(hz / 440), 1)
+      expect(ctx.results[i].clarity, `${hz} Hz`).toBeGreaterThan(0.9)
+    })
+  })
+  Given(/^white noise fed as audio$/, (ctx) => {
+    let seed = 1
+    ctx.samples = Float32Array.from({ length: WINDOW }, () => {
+      seed = (seed * 16807) % 2147483647 // fixed-seed generator: the test must not flake
+      return (0.6 * seed) / 2147483647 - 0.3
+    })
+  })
   Given(/^silence fed as audio$/, (ctx) => {
     ctx.samples = new Float32Array(WINDOW)
   })
   When(/^frames arrive$/, (ctx) => {
-    ctx.frame = detect(ctx.samples, RATE)
+    if (ctx.tones) ctx.results = ctx.tones.map((hz: number) => detect(voice(hz), RATE))
+    else ctx.frame = detect(ctx.samples, RATE)
   })
   Then(/^midi is within 0\.1 of 69 and clarity is above 0\.9$/, (ctx) => {
     expect(ctx.frame.midi).toBeCloseTo(69, 1)
@@ -61,10 +84,12 @@ export default steps(({ Given, When, Then }) => {
     },
   )
   When(/^a frame arrives$/, (ctx) => ctx.port.onmessage({ data: { midi: 69, clarity: 1, rms: 0.2 } }))
-  Then(/^its t is ([\d.]+)$/, (ctx, t) => {
+  Then(/^its at is ([\d.]+) and its t is ([\d.]+)$/, (ctx, at, t) => {
     expect(ctx.frames).toHaveLength(1)
-    expect(ctx.frames[0].t).toBeCloseTo(+t, 6)
+    expect(ctx.frames[0].at).toBeCloseTo(+at, 3)
+    expect(ctx.frames[0].t).toBeCloseTo(+t, 3)
   })
+  Then(/^inputLatency\(\) is ([\d.]+)$/, (ctx, s) => expect(ctx.engine.inputLatency()).toBeCloseTo(+s, 6))
 
   Given(/^getUserMedia rejects with NotAllowedError$/, (ctx) => {
     fakes(ctx, () => Promise.reject(new DOMException('no', 'NotAllowedError')))

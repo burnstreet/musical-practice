@@ -121,6 +121,7 @@ function world(ctx: any) {
         return () => {}
       },
       level: () => 0,
+      inputLatency: () => 0,
       active: () => false,
     },
     sw: {} as any,
@@ -165,7 +166,7 @@ async function tick(ctx: any, t: number) {
 
 async function frame(ctx: any, f: Partial<PitchFrame>) {
   ctx.pitchL.frame?.forEach((fn: (f: PitchFrame) => void) => {
-    fn({ t: ctx.time, midi: null, clarity: 1, rms: 0.1, ...f })
+    fn({ t: ctx.time, at: ctx.time, midi: null, clarity: 1, rms: 0.1, ...f })
   })
   await settle(ctx.el)
 }
