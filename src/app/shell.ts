@@ -5,6 +5,9 @@ import { settings } from './settings'
 import './settings-sheet'
 import './headphone-sheet'
 import { leaveSession } from './screens/practice'
+import './screens/results'
+import './screens/start'
+import './screens/songs'
 
 /** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
 function guard(ctx: AppContext, hash: string): Route {
@@ -117,3 +120,4 @@ export class GuApp extends LitElement {
 }
 
 customElements.define('gu-app', GuApp)
+
