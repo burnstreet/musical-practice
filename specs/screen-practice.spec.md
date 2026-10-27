@@ -81,6 +81,7 @@ Strings:
 - `tempo`: cycles 100 → 90 → 80 → 70 → 100.
 - `pause`: engine.pause, `session.endPass` (passes still go to history), stay paused on practice. Only with `features.results` on: route results when a pass result exists.
 - Play again after pause: `session.startPass`, engine.play.
+- The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
 - Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). No smoothing: the newest frame is drawn on the next animation frame.
   `[@test] ../tests/steps/screen-practice.steps.ts`
@@ -144,6 +145,11 @@ Feature: Practice screen
     And a pass with at least one entered note
     When I press pause
     Then session.endPass ran and the route is "#/results/08"
+
+  Scenario: paused from elsewhere
+    Given a pass with at least one entered note
+    When the engine is paused from outside the screen
+    Then the transport shows "Abspielen" and session.endPass ran
 
   Scenario: pause with nothing sung
     Given a pass with no entered note

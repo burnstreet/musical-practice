@@ -130,6 +130,7 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
     enters: [] as Note[],
     loops: [] as Phrase[],
     ended: 0,
+    pauses: 0,
     voices: el('voices'),
     backing: el('backing'),
     voicesGain: () => gains.find((g) => g.el === ctx.voices)!.gain,
@@ -147,6 +148,7 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
   engine.on('enter', (n) => ctx.enters.push(n))
   engine.on('loop', (p) => ctx.loops.push(p))
   engine.on('ended', () => ctx.ended++)
+  engine.on('pause', () => ctx.pauses++)
 }
 
 const mutingSong = (ctx: any, roles: RoleId[], mode: string, m = [1, 2], j = [3, 4]) =>
@@ -305,6 +307,11 @@ export default steps(({ Given, When, Then }) => {
   Given(/^no loop set$/, async (ctx) => {
     await setup(ctx)
     await ctx.engine.play()
+  })
+  When(/^I pause the engine$/, (ctx) => ctx.engine.pause())
+  Then(/^a pause event fires and playing\(\) is false$/, (ctx) => {
+    expect(ctx.pauses).toBe(1)
+    expect(ctx.engine.playing()).toBe(false)
   })
   When(/^the voices element ends$/, (ctx) => ctx.voices.dispatchEvent(new Event('ended')))
   Then(/^ended fires and playing\(\) is false$/, (ctx) => {
