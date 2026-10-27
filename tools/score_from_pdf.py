@@ -160,7 +160,7 @@ def parse(pdf, flats=0, sharps=0):
             if prev:
                 prev[-1]["dur"] *= 1.5
         # lyrics below this staff
-        ly = [l for l in lyrics if lines[-1] < l["y"] < lines[-1] + 4 * spacing]
+        ly = [l for l in lyrics if lines[-1] < l["y"] < lines[-1] + 6 * spacing]
         for l in ly:
             cand = [e for e in ev if e["midi"] is not None and abs(e["x"] - l["x"]) < 10]
             if cand:

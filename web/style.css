@@ -20,6 +20,12 @@ audio { width:100%; margin:10px 0 6px; }
 #editTools .hint { margin-left:0; flex-basis:100%; }
 button:disabled { opacity:.5; cursor:default; }
 #status.ok { color:#1a7f3c; }
+#legend { display:flex; gap:16px; flex-wrap:wrap; margin:4px 0; font-size:.9rem; }
+#legend[hidden] { display:none; }
+#legend i { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:5px; }
+body.with-sheet #wrap { height:calc(55vh - 160px); }
+#sheet { position:relative; background:var(--card); border:1px solid var(--line); border-radius:8px; margin-top:10px; padding:6px; overflow:auto; height:calc(45vh - 110px); min-height:220px; }
+#sheet[hidden] { display:none; }
 #wrap { width:100%; height:calc(100vh - 260px); min-height:300px; background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
 canvas { display:block; width:100%; height:100%; cursor:pointer; }
 #readout { display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:8px; font-variant-numeric:tabular-nums; color:var(--muted); }

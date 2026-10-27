@@ -24,6 +24,8 @@
     <button id="zoomIn" title="Zoom in">+</button>
     <label><input type="checkbox" id="specChk" checked> Spectrogram (vocals)</label>
     <span id="specStatus" class="hint"></span>
+    <label><input type="checkbox" id="lyricChk" checked> Text</label>
+    <label><input type="checkbox" id="sheetChk" checked> Noten</label>
     <label><input type="checkbox" id="editChk"> Edit notes</label>
     <span class="hint">Space: play/pause &middot; click roll: seek</span>
   </div>
@@ -34,7 +36,9 @@
     <button id="reloadBtn">Reload</button>
     <span class="hint">Click/drag box: select (Shift adds) &middot; drag note: move group &middot; drag note edge: resize &middot; &larr;/&rarr;: 10 ms (Shift: 100 ms, Ctrl: start only, Alt: end only)</span>
   </div>
+  <div id="legend" hidden></div>
   <div id="wrap"><canvas id="roll"></canvas></div>
+  <div id="sheet" hidden></div>
   <div id="readout">
     <span>Time <b id="rTime">0.00</b> s</span>
     <span>Pitch <b id="rPitch">–</b></span>
@@ -43,6 +47,7 @@
   </div>
   <div id="status"></div>
 </main>
+<script src="vendor/opensheetmusicdisplay.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

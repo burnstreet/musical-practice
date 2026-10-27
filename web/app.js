@@ -14,8 +14,14 @@
   const SUB = 3;
   // editing
   let editMode = false, selected = new Set(), drag = null, dirty = false;
+  // roles (voices) -> colours
+  const ROLE_PALETTE = ['#2f6fed', '#d6453a', '#2a9d5c', '#b8860b', '#8e44ad', '#0e8a9b'];
+  let roleColor = {};
+  // sheet music (OpenSheetMusicDisplay)
+  let osmd = null, cursorPos = null;
 
   const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+  const hexA = (hex, a) => 'rgba(' + parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16) + ',' + a + ')';
   const hzToMidi = (hz) => 69 + 12 * Math.log2(hz / 440);
   const midiToHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
   const win = () => ZOOMS[zoomIdx];
@@ -215,15 +221,20 @@
       const x = xOf(n.start), x2 = xOf(n.end), y = yOf(n.midi) - rowH / 2;
       const bw = Math.max(2, x2 - x), bh = Math.max(2, rowH - 1);
       const active = t >= n.start && t <= n.end, sel = selected.has(i);
-      ctx.fillStyle = sel ? (active ? 'rgba(240,140,20,0.6)' : 'rgba(240,140,20,0.35)')
-        : (active ? 'rgba(47,111,237,0.55)' : 'rgba(47,111,237,0.28)');
-      ctx.strokeStyle = sel ? 'rgba(200,100,0,0.95)' : 'rgba(47,111,237,0.8)';
+      const col = roleColor[n.role] || ROLE_PALETTE[0];
+      ctx.fillStyle = sel ? (active ? 'rgba(240,140,20,0.6)' : 'rgba(240,140,20,0.35)') : hexA(col, active ? 0.55 : 0.28);
+      ctx.strokeStyle = sel ? 'rgba(200,100,0,0.95)' : hexA(col, 0.8);
       ctx.lineWidth = sel ? 2 : 1;
       ctx.fillRect(x, y, bw, bh); ctx.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1);
       if (bw > 26 && bh > 9) {
-        ctx.fillStyle = '#14307a'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        ctx.fillStyle = '#1d2330'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
         ctx.font = Math.min(12, bh - 1) + 'px system-ui,sans-serif';
         ctx.fillText(n.name || midiName(n.midi), x + 3, y + bh / 2);
+      }
+      if (n.lyric && bw > 10 && $('lyricChk').checked) {
+        ctx.fillStyle = col; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+        ctx.font = 'bold 12px system-ui,sans-serif';
+        ctx.fillText(n.lyric, x + 1, y + bh + 2);
       }
     });
 
@@ -270,6 +281,69 @@
     ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
 
     readout(t);
+    followSheet(t);
+  }
+
+  // ---------- roles / sheet ----------
+  function buildRoles(s) {
+    roleColor = {};
+    const names = (s.roles || []).map((r) => r.name);
+    s.notes.forEach((n) => { if (n.role && !names.includes(n.role)) names.push(n.role); });
+    names.forEach((r, i) => { roleColor[r] = ROLE_PALETTE[i % ROLE_PALETTE.length]; });
+    const box = $('legend');
+    box.textContent = '';
+    box.hidden = names.length < 1;
+    names.forEach((r) => {
+      const sp = document.createElement('span');
+      const sw = document.createElement('i'); sw.style.background = roleColor[r];
+      sp.appendChild(sw); sp.appendChild(document.createTextNode(r));
+      box.appendChild(sp);
+    });
+  }
+
+  async function loadSheet(s) {
+    const box = $('sheet');
+    box.textContent = ''; osmd = null; cursorPos = null;
+    box.hidden = !s.sheet || !$('sheetChk').checked;
+    document.body.classList.toggle('with-sheet', !box.hidden);
+    resize();
+    if (box.hidden || !window.opensheetmusicdisplay) return;
+    try {
+      const o = new opensheetmusicdisplay.OpenSheetMusicDisplay(box, {
+        autoResize: true, drawTitle: false, drawPartNames: false, followCursor: false, drawingParameters: 'compact',
+      });
+      await o.load('data/' + s.sheet);
+      if (song !== s) return;
+      o.render();
+      o.cursor.show();
+      osmd = o;
+    } catch (e) {
+      box.textContent = 'Noten konnten nicht geladen werden: ' + e.message;
+    }
+  }
+  // move the sheet cursor to the bar/beat of the note sounding at t
+  function followSheet(t) {
+    if (!osmd || !song) return;
+    let cur = null;
+    for (const n of song.notes) { if (t >= n.start && t <= n.end) { cur = n; break; } }
+    if (!cur) return;
+    const key = cur.bar + ':' + cur.beat;
+    if (key === cursorPos) return;
+    cursorPos = key;
+    const c = osmd.cursor;
+    c.reset();
+    for (let guard = 0; guard < 5000 && !c.iterator.EndReached; guard++) {
+      const mi = c.iterator.CurrentMeasureIndex, beat = c.iterator.currentTimeStamp.RealValue * 4;
+      if (mi > cur.bar || (mi === cur.bar && beat >= cur.beat - 1e-3)) break;
+      c.next();
+    }
+    c.update();
+    // keep the cursor visible by scrolling the sheet box only, never the page
+    const box = $('sheet'), el = c.cursorElement;
+    if (el) {
+      const top = el.offsetTop - box.offsetTop, bottom = top + el.offsetHeight;
+      if (top < box.scrollTop || bottom > box.scrollTop + box.clientHeight) box.scrollTop = Math.max(0, top - 20);
+    }
   }
 
   function readout(t) {
@@ -434,6 +508,8 @@
       audio.style.display = noAudio ? 'none' : '';
       $('timerBtn').textContent = 'Play (timer)';
       buildStems(s);
+      buildRoles(s);
+      loadSheet(s);
       if (!noAudio) audio.src = 'data/' + s.audio; else audio.removeAttribute('src');
       const startT = parseFloat(new URLSearchParams(location.search).get('t'));
       if (startT > 0) {
@@ -469,6 +545,7 @@
     $('zoomOut').onclick = () => { zoomIdx = Math.min(ZOOMS.length - 1, zoomIdx + 1); $('zoomLbl').textContent = win() + ' s'; };
     $('timerBtn').onclick = toggle;
     $('editChk').onchange = () => setEditMode($('editChk').checked);
+    $('sheetChk').onchange = () => { if (song) loadSheet(song); };
     $('saveBtn').onclick = save;
     $('selAll').onclick = () => { song && song.notes.forEach((_, i) => selected.add(i)); };
     $('selNone').onclick = () => selected.clear();

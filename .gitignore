@@ -5,6 +5,7 @@ scores/
 web/data/*.mp3
 web/data/*.json
 web/data/*.png
+web/data/*.musicxml
 !web/data/index.json
 work/
 tools/.venv/
