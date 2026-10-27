@@ -141,9 +141,9 @@ export function fit(ctx: CanvasRenderingContext2D): { w: number; h: number } {
   return { w, h }
 }
 
-/** Room after a bar line before the first head (accidental), and the closest two onsets may get (head + dot). */
+/** Room after a bar line before the first head (accidental), and the closest two onsets may get (head, accidental, a 9 px syllable). */
 const PAD = 16
-const MIN_GAP = 22
+const MIN_GAP = 26
 
 /** Treble staff, `barsPerPage` bars per page. No-op without a context (happy-dom). */
 export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): void {
