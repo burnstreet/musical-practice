@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from 'vitest'
-import { setContext, type AppContext } from '../src/app/context'
+import { type AppContext, setContext } from '../src/app/context'
 import { settings } from '../src/app/settings'
 import '../src/app/settings-sheet'
 
@@ -12,9 +12,15 @@ const world = (active: boolean) => {
     settings,
     pitch: {
       active: () => active,
-      start: async () => { calls.push('start'); return 'ok' },
+      start: async () => {
+        calls.push('start')
+        return 'ok'
+      },
       stop: () => calls.push('stop'),
-      on: () => { listeners++; return () => void listeners-- },
+      on: () => {
+        listeners++
+        return () => void listeners--
+      },
       level: () => 0,
       setOffsetMs: () => {},
     },

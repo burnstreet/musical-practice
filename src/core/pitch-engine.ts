@@ -1,6 +1,6 @@
 import { HOP, WINDOW } from './pitch-constants'
-import type { PitchFrame } from './types'
 import workletUrl from './pitch-worklet.ts?worker&url'
+import type { PitchFrame } from './types'
 
 export type StartResult = 'ok' | 'denied' | 'unsupported'
 
@@ -33,7 +33,8 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
 
   async function start(songTime: () => number): Promise<StartResult> {
     const getUserMedia = deps.getUserMedia ?? defaultGetUserMedia()
-    const makeCtx = deps.createContext ?? (typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined' ? () => new AudioContext() : undefined)
+    const makeCtx =
+      deps.createContext ?? (typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined' ? () => new AudioContext() : undefined)
     if (!getUserMedia || !makeCtx) return 'unsupported'
     stop()
     let stream: MediaStream
@@ -76,7 +77,9 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
   return {
     start,
     stop,
-    setOffsetMs: (ms) => { offsetMs = ms },
+    setOffsetMs: (ms) => {
+      offsetMs = ms
+    },
     on: (_ev, fn) => {
       listeners.push(fn)
       return () => {

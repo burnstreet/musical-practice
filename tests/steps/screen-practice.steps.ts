@@ -1,23 +1,39 @@
 import { expect } from 'vitest'
-import { steps } from '../gherkin'
-import { setContext, type AppContext } from '../../src/app/context'
+import { type AppContext, setContext } from '../../src/app/context'
+import type { GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
 import type { Note, Song, SongMeta } from '../../src/core/content'
 import type { PitchFrame } from '../../src/core/types'
-import type { GuPractice } from '../../src/app/screens/practice'
+import { steps } from '../gherkin'
 import '../../src/app/screens/practice'
 
-const note = (midi: number, start: number, end: number, role: Note['role'], phrase: number, syllable = 'la'): Note =>
-  ({ midi, start, end, role, phrase, syllable, bar: Math.floor(start / 2), beat: 0, dur: 1 })
+const note = (midi: number, start: number, end: number, role: Note['role'], phrase: number, syllable = 'la'): Note => ({
+  midi,
+  start,
+  end,
+  role,
+  phrase,
+  syllable,
+  bar: Math.floor(start / 2),
+  beat: 0,
+  dur: 1,
+})
 
 /** 16 bars of 2 s. Josef sings in phrase 0, Maria D5 then F5 in phrase 1. */
 function fixture(): { meta: SongMeta; song: Song } {
   return {
     meta: { id: '08', number: 8, title: '[Titel]', durationSec: 135, roles: ['josef', 'maria', 'esel'], files: { voices: 'v', backing: 'b', notes: 'n' } },
     song: {
-      id: '08', bpm: 93, key: 'F', timeSig: [4, 4], bars: Array.from({ length: 16 }, (_, i) => i * 2),
+      id: '08',
+      bpm: 93,
+      key: 'F',
+      timeSig: [4, 4],
+      bars: Array.from({ length: 16 }, (_, i) => i * 2),
       notes: [note(69, 1, 2, 'josef', 0), note(74, 8, 9.5, 'maria', 1, 'ge'), note(77, 10, 11, 'maria', 1)],
-      phrases: [{ index: 0, label: 'p0', start: 0, end: 3 }, { index: 1, label: 'p1', start: 8, end: 11 }],
+      phrases: [
+        { index: 0, label: 'p0', start: 0, end: 3 },
+        { index: 1, label: 'p1', start: 8, end: 11 },
+      ],
     },
   }
 }
@@ -42,19 +58,44 @@ function world(ctx: any) {
   ctx.app = {
     vault: {} as any,
     library: {
-      roles: () => [{ id: 'josef', name: 'Josef', sings: true }, { id: 'maria', name: 'Maria', sings: true }, { id: 'esel', name: 'Esel', sings: true }],
+      roles: () => [
+        { id: 'josef', name: 'Josef', sings: true },
+        { id: 'maria', name: 'Maria', sings: true },
+        { id: 'esel', name: 'Esel', sings: true },
+      ],
       getSong: async (id: string) => ({ ...ctx.data, voices: new Blob(), backing: new Blob(), id }),
     } as any,
-    history: { record: async (id: string, roles: string[], passes: unknown[]) => { ctx.recorded = { id, roles, passes } } } as any,
+    history: {
+      record: async (id: string, roles: string[], passes: unknown[]) => {
+        ctx.recorded = { id, roles, passes }
+      },
+    } as any,
     engine: {
       load: async () => log('load'),
       unload: () => log('unload'),
-      play: async () => { log('play'); ctx.playing = true },
-      pause: () => { log('pause'); ctx.playing = false },
-      seek: (s: number) => { log(`seek ${s}`); ctx.time = s },
-      setMode: (m: string) => { log(`mode ${m}`); ctx.mode = m },
-      setTempo: (t: number) => { log(`tempo ${t}`); ctx.tempo = t },
-      setLoop: (p: unknown) => { ctx.loop = p },
+      play: async () => {
+        log('play')
+        ctx.playing = true
+      },
+      pause: () => {
+        log('pause')
+        ctx.playing = false
+      },
+      seek: (s: number) => {
+        log(`seek ${s}`)
+        ctx.time = s
+      },
+      setMode: (m: string) => {
+        log(`mode ${m}`)
+        ctx.mode = m
+      },
+      setTempo: (t: number) => {
+        log(`tempo ${t}`)
+        ctx.tempo = t
+      },
+      setLoop: (p: unknown) => {
+        ctx.loop = p
+      },
       tempo: () => ctx.tempo ?? 100,
       loop: () => ctx.loop ?? null,
       time: () => ctx.time,
@@ -62,10 +103,16 @@ function world(ctx: any) {
       on: on(ctx.engineL),
     },
     pitch: {
-      start: async () => { log('pitch.start'); return ctx.startResult },
+      start: async () => {
+        log('pitch.start')
+        return ctx.startResult
+      },
       stop: () => log('pitch.stop'),
       setOffsetMs: () => {},
-      on: (ev: string, fn: (x: any) => void) => { on(ctx.pitchL)(ev, fn); return () => {} },
+      on: (ev: string, fn: (x: any) => void) => {
+        on(ctx.pitchL)(ev, fn)
+        return () => {}
+      },
       level: () => 0,
       active: () => false,
     },
@@ -73,7 +120,9 @@ function world(ctx: any) {
     isIosSafariTab: () => false,
     settings,
     live: null,
-    route: (to: string) => { location.hash = to },
+    route: (to: string) => {
+      location.hash = to
+    },
     openSettings: () => {},
     ensureHeadphoneSheet: async () => {},
   } as AppContext
@@ -130,10 +179,16 @@ export default steps(({ Given, When, Then }) => {
     return b
   }
   const tap = async (ctx: any, b: HTMLElement, n = 1) => {
-    for (let i = 0; i < n; i++) { b.click(); await settle(ctx.el) }
+    for (let i = 0; i < n; i++) {
+      b.click()
+      await settle(ctx.el)
+    }
   }
 
-  Given(/^mode (all|others|backing)$/, (ctx, m) => { world(ctx); settings.set({ mode: m as any }) })
+  Given(/^mode (all|others|backing)$/, (ctx, m) => {
+    world(ctx)
+    settings.set({ mode: m as any })
+  })
   When(/^I tap the voicetrack button twice$/, async (ctx) => {
     await screen(ctx)
     expect(ctx.mode).toBe('all')
@@ -157,7 +212,8 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^the readout shows (".+)$/, (ctx, list) => {
     for (const [, s] of list.matchAll(/"([^"]+)"/g)) {
-      if (/^[A-G]#?\d$/.test(s)) expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(s) // the sung note, not the "Ziel" label
+      if (/^[A-G]#?\d$/.test(s))
+        expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(s) // the sung note, not the "Ziel" label
       else expect(text(ctx.el)).toContain(s)
     }
   })
@@ -198,7 +254,9 @@ export default steps(({ Given, When, Then }) => {
   })
 
   // Mic and roles
-  Given(/^pitch\.start returns (denied|unsupported)$/, (ctx, r) => { world(ctx).startResult = r })
+  Given(/^pitch\.start returns (denied|unsupported)$/, (ctx, r) => {
+    world(ctx).startResult = r
+  })
   Then(/^the banner "([^"]+)" is visible and play works$/, async (ctx, banner) => {
     await screen(ctx)
     expect(text(ctx.el)).toContain(banner)

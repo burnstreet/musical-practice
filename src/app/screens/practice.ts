@@ -1,28 +1,43 @@
-import { LitElement, css, html, svg } from 'lit'
+import { css, html, LitElement, svg } from 'lit'
 import type { Mode, Tempo } from '../../core/audio-engine'
 import type { Phrase } from '../../core/content'
 import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
-import { getContext, type AppContext } from '../context'
+import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
-import { draw as drawStaff, pageOf, type DrawState } from '../draw/staff'
+import { type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
 
-const MODES: Record<Mode, [label: string, next: Mode]> = { all: ['alle Stimmen', 'others'], others: ['nur für andere', 'backing'], backing: ['nur Playback', 'all'] }
+const MODES: Record<Mode, [label: string, next: Mode]> = {
+  all: ['alle Stimmen', 'others'],
+  others: ['nur für andere', 'backing'],
+  backing: ['nur Playback', 'all'],
+}
 const NEXT_TEMPO: Record<Tempo, Tempo> = { 100: 90, 90: 80, 80: 70, 70: 100 }
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
 // Icons from the artboards
 const icon = (body: ReturnType<typeof svg>, size = 22) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
 const BACK = icon(svg`<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`, 20)
-const GEAR = icon(svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g>`, 20)
+const GEAR = icon(
+  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g>`,
+  20,
+)
 const CHEVRON = icon(svg`<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`, 16)
-const LOOP = icon(svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></g>`)
-const TO_START = icon(svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`)
+const LOOP = icon(
+  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></g>`,
+)
+const TO_START = icon(
+  svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
+)
 const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></g>`, 28)
 const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 28)
-const MIC = icon(svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></g>`)
-const MIC_OFF = icon(svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M4 4l16 16"/></g>`)
+const MIC = icon(
+  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></g>`,
+)
+const MIC_OFF = icon(
+  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M4 4l16 16"/></g>`,
+)
 
 /** Ends the live session: unload, mic off, history. Back button and the shell (routes to songs/start) call it; no-op without one. */
 export function leaveSession(ctx: AppContext): void {
@@ -42,8 +57,14 @@ const wired = new WeakSet<object>()
 /** Live practice screen. The shell sets `songId`. */
 export class GuPractice extends LitElement {
   static properties = {
-    songId: {}, loaded: { state: true }, t: { state: true }, mode: { state: true }, playing: { state: true },
-    mic: { state: true }, tempo: { state: true }, loop: { state: true },
+    songId: {},
+    loaded: { state: true },
+    t: { state: true },
+    mode: { state: true },
+    playing: { state: true },
+    mic: { state: true },
+    tempo: { state: true },
+    loop: { state: true },
   }
   static styles = css`
     :host { display: grid; gap: 12px; box-sizing: border-box; min-height: 100vh; padding: 28px 20px 24px; max-width: 560px; margin: 0 auto;
@@ -247,7 +268,12 @@ export class GuPractice extends LitElement {
     if (!d) return { big: '–', label: '', text: '', cents: null }
     const dir = d.cents > 0 ? 'zu hoch' : 'zu tief'
     const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
-    return { big: noteName(d.sungMidiFolded), label: `Ziel ${noteName(d.note.midi)}`, text: `${d.cents > 0 ? '+' : ''}${d.cents} Cent · ${word}`, cents: d.cents }
+    return {
+      big: noteName(d.sungMidiFolded),
+      label: `Ziel ${noteName(d.note.midi)}`,
+      text: `${d.cents > 0 ? '+' : ''}${d.cents} Cent · ${word}`,
+      cents: d.cents,
+    }
   }
 
   render() {
@@ -258,7 +284,11 @@ export class GuPractice extends LitElement {
     const { bars, key, bpm } = loaded.song
     const firstBar = pageOf(bars, this.t) * 4 + 1
     const readout = this.readout()
-    const mine = library.roles().filter((x) => s.roles.includes(x.id)).map((x) => x.name).join(', ')
+    const mine = library
+      .roles()
+      .filter((x) => s.roles.includes(x.id))
+      .map((x) => x.name)
+      .join(', ')
     const dur = loaded.meta.durationSec
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
@@ -268,9 +298,13 @@ export class GuPractice extends LitElement {
       </div>
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>
-    ${!this.singsHere
-      ? html`<p class="note" role="status">Deine Rolle singt hier nicht. Nur Zuhören.</p>`
-      : !this.mic ? html`<p class="note" role="alert">Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.</p>` : ''}
+    ${
+      !this.singsHere
+        ? html`<p class="note" role="status">Deine Rolle singt hier nicht. Nur Zuhören.</p>`
+        : !this.mic
+          ? html`<p class="note" role="alert">Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.</p>`
+          : ''
+    }
     <button class="mode" ?disabled=${!this.singsHere} @click=${() => this.setMode(MODES[this.mode][1])}><span>Voicetrack</span><b>${MODES[this.mode][0]}${CHEVRON}</b></button>
     <section class="card staff">
       <div class="legend"><span><i></i>Meine Stimme · ${mine}</span><span><i class="other"></i>Andere</span></div>
@@ -294,9 +328,11 @@ export class GuPractice extends LitElement {
       <div class="buttons">
         <button class="round" aria-label="Phrase wiederholen" aria-pressed=${!!this.loop} @click=${this.toggleLoop}>${LOOP}</button>
         <button class="round" aria-label="Zurück zum Anfang der Phrase" @click=${() => this.seek(this.phrase().start)}>${TO_START}</button>
-        ${this.playing
-          ? html`<button class="round main" aria-label="Pause und Auswertung" @click=${this.pause}>${PAUSE}</button>`
-          : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`}
+        ${
+          this.playing
+            ? html`<button class="round main" aria-label="Pause und Auswertung" @click=${this.pause}>${PAUSE}</button>`
+            : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`
+        }
         <button class="round" aria-label="Tempo ${this.tempo} Prozent" @click=${() => this.setTempo(NEXT_TEMPO[this.tempo])}>${this.tempo}%</button>
         ${this.singsHere ? html`<span class="round mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
       </div>

@@ -1,6 +1,6 @@
 import type { Note } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
-import { COLORS, FONT, fit, type DrawState } from './staff'
+import { COLORS, type DrawState, FONT, fit } from './staff'
 
 const BEHIND = 1.5
 const AHEAD = 3.5
@@ -98,7 +98,10 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const mine = song.notes.filter((n) => roles.includes(n.role))
   const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
   ctx.lineCap = ctx.lineJoin = 'round'
-  for (const [colour, width] of [[COLORS.surface, 8], [COLORS.text, 4]] as const) {
+  for (const [colour, width] of [
+    [COLORS.surface, 8],
+    [COLORS.text, 4],
+  ] as const) {
     ctx.strokeStyle = colour
     ctx.lineWidth = width
     ctx.beginPath()

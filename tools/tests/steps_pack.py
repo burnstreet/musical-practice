@@ -24,14 +24,28 @@ def sine(path, seconds, freq=440):
 
 def pcm(path):
     """Decoded mono 44.1 kHz samples, independent of pack.py."""
-    out = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "44100", "-"], check=True, capture_output=True).stdout
-    return [int.from_bytes(out[i:i + 2], "little", signed=True) for i in range(0, len(out), 2)]
+    out = subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "44100", "-"], check=True, capture_output=True
+    ).stdout
+    return [int.from_bytes(out[i : i + 2], "little", signed=True) for i in range(0, len(out), 2)]
 
 
 def notes():
     spec = [("Sin", "maria"), ("ge", "maria"), ("mit", "josef"), ("hö", "josef"), ("re", "chor"), ("zu", "chor")]
-    return [{"start": 1.0 + i, "end": 1.8 + i, "midi": 60 + i, "lyric": s, "role": r, "phrase": 0 if i < 3 else 1, "bar": i // 4, "beat": float(i % 4), "dur": 1.0}
-            for i, (s, r) in enumerate(spec)]
+    return [
+        {
+            "start": 1.0 + i,
+            "end": 1.8 + i,
+            "midi": 60 + i,
+            "lyric": s,
+            "role": r,
+            "phrase": 0 if i < 3 else 1,
+            "bar": i // 4,
+            "beat": float(i % 4),
+            "dur": 1.0,
+        }
+        for i, (s, r) in enumerate(spec)
+    ]
 
 
 @pytest.fixture
@@ -92,8 +106,23 @@ def _(ctx, mix, pb, off):
     data = ctx["root"] / "web" / "data"
     make_song(ctx, mix=mix, playback=1, offset=off)
     # 0.3 s of 440 Hz lead-in, then 880 Hz: trimmed backing must start at 880 Hz
-    ffmpeg("-f", "lavfi", "-i", f"sine=frequency=440:duration={off}:sample_rate=44100", "-f", "lavfi", "-i", f"sine=frequency=880:duration={pb - off}:sample_rate=44100",
-           "-filter_complex", "[0][1]concat=n=2:v=0:a=1", "-ac", "1", "-b:a", "128k", str(data / "08_playback.mp3"))
+    ffmpeg(
+        "-f",
+        "lavfi",
+        "-i",
+        f"sine=frequency=440:duration={off}:sample_rate=44100",
+        "-f",
+        "lavfi",
+        "-i",
+        f"sine=frequency=880:duration={pb - off}:sample_rate=44100",
+        "-filter_complex",
+        "[0][1]concat=n=2:v=0:a=1",
+        "-ac",
+        "1",
+        "-b:a",
+        "128k",
+        str(data / "08_playback.mp3"),
+    )
 
 
 @given(parsers.parse('one complete song and PITCH_PASSWORD "{pw}"'))
@@ -204,13 +233,18 @@ def test_song_file_follows_content_format(ctx):
     song = json.loads(decrypt_file(ctx, lib["songs"][0]["files"]["notes"]))
     assert lib["songs"][0]["roles"] == ["maria", "josef", "chor"]
     assert song["notes"][0]["syllable"] == "Sin" and "lyric" not in song["notes"][0]
-    assert song["phrases"] == [{"index": 0, "label": "Phrase 1", "start": 1.0, "end": 3.8}, {"index": 1, "label": "Phrase 2", "start": 4.0, "end": 6.8}]
+    assert song["phrases"] == [
+        {"index": 0, "label": "Phrase 1", "start": 1.0, "end": 3.8},
+        {"index": 1, "label": "Phrase 2", "start": 4.0, "end": 6.8},
+    ]
     assert song["bars"][0] == 1.0 and song["bars"][1] == 5.0
 
 
 def test_repeat_gets_later_bar_and_bars_increase():
-    n = [{"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "maria", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}
-         for p, t in enumerate((0.0, 10.0))]
+    n = [
+        {"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "maria", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}
+        for p, t in enumerate((0.0, 10.0))
+    ]
     song = pack.build_song({"id": "08", "bpm": 60, "key": "F"}, n, 20.0)
     first, second = (x["bar"] for x in song["notes"])
     assert first == 0 and second > 0

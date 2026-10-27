@@ -1,10 +1,16 @@
-import { parseLibrary, parseManifest, parseSong, type Library as LibraryData, type Manifest, type Role, type Song, type SongMeta } from './content'
+import { type Library as LibraryData, type Manifest, parseLibrary, parseManifest, parseSong, type Role, type SongMeta } from './content'
 import { openDb, withStore } from './db'
 import type { LoadedSong } from './types'
 import type { Vault } from './vault'
 
 export type { LoadedSong }
-export interface DownloadProgress { doneBytes: number; totalBytes: number; readySongs: string[]; done: boolean; error?: string }
+export interface DownloadProgress {
+  doneBytes: number
+  totalBytes: number
+  readySongs: string[]
+  done: boolean
+  error?: string
+}
 
 export interface Library {
   fetchManifest(): Promise<Manifest | null>
@@ -45,10 +51,14 @@ export function createLibrary(deps: LibraryDeps): Library {
   const unlocked = () => vault.state() === 'unlocked'
 
   async function load() {
-    stored = new Set(await idb('files', 'readonly', (s) => s.getAllKeys()) as string[])
+    stored = new Set((await idb('files', 'readonly', (s) => s.getAllKeys())) as string[])
     data = null
     if (!unlocked() || !manifest || !stored.has(manifest.library)) return
-    try { data = parseLibrary(JSON.parse(new TextDecoder().decode(await plain(manifest.library)))) } catch { /* unreadable library counts as none */ }
+    try {
+      data = parseLibrary(JSON.parse(new TextDecoder().decode(await plain(manifest.library))))
+    } catch {
+      /* unreadable library counts as none */
+    }
   }
 
   const ready = (s: SongMeta) => Object.values(s.files).every((id) => stored.has(id))
@@ -59,7 +69,9 @@ export function createLibrary(deps: LibraryDeps): Library {
       try {
         const r = await doFetch(`${baseUrl}/${id}.bin`)
         if (r.ok) return await r.arrayBuffer()
-      } catch { /* retry */ }
+      } catch {
+        /* retry */
+      }
       if (i < RETRIES) await new Promise((r) => setTimeout(r, retryDelayMs))
     }
     return null
@@ -68,7 +80,8 @@ export function createLibrary(deps: LibraryDeps): Library {
   async function runSync() {
     await lib.fetchManifest()
     const m = manifest
-    const emit = (p: Partial<DownloadProgress>) => listeners.forEach((l) => l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p }))
+    const emit = (p: Partial<DownloadProgress>) =>
+      listeners.forEach((l) => l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p }))
     let doneBytes = 0
     if (!m) return emit({ done: true, error: 'no manifest' })
     const failed: string[] = []
@@ -96,7 +109,9 @@ export function createLibrary(deps: LibraryDeps): Library {
       try {
         const r = await doFetch(`${baseUrl}/manifest.json`)
         if (r.ok) fresh = parseManifest(await r.json())
-      } catch { /* offline or invalid: fall back to cache */ }
+      } catch {
+        /* offline or invalid: fall back to cache */
+      }
       if (fresh) await idb('meta', 'readwrite', (s) => s.put(fresh, 'manifest'))
       manifest = fresh ?? ((await idb('meta', 'readonly', (s) => s.get('manifest'))) as Manifest | undefined) ?? null
       await load()
@@ -105,7 +120,9 @@ export function createLibrary(deps: LibraryDeps): Library {
     sizeInfo: () => (manifest ? { songCount: manifest.songCount, totalBytes: manifest.totalBytes } : null),
     sync() {
       // Shell (boot) and start screen (unlock) may both call it: share one run.
-      return (syncing ??= runSync().finally(() => { syncing = null }))
+      return (syncing ??= runSync().finally(() => {
+        syncing = null
+      }))
     },
     async fetchLibraryCipher() {
       if (!manifest) return null

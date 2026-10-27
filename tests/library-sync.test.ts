@@ -6,7 +6,10 @@ import type { Vault } from '../src/core/vault'
 
 it('concurrent sync calls share one run', async () => {
   let manifestFetches = 0
-  const fetch = (async () => { manifestFetches++; return new Response(null, { status: 404 }) }) as unknown as typeof globalThis.fetch
+  const fetch = (async () => {
+    manifestFetches++
+    return new Response(null, { status: 404 })
+  }) as unknown as typeof globalThis.fetch
   const vault = { state: () => 'unlocked', onWipe: () => {} } as unknown as Vault
   const lib = createLibrary({ vault, fetch, db: () => openDb('gu-test-sync') })
   const a = lib.sync()

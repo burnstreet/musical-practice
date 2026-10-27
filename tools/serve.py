@@ -7,6 +7,7 @@ POST /save/<name>.json  -> writes web/data/<name>.json and keeps a timestamped
 
 Usage: python tools/serve.py [port]   (default 8765)
 """
+
 import functools
 import json
 import sys
@@ -36,9 +37,10 @@ class Handler(RangeRequestHandler):
             self.wfile.write(body)
             return
         super().do_GET()
+
     def do_POST(self):
         name = Path(self.path).name
-        if not self.path.startswith("/save/") or not name.endswith(".json") or name != self.path[len("/save/"):]:
+        if not self.path.startswith("/save/") or not name.endswith(".json") or name != self.path[len("/save/") :]:
             self.send_error(404)
             return
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))

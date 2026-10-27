@@ -1,19 +1,89 @@
 export type { PitchFrame } from './types'
 
-export const ROLE_IDS = ['erzaehler1', 'erzaehler2', 'anna', 'mutter', 'engel', 'benjamin', 'roemer', 'hirte', 'josef', 'wirt', 'weihnachtsmann', 'maria', 'esel', 'kuh', 'schaf', 'chor'] as const
+export const ROLE_IDS = [
+  'erzaehler1',
+  'erzaehler2',
+  'anna',
+  'mutter',
+  'engel',
+  'benjamin',
+  'roemer',
+  'hirte',
+  'josef',
+  'wirt',
+  'weihnachtsmann',
+  'maria',
+  'esel',
+  'kuh',
+  'schaf',
+  'chor',
+] as const
 export type RoleId = (typeof ROLE_IDS)[number]
 
-export interface Manifest { format: 1; build: string; keyId: string; salt: string; iterations: number; library: string; songCount: number; totalBytes: number; files: Record<string, number> }
-export interface Role { id: RoleId; name: string; sings: boolean }
-export interface SongMeta { id: string; number: number; title: string; durationSec: number; roles: RoleId[]; files: { voices: string; backing: string; notes: string } }
-export interface Library { roles: Role[]; songs: SongMeta[] }
-export interface Note { start: number; end: number; midi: number; syllable: string; role: RoleId; phrase: number; bar: number; beat: number; dur: number }
-export interface Phrase { index: number; label: string; start: number; end: number }
-export interface Song { id: string; bpm: number; key: string; timeSig: [number, number]; bars: number[]; notes: Note[]; phrases: Phrase[] }
-export interface Span { start: number; end: number }
+export interface Manifest {
+  format: 1
+  build: string
+  keyId: string
+  salt: string
+  iterations: number
+  library: string
+  songCount: number
+  totalBytes: number
+  files: Record<string, number>
+}
+export interface Role {
+  id: RoleId
+  name: string
+  sings: boolean
+}
+export interface SongMeta {
+  id: string
+  number: number
+  title: string
+  durationSec: number
+  roles: RoleId[]
+  files: { voices: string; backing: string; notes: string }
+}
+export interface Library {
+  roles: Role[]
+  songs: SongMeta[]
+}
+export interface Note {
+  start: number
+  end: number
+  midi: number
+  syllable: string
+  role: RoleId
+  phrase: number
+  bar: number
+  beat: number
+  dur: number
+}
+export interface Phrase {
+  index: number
+  label: string
+  start: number
+  end: number
+}
+export interface Song {
+  id: string
+  bpm: number
+  key: string
+  timeSig: [number, number]
+  bars: number[]
+  notes: Note[]
+  phrases: Phrase[]
+}
+export interface Span {
+  start: number
+  end: number
+}
 
 export class ContentError extends Error {
-  constructor(public field: string, message = `invalid ${field}`) {
+  constructor(
+    public field: string,
+    message = `invalid ${field}`,
+  ) {
     super(message)
   }
 }
@@ -86,4 +156,3 @@ export function roleSpans(notes: Note[], roles: RoleId[]): Span[] {
   }
   return spans
 }
-

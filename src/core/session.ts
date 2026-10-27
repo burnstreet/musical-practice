@@ -1,13 +1,17 @@
 import type { Note, RoleId, Song } from './content'
+import { type PassResult, scorePass, type Tolerance } from './scorer'
 import type { PitchFrame } from './types'
-import { scorePass, type PassResult, type Tolerance } from './scorer'
 
 /** Routes pitch frames into entered notes of the role set and keeps the passes of one session. */
 export class Session {
   private entered = new Map<number, PitchFrame[]>() // song note index -> frames, in order of entry
   private done: PassResult[] = []
 
-  constructor(private song: Song, private roles: RoleId[], private tol: Tolerance) {}
+  constructor(
+    private song: Song,
+    private roles: RoleId[],
+    private tol: Tolerance,
+  ) {}
 
   myNotes(): Note[] {
     return this.song.notes.filter((n) => this.roles.includes(n.role))

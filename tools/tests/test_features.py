@@ -1,6 +1,5 @@
-from pytest_bdd.parser import FeatureParser
-
 from conftest import FEATURES_DIR
+from pytest_bdd.parser import FeatureParser
 
 
 def test_pytest_bdd_parses_every_feature():

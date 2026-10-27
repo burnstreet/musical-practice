@@ -1,9 +1,9 @@
 import { expect } from 'vitest'
-import { steps } from '../gherkin'
+import { WINDOW } from '../../src/core/pitch-constants'
 import { detect } from '../../src/core/pitch-detect'
 import { createPitchEngine } from '../../src/core/pitch-engine'
 import type { PitchFrame } from '../../src/core/types'
-import { WINDOW } from '../../src/core/pitch-constants'
+import { steps } from '../gherkin'
 
 const RATE = 48000
 const sine = (hz: number) => Float32Array.from({ length: WINDOW }, (_, i) => 0.5 * Math.sin((2 * Math.PI * hz * i) / RATE))
@@ -11,9 +11,15 @@ const sine = (hz: number) => Float32Array.from({ length: WINDOW }, (_, i) => 0.5
 // Fakes: a context with latencies, a worklet node whose port we poke, a stream with a stoppable track.
 const fakes = (ctx: any, getUserMedia: () => Promise<any>) => {
   ctx.port = {} as { onmessage?: (e: { data: unknown }) => void }
-  ctx.track = { stop: () => { ctx.stopped = true } }
+  ctx.track = {
+    stop: () => {
+      ctx.stopped = true
+    },
+  }
   const audio = {
-    baseLatency: ctx.base, outputLatency: ctx.out, audioWorklet: { addModule: async () => {} },
+    baseLatency: ctx.base,
+    outputLatency: ctx.out,
+    audioWorklet: { addModule: async () => {} },
     createMediaStreamSource: () => ({ connect: () => {}, disconnect: () => {} }),
     close: async () => {},
   }
@@ -28,14 +34,22 @@ const fakes = (ctx: any, getUserMedia: () => Promise<any>) => {
 const stream = (ctx: any) => async () => ({ getTracks: () => [ctx.track] })
 
 export default steps(({ Given, When, Then }) => {
-  Given(/^a (\d+) Hz sine fed as audio$/, (ctx, hz) => { ctx.samples = sine(+hz) })
-  Given(/^silence fed as audio$/, (ctx) => { ctx.samples = new Float32Array(WINDOW) })
-  When(/^frames arrive$/, (ctx) => { ctx.frame = detect(ctx.samples, RATE) })
+  Given(/^a (\d+) Hz sine fed as audio$/, (ctx, hz) => {
+    ctx.samples = sine(+hz)
+  })
+  Given(/^silence fed as audio$/, (ctx) => {
+    ctx.samples = new Float32Array(WINDOW)
+  })
+  When(/^frames arrive$/, (ctx) => {
+    ctx.frame = detect(ctx.samples, RATE)
+  })
   Then(/^midi is within 0\.1 of 69 and clarity is above 0\.9$/, (ctx) => {
     expect(ctx.frame.midi).toBeCloseTo(69, 1)
     expect(ctx.frame.clarity).toBeGreaterThan(0.9)
   })
-  Then(/^midi is null$/, (ctx) => { expect(ctx.frame.midi).toBeNull() })
+  Then(/^midi is null$/, (ctx) => {
+    expect(ctx.frame.midi).toBeNull()
+  })
 
   Given(/^songTime returns ([\d.]+), baseLatency ([\d.]+), outputLatency ([\d.]+) and offset (-?\d+) ms$/, async (ctx, t, base, out, off) => {
     Object.assign(ctx, { base: +base, out: +out })
@@ -52,10 +66,11 @@ export default steps(({ Given, When, Then }) => {
   Given(/^getUserMedia rejects with NotAllowedError$/, (ctx) => {
     fakes(ctx, () => Promise.reject(new DOMException('no', 'NotAllowedError')))
   })
-  When(/^I start$/, async (ctx) => { ctx.result = await ctx.engine.start(() => 0) })
+  When(/^I start$/, async (ctx) => {
+    ctx.result = await ctx.engine.start(() => 0)
+  })
   Then(/^the result is "(.*)" and no frames arrive$/, (ctx, r) => {
     expect(ctx.result).toBe(r)
     expect(ctx.frames).toHaveLength(0)
   })
 })
-

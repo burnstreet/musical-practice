@@ -10,6 +10,7 @@ For each song pair:
 
 Usage: python tools/align_check.py [song numbers...]
 """
+
 import json
 import re
 import subprocess
@@ -102,8 +103,16 @@ def analyze(n: str, mix_path: Path, pb_path: Path) -> dict:
         a, b = mix[a0 : a0 + win], pb[s : s + win]
         g, res = residual(a, b)
         _, res_low = residual(lowpass(a), lowpass(b))
-        windows.append({"pb_start_s": round(s / SR, 1), "lag": l, "peak": round(peak, 3),
-                        "gain": round(g, 3), "residual": round(res, 3), "residual_low": round(res_low, 3)})
+        windows.append(
+            {
+                "pb_start_s": round(s / SR, 1),
+                "lag": l,
+                "peak": round(peak, 3),
+                "gain": round(g, 3),
+                "residual": round(res, 3),
+                "residual_low": round(res_low, 3),
+            }
+        )
 
     lags = [w["lag"] for w in windows]
     out = {
@@ -144,8 +153,11 @@ def main():
         r = analyze(n, *pairs[n])
         r["verdict"] = verdict(r)
         results.append(r)
-        print(f"{n}: lag={r['lag_s']}s spread={r['lag_spread_samples']} peak={r['peak_median']} "
-              f"res={r['residual_median']} res_low={r['residual_low_median']} -> {r['verdict']}", flush=True)
+        print(
+            f"{n}: lag={r['lag_s']}s spread={r['lag_spread_samples']} peak={r['peak_median']} "
+            f"res={r['residual_median']} res_low={r['residual_low_median']} -> {r['verdict']}",
+            flush=True,
+        )
     (ROOT / "work" / "align_report.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
 
 

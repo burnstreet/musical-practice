@@ -10,11 +10,23 @@ export function openDb(name = 'gu'): Promise<IDBDatabase> {
   })
 }
 
-export const done = <T>(req: IDBRequest<T>) => new Promise<T>((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error) })
+export const done = <T>(req: IDBRequest<T>) =>
+  new Promise<T>((res, rej) => {
+    req.onsuccess = () => res(req.result)
+    req.onerror = () => rej(req.error)
+  })
 
 /** One request in one transaction on one store; the connection is closed afterwards. */
-export async function withStore<T>(open: () => Promise<IDBDatabase>, store: string, mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+export async function withStore<T>(
+  open: () => Promise<IDBDatabase>,
+  store: string,
+  mode: IDBTransactionMode,
+  f: (s: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   const db = await open()
-  try { return await done(f(db.transaction(store, mode).objectStore(store))) } finally { db.close() }
+  try {
+    return await done(f(db.transaction(store, mode).objectStore(store)))
+  } finally {
+    db.close()
+  }
 }
-
