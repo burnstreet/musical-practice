@@ -184,6 +184,39 @@ export default steps(({ Given, When, Then }) => {
     expect(sheetShown(ctx)).toBe(true)
   })
 
+  // Install hint: real UA detection behind the injected function
+  const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
+  const CARD = 'Zum Startbildschirm hinzufügen, damit die Lieder gespeichert bleiben: Teilen-Symbol, dann „Zum Home-Bildschirm“.'
+  const reload = async (ctx: any) => { ctx.el.remove(); ctx.el = null; return app(ctx) }
+  Given(/^user agent iOS Safari, not standalone, installHintSeen false$/, async (ctx) => {
+    const { isIosSafariTab } = await import('../../src/app/platform')
+    deps(ctx).isIosSafariTab = () => isIosSafariTab(IOS, false)
+  })
+  Then(/^the songs screen shows the install card$/, async (ctx) => {
+    await app(ctx)
+    expect(location.hash).toBe('#/songs')
+    expect(deepText(ctx.el)).toContain(CARD)
+  })
+  When(/^I press "Verstanden"$/, (ctx) => press(ctx, 'Verstanden'))
+  Then(/^the card is gone after reload$/, async (ctx) => {
+    expect(deepText(ctx.el)).not.toContain(CARD)
+    await reload(ctx)
+    expect(deepText(ctx.el)).not.toContain(CARD)
+  })
+  Given(/^Android Chrome, or iOS standalone$/, async (ctx) => {
+    const { isIosSafariTab } = await import('../../src/app/platform')
+    ctx.variants = [() => isIosSafariTab(ANDROID, false), () => isIosSafariTab(IOS, true)]
+  })
+  Then(/^no install card$/, async (ctx) => {
+    for (const v of ctx.variants) {
+      deps(ctx).isIosSafariTab = v
+      await (ctx.el ? reload(ctx) : app(ctx))
+      expect(location.hash).toBe('#/songs')
+      expect(deepText(ctx.el)).not.toContain(CARD)
+    }
+  })
+
   Then(/^the route is "([^"]+)"$/, (ctx, hash) => {
     expect(location.hash).toBe(hash)
     expect(ctx.el.hash).toBe(hash)
