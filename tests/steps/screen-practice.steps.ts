@@ -175,8 +175,9 @@ export default steps(({ Given, When, Then }) => {
     world(ctx)
     Object.assign(ctx.data.song, { key, bpm: +bpm })
   })
-  When(/^the screen renders at bar (\d+)$/, async (ctx, bar) => {
+  When(/^the screen renders at bar (\d+) with the staff (\d+) px wide$/, async (ctx, bar, px) => {
     await screen(ctx)
+    Object.defineProperty(ctx.el.shadowRoot!.querySelector('.staff canvas'), 'clientWidth', { value: +px }) // happy-dom has no layout
     await tick(ctx, ctx.data.song.bars[+bar - 1] + 0.5)
   })
   Then(/^the subline reads "([^"]+)"$/, (ctx, s) => {
