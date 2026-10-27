@@ -1,6 +1,7 @@
 """Static server for web/ with HTTP Range support (audio seeking) and a save
 endpoint for note edits made in the viewer.
 
+GET  /config.json       -> sources/config.json (404 when absent)
 POST /save/<name>.json  -> writes web/data/<name>.json and keeps a timestamped
                            copy in work/edits/.
 
@@ -21,6 +22,20 @@ EDITS = ROOT / "work" / "edits"
 
 
 class Handler(RangeRequestHandler):
+    def do_GET(self):
+        if self.path == "/config.json":  # lives outside web/ (gitignored)
+            cfg = ROOT / "sources" / "config.json"
+            if not cfg.is_file():
+                self.send_error(404)
+                return
+            body = cfg.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        super().do_GET()
     def do_POST(self):
         name = Path(self.path).name
         if not self.path.startswith("/save/") or not name.endswith(".json") or name != self.path[len("/save/"):]:
