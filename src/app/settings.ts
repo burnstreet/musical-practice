@@ -11,10 +11,12 @@ export interface Settings {
   installHintSeen: boolean
   roles: RoleId[]
   mode: Mode
+  /** Mic input device, '' = auto (the phone's built-in mic). */
+  micDeviceId: string
 }
 
 const KEY = 'gu.settings'
-const DEFAULTS: Settings = { tolerance: 50, micOffsetMs: 0, headphoneSheetSeen: false, installHintSeen: false, roles: [], mode: 'all' }
+const DEFAULTS: Settings = { tolerance: 50, micOffsetMs: 0, headphoneSheetSeen: false, installHintSeen: false, roles: [], mode: 'all', micDeviceId: '' }
 
 export const settings = {
   get(): Settings {

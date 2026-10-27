@@ -109,7 +109,7 @@ function world(ctx: any) {
       on: on(ctx.engineL),
     },
     pitch: {
-      start: async (...args: (() => number)[]) => {
+      start: async (...args: any[]) => {
         log('pitch.start')
         ctx.startArgs = args
         return ctx.startResult
@@ -122,6 +122,8 @@ function world(ctx: any) {
       },
       level: () => 0,
       inputLatency: () => 0,
+      setDevice: async () => 'ok' as const,
+      devices: async () => [],
       active: () => false,
     },
     sw: {} as any,

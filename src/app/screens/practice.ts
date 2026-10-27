@@ -212,6 +212,7 @@ export class GuPractice extends LitElement {
         (await pitch.start(
           () => engine.time(),
           () => engine.latency(),
+          s.micDeviceId,
         )) === 'ok'
     ctx.live = { songId: this.songId, song: loaded, session: this.session }
     this.t = engine.time()
