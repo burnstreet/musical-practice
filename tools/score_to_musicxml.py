@@ -9,6 +9,9 @@ from pathlib import Path
 
 from music21 import expressions, key, metadata, meter, note, stream, tempo
 
+# same order as ROLE_PALETTE in web/app.js
+ROLE_PALETTE = ["#2f6fed", "#d6453a", "#2a9d5c", "#b8860b", "#8e44ad", "#0e8a9b"]
+
 
 def key_from_name(name: str) -> key.Key:
     if name.endswith("m"):
@@ -34,6 +37,13 @@ def main():
     if bpm:
         part.insert(0, tempo.MetronomeMark(number=bpm))
 
+    # colour notes by role (voice) so the web viewer and MuseScore show who sings what
+    role_names = [r["name"] for r in data.get("roles", [])]
+    for n in data["notes"]:
+        if n.get("role") and n["role"] not in role_names:
+            role_names.append(n["role"])
+    role_color = {r: ROLE_PALETTE[i % len(ROLE_PALETTE)] for i, r in enumerate(role_names)}
+
     last_section = None
     for n in data["notes"]:
         offset = n["bar"] * beats + n["beat"]
@@ -43,6 +53,8 @@ def main():
             el = note.Note(n["midi"], quarterLength=n["dur"])
             if n.get("lyric"):
                 el.lyric = n["lyric"]
+            if n.get("role") in role_color:
+                el.style.color = role_color[n["role"]]
         part.insert(offset, el)
         sec = n.get("section")
         if sec and sec != last_section:

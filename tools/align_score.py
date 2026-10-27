@@ -90,7 +90,8 @@ def notes_from_path(seq, spans, wp, t_audio, audio_midi=None, snap=False):
         a0, a1 = min(a_frames), max(a_frames) + 1
         note = {"start": round(float(t_audio[a0]), 3), "end": round(float(t_audio[min(a1, len(t_audio) - 1)]), 3),
                 "midi": n["midi"], "name": n["name"], "bar": n["bar"], "beat": n["beat"], "dur": n["dur"],
-                "lyric": n.get("lyric"), "section": n.get("section"), "repeat": n.get("repeat", False)}
+                "lyric": n.get("lyric"), "section": n.get("section"), "role": n.get("role"),
+                "repeat": n.get("repeat", False)}
         if snap and audio_midi is not None:
             sung = audio_midi[a0:a1]
             sung = sung[np.isfinite(sung)]
@@ -170,6 +171,8 @@ def main():
     all_notes.sort(key=lambda n: n["start"])
     pitch["notes"] = all_notes
     pitch["score"] = {"source": Path(args.score).name, "bpm_guess": args.bpm, "repeats": repeats}
+    if score.get("roles"):
+        pitch["roles"] = score["roles"]
     Path(args.out).write_text(json.dumps(pitch, ensure_ascii=False), encoding="utf-8")
 
 
