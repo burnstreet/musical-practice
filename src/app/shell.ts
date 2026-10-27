@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit'
 import { setContext, type AppContext, type Route, type ShellDeps } from './context'
 import { settings } from './settings'
+import './settings-sheet'
 
 /** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
 function guard(ctx: AppContext, hash: string): Route {
@@ -12,9 +13,11 @@ function guard(ctx: AppContext, hash: string): Route {
 export class GuApp extends LitElement {
   /** Set before the element connects: main.ts with the real modules, tests with fakes. */
   static deps: ShellDeps | null = null
-  static properties = { hash: { state: true } }
+  static properties = { hash: { state: true }, toast: { state: true }, settingsOpen: { state: true } }
 
   declare hash: string
+  declare toast: string
+  declare settingsOpen: boolean
   ctx!: AppContext
   /** Resolves when boot (manifest, vault init, first route) is done. */
   ready!: Promise<void>
@@ -22,6 +25,8 @@ export class GuApp extends LitElement {
   constructor() {
     super()
     this.hash = ''
+    this.toast = ''
+    this.settingsOpen = false
   }
 
   connectedCallback() {
@@ -33,7 +38,7 @@ export class GuApp extends LitElement {
       settings,
       live: null,
       route: (to) => { location.hash = to },
-      openSettings: () => {},
+      openSettings: () => { this.settingsOpen = true },
       ensureHeadphoneSheet: async () => {},
     }
     setContext(this.ctx)
@@ -53,6 +58,11 @@ export class GuApp extends LitElement {
       void library.sync()
     }
     this.onHash()
+    // Only asked at launch: a worker installed mid-run just waits, so practice is never interrupted.
+    if (await this.ctx.sw.activateWaiting()) {
+      this.toast = 'Neue Version geladen'
+      setTimeout(() => (this.toast = ''), 4000)
+    }
   }
 
   private onHash = () => {
@@ -63,6 +73,12 @@ export class GuApp extends LitElement {
   }
 
   render() {
+    return html`${this.screen()}
+      ${this.settingsOpen ? html`<gu-settings-sheet @close=${() => (this.settingsOpen = false)}></gu-settings-sheet>` : ''}
+      ${this.toast ? html`<div class="toast" role="status">${this.toast}</div>` : ''}`
+  }
+
+  private screen() {
     const [, screen, id] = this.hash.match(/^#\/(\w+)\/?(.*)$/) ?? []
     switch (screen) {
       case 'start': return html`<gu-start></gu-start>`
