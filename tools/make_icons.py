@@ -32,14 +32,16 @@ def artwork(mark: Image.Image, font_path: str) -> Image.Image:
     art = Image.new("RGBA", (U, U), (0, 0, 0, 0))
     ch = round(U * 0.8)
     cw = round(mark.width * ch / mark.height)
-    art.alpha_composite(mark.resize((cw, ch), Image.LANCZOS), (0, 0))
+    left = round(U * 0.2)  # room in case the year reaches past the left arm
+    art.alpha_composite(mark.resize((cw, ch), Image.LANCZOS), (left, 0))
     font = ImageFont.truetype(font_path, round(U * 0.16))  # same size as the one-line version
     d = ImageDraw.Draw(art)
-    stem_right = round(cw * 0.553 / 0.922)  # stem's right edge in the logo, relative to the cross width
+    # Year left of the stem, under the left arm: Chrome overlays its badge on the bottom right corner.
+    stem_left = left + round(cw * 0.380 / 0.922)  # stem's left edge in the logo, relative to the cross width
     line = font.getbbox("20")
     lh = line[3] - line[1]
     gap = round(lh * 0.25)
-    x = stem_right + round(U * 0.05)
+    x = stem_left - round(U * 0.05) - (line[2] - line[0])
     bottom = round(ch * 0.86)  # a bit above the stem's foot
     for i, text in enumerate(("20", "26")):
         top = bottom - (2 - i) * lh - (1 - i) * gap
