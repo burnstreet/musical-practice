@@ -115,6 +115,8 @@ export class GuPractice extends LitElement {
   session!: Session
   /** Pitch frames of the last 1.5 s, oldest first. */
   frames: PitchFrame[] = []
+  /** Redraws the canvases when the layout changes size; happy-dom may not have it. */
+  private resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.requestUpdate())
 
   constructor() {
     super()
@@ -131,10 +133,12 @@ export class GuPractice extends LitElement {
   connectedCallback() {
     super.connectedCallback()
     current = this
+    this.resize?.observe(this)
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
+    this.resize?.disconnect()
     if (current === this) current = null
     if (this.mic) getContext().pitch.stop()
   }
@@ -142,8 +146,10 @@ export class GuPractice extends LitElement {
   updated(changed: Map<string, unknown>) {
     if (changed.has('songId') && this.songId) this.enter().catch(console.error)
     if (!this.loaded) return
-    const s = getContext().settings.get()
-    const state: DrawState = { song: this.loaded.song, roles: s.roles, t: this.t, frames: this.frames, tolerance: s.tolerance }
+    const { settings, library } = getContext()
+    const s = settings.get()
+    const names = Object.fromEntries(library.roles().map((r) => [r.id, r.name]))
+    const state: DrawState = { song: this.loaded.song, roles: s.roles, names, t: this.t, frames: this.frames, tolerance: s.tolerance }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
     drawStaff(ctx2d('.staff canvas'), state)
     drawRoll(ctx2d('.roll canvas'), state)
