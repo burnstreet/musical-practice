@@ -15,6 +15,9 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, st
   await page.getByRole('button', { name: 'Üben starten' }).click()
   await expect(page).toHaveURL(/#\/practice\/90$/)
   await expect(page.getByRole('img', { name: 'Mikrofon aktiv' })).toBeVisible()
+  // phone layout: the practice screen must not be wider than the viewport
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+  expect(overflow).toBeLessThanOrEqual(0)
 
   await page.getByRole('button', { name: 'Abspielen' }).click()
   await page.getByRole('button', { name: 'Weiter' }).click() // headphone sheet
