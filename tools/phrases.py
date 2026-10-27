@@ -49,7 +49,7 @@ def derive_phrases(notes, lines):
             n["phrase"] = phrase
         return None
     lines = [norm(l) for l in lines if norm(l)]
-    i, nxt = 0, 0
+    i, nxt, phrase = 0, 0, 0
     while i < len(notes):
         # next line first; any line again covers repeated sections
         order = [nxt] + [x for x in range(len(lines)) if x != nxt]
@@ -60,8 +60,8 @@ def derive_phrases(notes, lines):
                 fail = bad
             if k:
                 for n in notes[i:i + k]:
-                    n["phrase"] = x
-                i, nxt = i + k, x + 1
+                    n["phrase"] = phrase  # running counter: a repeated line gets a new phrase
+                i, nxt, phrase = i + k, x + 1, phrase + 1
                 break
         else:
             return notes[fail].get("lyric") or ""

@@ -87,4 +87,4 @@ def step_exit(ctx, s):
 def test_repeated_section_same_phrase():
     notes = syl("a b c d a b")
     assert phrases.derive_phrases(notes, ["a b", "c d"]) is None
-    assert [n["phrase"] for n in notes] == [0, 0, 1, 1, 0, 0]
+    assert [n["phrase"] for n in notes] == [0, 0, 1, 1, 2, 2]
