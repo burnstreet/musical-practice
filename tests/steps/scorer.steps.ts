@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import { steps } from '../gherkin'
 import { foldCents, scoreNote, scorePass, type Tolerance } from '../../src/core/scorer'
+import { Session } from '../../src/core/session'
 import type { Note, PitchFrame, RoleId, Song } from '../../src/core/content'
 
 const note = (start: number, end: number, midi: number, o: Partial<Note> = {}): Note =>
@@ -83,7 +84,7 @@ export default steps(({ Given, When, Then }) => {
   Then(/^scoredNotes counts only entered maria notes and josef frames change nothing$/, (ctx) => {
     expect(ctx.result.scoredNotes).toBe(2)
     expect(ctx.result).toMatchObject({ hits: 0, meanCents: null, rangeMidi: null })
-    const mariaOnly = new Map([...ctx.byNote].filter(([i]) => i % 2 === 0))
+    const mariaOnly = new Map<number, PitchFrame[]>([...ctx.byNote].filter(([i]) => i % 2 === 0))
     expect(ctx.result).toEqual(scorePass(ctx.song, ctx.roles, mariaOnly, 50))
   })
   Given(/^a song with 10 maria notes and only notes 1-4 entered$/, (ctx) => {
@@ -94,6 +95,33 @@ export default steps(({ Given, When, Then }) => {
     ctx.song = song([{}]); ctx.roles = ['maria']; ctx.byNote = new Map([[0, frames([55, 57])]])
   })
   Then(/^rangeMidi is \[(\d+), (\d+)\]$/, (ctx, lo, hi) => { expect(ctx.result.rangeMidi).toEqual([+lo, +hi]) })
+
+  Given(/^a session with note 0 \[1.0,2.0\] midi 67$/, (ctx) => { ctx.session = new Session(song([{}]), ['maria'], 50) })
+  When(/^I start a pass, enter note 0, feed frames at 60, enter note 0 again, feed frames at 67, end the pass$/, (ctx) => {
+    const s: Session = ctx.session
+    s.startPass(); s.enter(0); frames(times(10, 60)).forEach((f) => s.frame(f))
+    s.enter(0); frames(times(10, 67)).forEach((f) => s.frame(f)); ctx.result = s.endPass()
+  })
+  Then(/^note 0 is a hit$/, (ctx) => { expect(ctx.result.notes[0].hit).toBe(true) })
+
+  Given(/^a session$/, (ctx) => { ctx.song = song(Array(5).fill({})); ctx.session = new Session(ctx.song, ['maria'], 50) })
+  When(/^I complete passes with hitPct (.*)$/, (ctx, list) => {
+    const s: Session = ctx.session
+    for (const pct of list.split(', ').map(Number)) {
+      s.startPass()
+      ctx.song.notes.forEach((n: Note, i: number) => { s.enter(i); if (i < pct / 20) sing(n, [0, 0, 0]).forEach((f) => s.frame(f)) })
+      s.endPass()
+    }
+  })
+  Then(/^trend is \[(.*)\] and the pass number is (\d+)$/, (ctx, list, n) => {
+    expect(ctx.session.trend()).toEqual(list.split(', ').map(Number))
+    expect(ctx.session.passes().length).toBe(+n)
+  })
+  When(/^I start a pass and end it without entering a note$/, (ctx) => { ctx.session.startPass(); ctx.result = ctx.session.endPass() })
+  Then(/^endPass returns null and passes\(\) is empty$/, (ctx) => {
+    expect(ctx.result).toBeNull()
+    expect(ctx.session.passes()).toEqual([])
+  })
 
   // "sung is true, hit is true, cents is 10", "hitPct is 50, meanCents is -25, tendency is low" etc., checked against ctx.result
   Then(/^(\w+ is [^\s,]+(?:(?:, | and )\w+ is [^\s,]+)*)$/, (ctx, all) => {
