@@ -148,6 +148,7 @@ async function screen(ctx: any): Promise<GuPractice> {
   if (ctx.el) return ctx.el
   ctx.el = document.createElement('gu-practice') as GuPractice
   ctx.el.songId = '08'
+  ctx.el.requestFrame = (cb: () => void) => setTimeout(cb, 0) // happy-dom: no real animation frames
   document.body.append(ctx.el)
   await settle(ctx.el)
   return ctx.el
@@ -218,6 +219,37 @@ export default steps(({ Given, When, Then }) => {
     await screen(ctx)
     await tick(ctx, 8.5)
     await frame(ctx, { midi: above ? 74 + +above / 100 : 62 + +d4 / 100 })
+  })
+  Given(/^target D5 and a sung frame (\d+) cents above measured now but scored ([\d.]+) s earlier$/, async (ctx, n, back) => {
+    await screen(ctx)
+    await tick(ctx, 8.5)
+    await frame(ctx, { midi: 74 + +n / 100, t: ctx.time - +back })
+  })
+  Given(/^target D5 and the screen paused$/, async (ctx) => {
+    const el = await screen(ctx)
+    await tick(ctx, 8.5)
+    ctx.raf = [] as (() => void)[]
+    el.requestFrame = (cb: () => void) => ctx.raf.push(cb)
+    ctx.renders = 0
+    const updated = el.updated.bind(el)
+    el.updated = (changed: Map<string, unknown>) => {
+      ctx.renders++
+      updated(changed)
+    }
+  })
+  When(/^(\d+) pitch frames arrive before the next animation frame$/, async (ctx, n) => {
+    for (let i = 1; i <= +n; i++) await frame(ctx, { midi: 74 + i / 100 })
+  })
+  Then(/^the screen has not redrawn$/, (ctx) => expect(ctx.renders).toBe(0))
+  When(/^the animation frame runs$/, async (ctx) => {
+    ctx.raf.splice(0).forEach((cb: () => void) => {
+      cb()
+    })
+    await settle(ctx.el)
+  })
+  Then(/^the screen redrew once and the readout shows "([^"]+)"$/, (ctx, s) => {
+    expect(ctx.renders).toBe(1)
+    expect(text(ctx.el)).toContain(s)
   })
   Given(/^a sung frame (\d+) cents (above|below)(?: with tolerance (\d+))?$/, async (ctx, n, dir, tol) => {
     if (tol) settings.set({ tolerance: +tol as any })
