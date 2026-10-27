@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { WINDOW } from '../../src/core/pitch-constants'
 import { detect } from '../../src/core/pitch-detect'
-import { createPitchEngine } from '../../src/core/pitch-engine'
+import { createPitchEngine, pickMic } from '../../src/core/pitch-engine'
 import type { PitchFrame } from '../../src/core/types'
 import { steps } from '../gherkin'
 
@@ -14,7 +14,7 @@ const voice = (hz: number) =>
   )
 
 // Fakes: a context with latencies, a worklet node whose port we poke, a stream with a stoppable track.
-const fakes = (ctx: any, getUserMedia: () => Promise<any>) => {
+const fakes = (ctx: any, getUserMedia: (c?: any) => Promise<any>) => {
   ctx.port = {} as { onmessage?: (e: { data: unknown }) => void }
   ctx.track = {
     stop: () => {
@@ -26,12 +26,16 @@ const fakes = (ctx: any, getUserMedia: () => Promise<any>) => {
     baseLatency: ctx.base,
     outputLatency: ctx.out,
     audioWorklet: { addModule: async () => {} },
-    createMediaStreamSource: () => ({ connect: () => {}, disconnect: () => {} }),
+    createMediaStreamSource: (s: unknown) => {
+      ctx.source = s
+      return { connect: () => {}, disconnect: () => {} }
+    },
     close: async () => {},
   }
   ctx.frames = [] as PitchFrame[]
   ctx.engine = createPitchEngine({
     getUserMedia: getUserMedia as any,
+    enumerateDevices: async () => ctx.inputs ?? [],
     createContext: () => audio as any,
     createWorkletNode: () => ({ port: ctx.port, connect: () => {}, disconnect: () => {} }) as any,
   })
@@ -90,6 +94,47 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.frames[0].t).toBeCloseTo(+t, 3)
   })
   Then(/^inputLatency\(\) is ([\d.]+)$/, (ctx, s) => expect(ctx.engine.inputLatency()).toBeCloseTo(+s, 6))
+
+  const labels = (s: string) => [...s.matchAll(/"([^"]+)"/g)].map((m) => m[1])
+  const inputs = (ctx: any, list: string) => {
+    ctx.inputs = labels(list).map((label, i) => ({ deviceId: `d${i}`, label, kind: 'audioinput', groupId: '' }))
+  }
+  const id = (ctx: any, label: string) => ctx.inputs.find((d: any) => d.label === label)?.deviceId
+  /** A stream on device `deviceId` whose track records being stopped. */
+  const streamOn = (ctx: any, deviceId: string) => ({
+    deviceId,
+    getTracks: () => [{ getSettings: () => ({ deviceId }), stop: () => ctx.stoppedIds.push(deviceId) }],
+  })
+  /** getUserMedia: exact requests must name a present device; otherwise the default (first) device. */
+  const media = (ctx: any) => async (c: any) => {
+    const exact = c.audio.deviceId?.exact
+    if (exact && !ctx.inputs.some((d: any) => d.deviceId === exact)) throw new DOMException('gone', 'OverconstrainedError')
+    return streamOn(ctx, exact ?? ctx.inputs[0].deviceId)
+  }
+  Given(/^audio inputs (".*)$/, (ctx, list) => inputs(ctx, list))
+  Then(/^pickMic chooses "([^"]+)"$/, (ctx, label) => expect(pickMic(ctx.inputs)).toBe(id(ctx, label)))
+  Then(/^pickMic chooses the default device$/, (ctx) => expect(pickMic(ctx.inputs)).toBeUndefined())
+  Given(/^the default device is "[^"]+" and inputs (".*)$/, (ctx, list) => {
+    inputs(ctx, list)
+    ctx.stoppedIds = []
+    fakes(ctx, media(ctx))
+  })
+  Given(/^the chosen device "[^"]+" is not available$/, (ctx) => {
+    inputs(ctx, '"Eingebautes Mikrofon"')
+    ctx.stoppedIds = []
+    fakes(ctx, media(ctx))
+  })
+  When(/^I start with device (?:auto|"([^"]+)")$/, async (ctx, device) => {
+    ctx.result = await ctx.engine.start(() => 0, undefined, device ?? '')
+  })
+  Then(/^the mic is "([^"]+)" and the AirPods track is stopped$/, (ctx, label) => {
+    expect(ctx.source.deviceId).toBe(id(ctx, label))
+    expect(ctx.stoppedIds).toEqual([id(ctx, 'AirPods Pro')])
+  })
+  Then(/^the result is "ok" on the default device$/, (ctx) => {
+    expect(ctx.result).toBe('ok')
+    expect(ctx.source.deviceId).toBe(ctx.inputs[0].deviceId)
+  })
 
   Given(/^getUserMedia rejects with NotAllowedError$/, (ctx) => {
     fakes(ctx, () => Promise.reject(new DOMException('no', 'NotAllowedError')))
