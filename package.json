@@ -8,7 +8,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "lit": "^3.3.3"
+    "lit": "^3.3.3",
+    "pitchy": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
