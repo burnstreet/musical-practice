@@ -12,6 +12,8 @@ export interface PitchEngine {
   /** Returns the unsubscribe function. */
   on(ev: 'frame', fn: (f: PitchFrame) => void): () => void
   level(): number
+  /** Mic context baseLatency in seconds, 0 when unknown or stopped (shown in the settings). */
+  inputLatency(): number
   /** Mic running (start returned ok, no stop since). */
   active(): boolean
 }
@@ -31,11 +33,13 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
   let rms = 0
   let cleanup = () => {}
   let running = false
+  let input = 0
 
   async function start(songTime: () => number, playbackLatency = () => 0): Promise<StartResult> {
     const getUserMedia = deps.getUserMedia ?? defaultGetUserMedia()
     const makeCtx =
-      deps.createContext ?? (typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined' ? () => new AudioContext() : undefined)
+      deps.createContext ??
+      (typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined' ? () => new AudioContext({ latencyHint: 'interactive' }) : undefined)
     if (!getUserMedia || !makeCtx) return 'unsupported'
     stop()
     let stream: MediaStream
@@ -54,12 +58,14 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     await ctx.audioWorklet.addModule(workletUrl)
     const node = (deps.createWorkletNode ?? ((c) => new AudioWorkletNode(c, 'pitch-detector', { processorOptions: { window: WINDOW, hop: HOP } })))(ctx)
     const source = ctx.createMediaStreamSource(stream)
-    node.port.onmessage = (e: MessageEvent<Omit<PitchFrame, 't'>>) => {
+    const detection = WINDOW / 2 / ctx.sampleRate // a frame measures the centre of its window
+    node.port.onmessage = (e: MessageEvent<Omit<PitchFrame, 't' | 'at'>>) => {
       rms = e.data.rms
+      const at = songTime() - detection
       // the singer reacted to what played out playbackLatency ago; the mic adds its input latency on top
-      const t = songTime() - playbackLatency() - (ctx.baseLatency ?? 0) - offsetMs / 1000
+      const t = at - playbackLatency() - (ctx.baseLatency ?? 0) - offsetMs / 1000
       listeners.forEach((fn) => {
-        fn({ ...e.data, t })
+        fn({ ...e.data, t, at })
       })
     }
     source.connect(node)
@@ -72,6 +78,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
       })
       void ctx.close()
     }
+    input = ctx.baseLatency ?? 0
     running = true
     return 'ok'
   }
@@ -96,6 +103,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
       }
     },
     level: () => rms,
+    inputLatency: () => (running ? input : 0),
     active: () => running,
   }
 }

@@ -19,7 +19,10 @@ const note = (start: number, end: number, midi: number, o: Partial<Note> = {}): 
 })
 /** Frames with the given midis spread evenly over [from, to]. */
 const frames = (midis: (number | null)[], from = 1.1, to = 2.0): PitchFrame[] =>
-  midis.map((midi, i) => ({ t: Math.min(to, from + ((to - from) * i) / Math.max(1, midis.length - 1)), midi, clarity: 0.9, rms: 0.1 }))
+  midis.map((midi, i) => {
+    const t = Math.min(to, from + ((to - from) * i) / Math.max(1, midis.length - 1))
+    return { t, at: t, midi, clarity: 0.9, rms: 0.1 }
+  })
 const times = (n: number, midi: number | null) => Array<number | null>(n).fill(midi)
 const value = (v: string) => (v === 'null' ? null : v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v)
 
