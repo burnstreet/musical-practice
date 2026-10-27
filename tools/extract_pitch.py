@@ -13,6 +13,7 @@ Outputs:
 
 Usage: python tools/extract_pitch.py <id> <stem.wav> <title> [--audio 05_mix.mp3]
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -64,8 +65,15 @@ def track_pitch(y: np.ndarray, fmin: float = FMIN, highpass_hz: float = 90.0):
         sos = signal.butter(4, highpass_hz, btype="high", fs=SR, output="sos")
         y = signal.sosfiltfilt(sos, y).astype(np.float32)
     f0, voiced, vprob = librosa.pyin(
-        y, fmin=fmin, fmax=FMAX, sr=SR, frame_length=2048, hop_length=HOP,
-        fill_na=np.nan, resolution=0.05, max_transition_rate=35.92,
+        y,
+        fmin=fmin,
+        fmax=FMAX,
+        sr=SR,
+        frame_length=2048,
+        hop_length=HOP,
+        fill_na=np.nan,
+        resolution=0.05,
+        max_transition_rate=35.92,
     )
     rms = librosa.feature.rms(y=y, frame_length=2048, hop_length=HOP)[0]
     rms_db = librosa.amplitude_to_db(rms + 1e-9, ref=np.max(rms))
@@ -189,9 +197,15 @@ def segment_notes(f0, mask, hop_s, min_note_s=0.08, max_jump_cents=80):
             j += 1
         if (j - i) * hop_s >= min_note_s:
             m = int(round(float(np.median(seg))))
-            notes.append({"start": round(i * hop_s, 3), "end": round(j * hop_s, 3),
-                          "midi": m, "name": midi_name(m),
-                          "cents_off": round(float((np.median(seg) - m) * 100), 1)})
+            notes.append(
+                {
+                    "start": round(i * hop_s, 3),
+                    "end": round(j * hop_s, 3),
+                    "midi": m,
+                    "name": midi_name(m),
+                    "cents_off": round(float((np.median(seg) - m) * 100), 1),
+                }
+            )
         i = j
     # merge adjacent notes with the same midi and tiny gaps
     merged = []
@@ -205,6 +219,7 @@ def segment_notes(f0, mask, hop_s, min_note_s=0.08, max_jump_cents=80):
 
 def plot(song_id, t, f0, conf, notes, path):
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -228,8 +243,9 @@ def main():
     ap.add_argument("stem")
     ap.add_argument("title")
     ap.add_argument("--audio", default=None)
-    ap.add_argument("--stem-file", action="append", default=[], metavar="LABEL=FILE",
-                    help="selectable audio in the web page, e.g. vocals=05_vocals.mp3")
+    ap.add_argument(
+        "--stem-file", action="append", default=[], metavar="LABEL=FILE", help="selectable audio in the web page, e.g. vocals=05_vocals.mp3"
+    )
     ap.add_argument("--gate-db", type=float, default=-40.0)
     ap.add_argument("--fmin", default="E2", help="lowest note to track, e.g. E2 or G2")
     ap.add_argument("--highpass", type=float, default=90.0, help="high-pass Hz before tracking, 0 = off")
@@ -250,18 +266,20 @@ def main():
     notes = segment_notes(f0c, mask, hop_s)
 
     OUT.mkdir(parents=True, exist_ok=True)
-    pitch = [[round(float(ti), 3), (round(float(fi), 2) if np.isfinite(fi) else None), round(float(ci), 2)]
-             for ti, fi, ci in zip(t, f0c, conf)]
-    data = {"id": args.id, "title": args.title, "audio": args.audio, "hop_s": round(hop_s, 5),
-            "pitch": pitch, "notes": notes}
+    pitch = [
+        [round(float(ti), 3), (round(float(fi), 2) if np.isfinite(fi) else None), round(float(ci), 2)] for ti, fi, ci in zip(t, f0c, conf)
+    ]
+    data = {"id": args.id, "title": args.title, "audio": args.audio, "hop_s": round(hop_s, 5), "pitch": pitch, "notes": notes}
     if stems:
         data["stems"] = stems
     (OUT / f"{args.id}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     plot(args.id, t, f0c, conf, notes, OUT / f"{args.id}.png")
 
     voiced_s = mask.sum() * hop_s
-    print(f"{args.id}: {len(f0c)} frames, voiced {voiced_s:.1f}s of {t[-1]:.1f}s, {len(notes)} notes, "
-          f"range {midi_name(min(n['midi'] for n in notes))}-{midi_name(max(n['midi'] for n in notes))}")
+    print(
+        f"{args.id}: {len(f0c)} frames, voiced {voiced_s:.1f}s of {t[-1]:.1f}s, {len(notes)} notes, "
+        f"range {midi_name(min(n['midi'] for n in notes))}-{midi_name(max(n['midi'] for n in notes))}"
+    )
 
 
 if __name__ == "__main__":

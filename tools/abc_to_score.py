@@ -7,21 +7,29 @@ signatures apply to all notes unless overridden by an accidental in the bar.
 
 Usage: python tools/abc_to_score.py <in.abc> <out.json>
 """
+
 import json
 import re
 import sys
 from pathlib import Path
 
 KEY_ACC = {
-    "C": {}, "Am": {},
-    "G": {"F": 1}, "Em": {"F": 1},
-    "D": {"F": 1, "C": 1}, "Bm": {"F": 1, "C": 1},
+    "C": {},
+    "Am": {},
+    "G": {"F": 1},
+    "Em": {"F": 1},
+    "D": {"F": 1, "C": 1},
+    "Bm": {"F": 1, "C": 1},
     "A": {"F": 1, "C": 1, "G": 1},
     "E": {"F": 1, "C": 1, "G": 1, "D": 1},
-    "F": {"B": -1}, "Dm": {"B": -1},
-    "Bb": {"B": -1, "E": -1}, "Gm": {"B": -1, "E": -1},
-    "Eb": {"B": -1, "E": -1, "A": -1}, "Cm": {"B": -1, "E": -1, "A": -1},
-    "Ab": {"B": -1, "E": -1, "A": -1, "D": -1}, "Fm": {"B": -1, "E": -1, "A": -1, "D": -1},
+    "F": {"B": -1},
+    "Dm": {"B": -1},
+    "Bb": {"B": -1, "E": -1},
+    "Gm": {"B": -1, "E": -1},
+    "Eb": {"B": -1, "E": -1, "A": -1},
+    "Cm": {"B": -1, "E": -1, "A": -1},
+    "Ab": {"B": -1, "E": -1, "A": -1, "D": -1},
+    "Fm": {"B": -1, "E": -1, "A": -1, "D": -1},
     "Db": {"B": -1, "E": -1, "A": -1, "D": -1, "G": -1},
 }
 DIATONIC = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
@@ -59,7 +67,7 @@ def parse(text):
         pos = 0
         for m in TOKEN.finditer(line):
             # anything between tokens that is a barline resets accidentals / advances the bar
-            between = line[pos:m.start()]
+            between = line[pos : m.start()]
             if "|" in between:
                 bar += between.count("|") if "||" not in between else 1
                 beat = 0.0
@@ -87,8 +95,7 @@ def parse(text):
                 notes[-1]["dur"] += dur
                 notes[-1]["tie_next"] = bool(tie)
             else:
-                notes.append({"bar": bar, "beat": beat, "dur": dur, "midi": midi, "name": name,
-                              "section": section, "tie_next": bool(tie)})
+                notes.append({"bar": bar, "beat": beat, "dur": dur, "midi": midi, "name": name, "section": section, "tie_next": bool(tie)})
             beat += dur
         bar += 1
         beat = 0.0
