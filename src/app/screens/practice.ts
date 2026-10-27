@@ -98,9 +98,10 @@ export class GuPractice extends LitElement {
     .legend i.other { background: var(--other); }
     canvas { display: block; width: 100%; }
     .staff canvas { height: 112px; }
+    .staff canvas.tall { height: 126px; } /* second lyric row, set by the staff drawing */
     .roll { grid-area: roll; }
     .roll canvas { height: 168px; }
-    @media (min-width: 960px) { .staff canvas { height: 136px; } .roll canvas { height: 216px; } }
+    @media (min-width: 960px) { .staff canvas { height: 136px; } .staff canvas.tall { height: 153px; } .roll canvas { height: 216px; } }
     .readout { grid-area: readout; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .readout .line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .readout big { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; margin-right: 8px; }
