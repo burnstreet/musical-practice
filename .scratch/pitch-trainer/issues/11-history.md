@@ -4,9 +4,13 @@
 
 **Blocked by:** 06 (scorer, for the `PassResult` type)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/history.spec.md`. Test with `fake-indexeddb`.
 
 - [ ] All scenarios pass via `tests/specs/history.test.ts` + `tests/steps/history.steps.ts`.
 - [ ] Key is order-independent in roles.
+
+## Comments
+
+- 2026-10-27 agent: Merged 2401fbc: src/core/history.ts, db version 3.

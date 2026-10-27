@@ -4,10 +4,14 @@
 
 **Blocked by:** 01 (scaffold)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/content-format.spec.md` (all four features). `PitchFrame` shape: `specs/pitch-engine.spec.md` API block.
 
 - [ ] All scenarios of `content-format.spec.md` pass via `tests/specs/content-format.test.ts` + `tests/steps/content-format.steps.ts`.
 - [ ] `ContentError` carries a `field` name (`format`, `files`, `roles`, `notes`, `phrase`, …) that the scenarios check.
 - [ ] Types exported from `src/core/content.ts`; `PitchFrame` exported from `src/core/types.ts` (or re-exported from content.ts) so ticket 06 and 09 import the same type.
+
+## Comments
+
+- 2026-10-27 agent: Merged 1d356ee: src/core/content.ts, types.ts; 9 scenarios green.

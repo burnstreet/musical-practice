@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (content format), 07 (vault)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 Spec: `specs/library.spec.md`. Parsers from `src/core/content.ts`. Decrypt through the `Vault` interface only.
 
@@ -13,3 +13,7 @@ Testing: inject `fetch` and a vault (a fake vault whose `decrypt` is the inverse
 - [ ] All scenarios pass via `tests/specs/library.test.ts` + `tests/steps/library.steps.ts`.
 - [ ] Sync order and skip-unchanged behaviour as in the spec; progress event after every file.
 - [ ] No decrypted bytes written to IndexedDB.
+
+## Comments
+
+- 2026-10-27 agent: Merged 5a3249e: src/core/library.ts, db.ts (shared IndexedDB open); fetchLibraryCipher added in the review fix pass.
