@@ -10,6 +10,8 @@ export interface Library {
   fetchManifest(): Promise<Manifest | null>
   sizeInfo(): { songCount: number; totalBytes: number } | null
   sync(): Promise<void>
+  /** Encrypted library file of the current manifest, for vault.unlock; null when offline or no manifest. */
+  fetchLibraryCipher(): Promise<ArrayBuffer | null>
   onProgress(fn: (p: DownloadProgress) => void): void
   songs(): SongMeta[]
   roles(): Role[]
@@ -35,6 +37,7 @@ export function createLibrary(deps: LibraryDeps): Library {
   let manifest: Manifest | null = null
   let data: LibraryData | null = null
   let stored = new Set<string>()
+  let syncing: Promise<void> | null = null
 
   const idb = <T>(store: string, mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T>) => withStore(db, store, mode, f)
   const read = async (id: string) => (await idb('files', 'readonly', (s) => s.get(id))) as ArrayBuffer
@@ -62,6 +65,31 @@ export function createLibrary(deps: LibraryDeps): Library {
     return null
   }
 
+  async function runSync() {
+    await lib.fetchManifest()
+    const m = manifest
+    const emit = (p: Partial<DownloadProgress>) => listeners.forEach((l) => l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p }))
+    let doneBytes = 0
+    if (!m) return emit({ done: true, error: 'no manifest' })
+    const failed: string[] = []
+    const fetchFile = async (id: string) => {
+      if (!stored.has(id)) {
+        const bytes = await download(id)
+        if (!bytes) return void failed.push(id)
+        await idb('files', 'readwrite', (s) => s.put(bytes, id)) // ciphertext only
+        stored.add(id)
+      }
+      doneBytes += m.files[id] ?? 0
+      emit({})
+    }
+    await fetchFile(m.library)
+    await load()
+    for (const s of data?.songs ?? []) for (const id of [s.files.notes, s.files.voices, s.files.backing]) await fetchFile(id)
+    for (const id of stored) if (!(id in m.files)) await idb('files', 'readwrite', (s) => s.delete(id))
+    await load()
+    emit({ done: true, error: failed.length ? `failed: ${failed.join(', ')}` : undefined })
+  }
+
   const lib: Library = {
     async fetchManifest() {
       let fresh: Manifest | null = null
@@ -75,29 +103,18 @@ export function createLibrary(deps: LibraryDeps): Library {
       return fresh
     },
     sizeInfo: () => (manifest ? { songCount: manifest.songCount, totalBytes: manifest.totalBytes } : null),
-    async sync() {
-      await lib.fetchManifest()
-      const m = manifest
-      const emit = (p: Partial<DownloadProgress>) => listeners.forEach((l) => l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p }))
-      let doneBytes = 0
-      if (!m) return emit({ done: true, error: 'no manifest' })
-      const failed: string[] = []
-      const fetchFile = async (id: string) => {
-        if (!stored.has(id)) {
-          const bytes = await download(id)
-          if (!bytes) return void failed.push(id)
-          await idb('files', 'readwrite', (s) => s.put(bytes, id)) // ciphertext only
-          stored.add(id)
-        }
-        doneBytes += m.files[id] ?? 0
-        emit({})
+    sync() {
+      // Shell (boot) and start screen (unlock) may both call it: share one run.
+      return (syncing ??= runSync().finally(() => { syncing = null }))
+    },
+    async fetchLibraryCipher() {
+      if (!manifest) return null
+      try {
+        const r = await doFetch(`${baseUrl}/${manifest.library}.bin`)
+        return r.ok ? await r.arrayBuffer() : null
+      } catch {
+        return null
       }
-      await fetchFile(m.library)
-      await load()
-      for (const s of data?.songs ?? []) for (const id of [s.files.notes, s.files.voices, s.files.backing]) await fetchFile(id)
-      for (const id of stored) if (!(id in m.files)) await idb('files', 'readwrite', (s) => s.delete(id))
-      await load()
-      emit({ done: true, error: failed.length ? `failed: ${failed.join(', ')}` : undefined })
     },
     onProgress: (fn) => void listeners.push(fn),
     songs: () => (unlocked() ? (data?.songs ?? []) : []),

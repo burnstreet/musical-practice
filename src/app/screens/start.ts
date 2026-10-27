@@ -83,9 +83,9 @@ export class GuStart extends LitElement {
     this.manifest ??= await library.fetchManifest()
     if (!this.manifest) return 'no-manifest' as const
     try {
-      const r = await fetch(`content/${this.manifest.library}.bin`)
-      if (!r.ok) return 'no-manifest' as const
-      return await vault.unlock(this.value, this.manifest, await r.arrayBuffer())
+      const cipher = await library.fetchLibraryCipher()
+      if (!cipher) return 'no-manifest' as const
+      return await vault.unlock(this.value, this.manifest, cipher)
     } catch {
       return 'no-manifest' as const
     }

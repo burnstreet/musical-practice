@@ -27,6 +27,7 @@ function deps(ctx: any): ShellDeps {
       fetchManifest: async () => null,
       sizeInfo: () => null,
       sync: async () => {},
+      fetchLibraryCipher: async () => null,
       onProgress: () => {},
       songs: () => [],
       roles: () => [],
