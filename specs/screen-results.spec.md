@@ -28,7 +28,7 @@ Strings:
 | none | `Keine Töne gesungen.` |
 
 - Tendency label: `ok` → `sauber`; `high` with |mean| ≤ tol → `leicht zu hoch`, else `zu hoch`; same for `low`.
-- Range: note names in true octave. Null: `–`.
+- Range: note names without octave (as everywhere). Null: `–`.
 - Chart: one signed bar per phrase, zero line, tolerance band shaded. Unsung phrase: empty slot. Bar beyond ±tol in white, inside in accent.
 - Tip card: `result.tip`.
 - Trend: from pass 2, polyline of `session.trend()` with dots, label `Verlauf`. Hidden on pass 1.
@@ -42,7 +42,7 @@ Feature: Results screen
   Scenario: stats rendered
     Given pass 3 with hitPct 86, meanCents 18, tendency high, rangeMidi [59, 69], tolerance 50
     When the screen renders
-    Then it shows "Durchgang 3", "86%", "18 Cent", "leicht zu hoch", "B3 – A4"
+    Then it shows "Durchgang 3", "86%", "18 Cent", "leicht zu hoch", "B – A"
 
   Scenario: tendency far
     Given meanCents -60, tendency low, tolerance 50

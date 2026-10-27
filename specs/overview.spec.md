@@ -71,7 +71,7 @@ Numbers refer to the grilling session of 2026-10-27.
 - Tempo 100/90/80/70 % via media elements with pitch preservation. Phrase loop. (Q6, Q33)
 - No recording of own voice. (Q7)
 - Results: hit %, mean cents, tendency, sung range, signed per-phrase chart, template coaching sentence. Phrase = lyric line. (Q8)
-- Octave folding in scoring and in display. True octave only in sung range. (Q9)
+- Octave folding in scoring and in display. Note names never show an octave. (Q9)
 - Derived AES key stored non-extractable in IndexedDB. Lock wipes all. (Q10)
 - History: last 20 sessions per song and role set, on device. (Q11, Q30)
 - Hosting: GitHub Pages, workflow on push to main. Encrypted bundle committed. (Q12)
