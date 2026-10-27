@@ -1,3 +1,4 @@
+import { setRole, togglePhraseStart } from './edit-ops.js';
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
@@ -16,7 +17,7 @@
   let editMode = false, selected = new Set(), drag = null, dirty = false;
   // roles (voices) -> colours
   const ROLE_PALETTE = ['#2f6fed', '#d6453a', '#2a9d5c', '#b8860b', '#8e44ad', '#0e8a9b'];
-  let roleColor = {};
+  let roleColor = {}, configRoles = null;
   // sheet music (OpenSheetMusicDisplay)
   let osmd = null, cursorPos = null;
 
@@ -231,6 +232,7 @@
         ctx.font = Math.min(12, bh - 1) + 'px system-ui,sans-serif';
         ctx.fillText(n.name || midiName(n.midi), x + 3, y + bh / 2);
       }
+      if (n.phraseStart) { ctx.fillStyle = '#c0392b'; ctx.fillRect(x - 1, 0, 2, H); }
       if (n.lyric && bw > 10 && $('lyricChk').checked) {
         ctx.fillStyle = col; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
         ctx.font = 'bold 12px system-ui,sans-serif';
@@ -285,11 +287,19 @@
   }
 
   // ---------- roles / sheet ----------
+  // dropdown: global config roles, else roles already in the song
+  function fillRoleSel(s) {
+    const opts = configRoles || [...new Set(s.notes.map((n) => n.role).filter(Boolean))].map((r) => ({ id: r, name: r }));
+    const keep = $('roleSel').value;
+    $('roleSel').replaceChildren(...opts.map((r) => new Option(r.name, r.id)));
+    $('roleSel').value = keep;
+  }
   function buildRoles(s) {
     roleColor = {};
     const names = (s.roles || []).map((r) => r.name);
     s.notes.forEach((n) => { if (n.role && !names.includes(n.role)) names.push(n.role); });
     names.forEach((r, i) => { roleColor[r] = ROLE_PALETTE[i % ROLE_PALETTE.length]; });
+    fillRoleSel(s);
     const box = $('legend');
     box.textContent = '';
     box.hidden = names.length < 1;
@@ -547,6 +557,8 @@
     $('editChk').onchange = () => setEditMode($('editChk').checked);
     $('sheetChk').onchange = () => { if (song) loadSheet(song); };
     $('saveBtn').onclick = save;
+    $('roleBtn').onclick = () => { if (!song || !$('roleSel').value) return; setRole(song.notes, selected, $('roleSel').value); setDirty(); buildRoles(song); };
+    $('phraseBtn').onclick = () => { if (!song) return; togglePhraseStart(song.notes, selected); setDirty(); };
     $('selAll').onclick = () => { song && song.notes.forEach((_, i) => selected.add(i)); };
     $('selNone').onclick = () => selected.clear();
     $('reloadBtn').onclick = () => entry && loadSong(entry);
@@ -567,6 +579,7 @@
       }
     });
     window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+    try { configRoles = (await (await fetch('config.json', { cache: 'no-store' })).json()).roles; } catch (e) { /* no config: dropdown falls back to song roles */ }
     let list = [];
     try {
       const r = await fetch('data/index.json', { cache: 'no-store' });
