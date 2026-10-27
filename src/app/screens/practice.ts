@@ -35,9 +35,11 @@ const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height
 const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 28)
 const MIC = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></g>`,
+  18,
 )
 const MIC_OFF = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M4 4l16 16"/></g>`,
+  18,
 )
 
 /** Ends the live session: unload, mic off, history. Back button and the shell (routes to songs/start) call it; no-op without one. */
@@ -104,10 +106,12 @@ export class GuPractice extends LitElement {
     .readout big { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; margin-right: 8px; }
     .readout small { font-size: 13px; color: var(--muted); }
     .readout strong { font-size: 14px; }
-    .meter { position: relative; height: 8px; border-radius: 4px; background: var(--line); }
-    .meter .band { position: absolute; top: 0; bottom: 0; background: var(--accent); opacity: 0.5; border-radius: 4px; }
-    .meter .tick { position: absolute; left: 50%; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--text); }
-    .meter .dot { position: absolute; top: -5px; width: 18px; height: 18px; margin-left: -9px; border-radius: 9px; box-sizing: border-box; background: var(--text); border: 3px solid var(--surface); }
+    /* passive display: thin, labelled ends, no thumb at rest (must not read as a slider) */
+    .meter { position: relative; height: 3px; margin-top: 4px; background: var(--line); }
+    .meter .band { position: absolute; top: 0; bottom: 0; background: var(--accent); opacity: 0.5; }
+    .meter .tick { position: absolute; left: 50%; top: -2px; width: 1px; height: 7px; background: var(--muted); }
+    .meter .dot { position: absolute; top: -3px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--text); }
+    .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -4px; }
     .transport { grid-area: transport; align-self: end; display: flex; flex-direction: column; gap: 10px; }
     @media (min-width: 960px) { .transport { align-self: start; background: var(--surface); border-radius: 24px; padding: 20px 24px; } .transport .round { background: var(--bg); } }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
@@ -116,6 +120,7 @@ export class GuPractice extends LitElement {
     .buttons button.round { font-size: 13px; font-weight: 700; }
     .round[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
     .main { width: 72px; height: 72px; border-radius: 36px; background: var(--accent) !important; color: var(--ink) !important; }
+    .mic { display: flex; align-items: center; flex: none; }
     .mic.on { color: var(--accent); }
     .mic:not(.on) { color: var(--muted); }
   `
@@ -328,6 +333,7 @@ export class GuPractice extends LitElement {
         <div class="tick"></div>
         ${readout.cents === null ? '' : html`<div class="dot" style="left:${50 + Math.max(-100, Math.min(100, readout.cents)) / 2}%"></div>`}
       </div>
+      <div class="ends"><span>tief</span><span>hoch</span></div>
     </section>
     <div class="transport">
       <div class="progress">
@@ -344,7 +350,7 @@ export class GuPractice extends LitElement {
             : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`
         }
         <button class="round" aria-label="Tempo ${this.tempo} Prozent" @click=${() => this.setTempo(NEXT_TEMPO[this.tempo])}>${this.tempo}%</button>
-        ${this.singsHere ? html`<span class="round mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
+        ${this.singsHere ? html`<span class="mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
       </div>
     </div>`
   }
