@@ -1,4 +1,4 @@
-import type { Note, RoleId, Song } from './content'
+import { type Note, type RoleId, type Song, visibleNotes } from './content'
 import { type PassResult, scorePass, type Tolerance } from './scorer'
 import type { PitchFrame } from './types'
 
@@ -6,21 +6,25 @@ import type { PitchFrame } from './types'
 export class Session {
   private entered = new Map<number, PitchFrame[]>() // song note index -> frames, in order of entry
   private done: PassResult[] = []
+  /** My visible notes: a unison copy of another of my roles is not mine twice. */
+  private mine: Set<Note>
 
   constructor(
     private song: Song,
     private roles: RoleId[],
     private tol: Tolerance,
-  ) {}
+  ) {
+    this.mine = new Set(visibleNotes(song.notes, roles).filter((n) => roles.includes(n.role)))
+  }
 
   myNotes(): Note[] {
-    return this.song.notes.filter((n) => this.roles.includes(n.role))
+    return [...this.mine]
   }
 
   /** noteIndex is the index in song.notes. Re-entering discards earlier frames. */
   enter(noteIndex: number): void {
     const n = this.song.notes[noteIndex]
-    if (!n || !this.roles.includes(n.role)) return
+    if (!n || !this.mine.has(n)) return
     this.entered.delete(noteIndex) // re-insert so the latest entry wins when spans touch
     this.entered.set(noteIndex, [])
   }

@@ -147,6 +147,19 @@ export function parseSong(input: unknown): Song {
   return json as Song
 }
 
+/** Notes staff, roll and session use: my unison duplicates once, other roles hidden while I sing. Order kept. */
+export function visibleNotes(notes: Note[], roles: RoleId[]): Note[] {
+  const mine = notes.filter((n) => roles.includes(n.role))
+  const seen = new Set<string>()
+  return notes.filter((n) => {
+    if (!roles.includes(n.role)) return !mine.some((m) => m.start < n.end && n.start < m.end)
+    const key = `${n.start}|${n.end}|${n.midi}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 export function roleSpans(notes: Note[], roles: RoleId[]): Span[] {
   const spans: Span[] = []
   for (const n of notes.filter((n) => roles.includes(n.role)).sort((a, b) => a.start - b.start)) {

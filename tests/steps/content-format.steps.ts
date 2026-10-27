@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { ContentError, parseLibrary, parseManifest, parseSong, type RoleId, roleSpans } from '../../src/core/content'
+import { ContentError, parseLibrary, parseManifest, parseSong, type RoleId, roleSpans, visibleNotes } from '../../src/core/content'
 import { steps } from '../gherkin'
 
 const SALT = Buffer.alloc(16, 7).toString('base64')
@@ -89,5 +89,18 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^I get spans (.*)$/, (ctx, s) => {
     expect(ctx.result).toEqual(pairs(s))
+  })
+
+  // "maria 67 at [1.0,2.0], josef 64 at [3.0,4.0]" -> role, midi, start, end
+  const voiced = (s: string) =>
+    [...s.matchAll(/(\w+) (\d+) at \[([\d.]+),([\d.]+)\]/g)].map(([, role, midi, a, b]) => ({ role, midi: +midi, start: +a, end: +b }))
+  Given(/^notes (.* at \[.*)$/, (ctx, s) => {
+    ctx.notes = voiced(s).map((v) => ({ ...note(v.start, v.end, v.role), midi: v.midi }))
+  })
+  When(/^I take the visible notes for \[(.*)\]$/, (ctx, r) => {
+    ctx.result = visibleNotes(ctx.notes, r.split(',').map((s: string) => s.trim()) as RoleId[])
+  })
+  Then(/^I get (\w+ \d+ at .*)$/, (ctx, s) => {
+    expect(ctx.result.map(({ role, midi, start, end }: any) => ({ role, midi, start, end }))).toEqual(voiced(s))
   })
 })

@@ -27,9 +27,10 @@ Strings:
 | centsSlight | `{±n} Cent · leicht zu hoch` / `leicht zu tief` |
 | centsFar | `{±n} Cent · zu hoch` / `zu tief` |
 | noTarget | `–` |
+| meterEnds | `tief` (left) / `hoch` (right), under the meter |
 | loop | aria `Phrase wiederholen` (toggle) |
 | phraseStart | aria `Zurück zum Anfang der Phrase` |
-| pause | aria `Pause und Auswertung` |
+| pause | aria `Pause`; with `features.results` on `Pause und Auswertung` |
 | tempo | `{t}%`, aria `Tempo {t} Prozent` |
 | mic | aria `Mikrofon aktiv` / `Mikrofon aus` |
 | micDenied | `Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.` |
@@ -37,21 +38,26 @@ Strings:
 
 ## Setup
 
-- On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start` only when the song has notes for the selected roles.
-- No notes for my roles: `noPart` hint, mic button hidden, pause button goes to songs instead of results, mode forced `all`.
+- On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start(engine.time, engine.latency)` only when the song has notes for the selected roles.
+- No notes for my roles: `noPart` hint, mic indicator hidden, mode forced `all`. With `features.results` on, pause goes to songs.
 - `pitch.start` returns `denied` or `unsupported`: `micDenied` banner, mic button shows off state, playback allowed, results disabled.
 - Leaving: `engine.unload`, `pitch.stop`, `history.record` with session passes.
 
 ## Header
 
-- `sub` bar range = current staff page (4 bars), key from song, bpm from song times tempo.
+- `sub` bar range = current staff page (`barsPerPage` of the staff canvas width: 2 below 560 px, else 4), key from song, bpm from song times tempo.
 - Mode button cycles all → others → backing → all. Saves to settings.
 
-## Staff (canvas, 4 bars per page)
+## Staff (canvas, 2 or 4 bars per page)
 
-- Treble clef, key signature from `song.key`, 5 lines. Note heads with stems, no beams, no rests. Accidentals only on pitches outside the key.
-- Mine: accent colour. Others: `--other`. Syllable under each note, mine bold at the current note. Role name above each run of same-role notes.
-- Current note highlighted with a translucent box. Page flips when playhead enters bar 4k.
+- Treble clef, key signature from `song.key`, 5 lines. No beams, no rests, no ties. Accidentals only on pitches outside the key.
+- Note value from `dur` (quarters), quantised to the nearest written value: whole (hollow, no stem), half (hollow, stem), quarter (filled, stem), eighth / sixteenth (filled, stem, 1 / 2 flags); augmentation dot for dotted values (dotted sixteenth to dotted half).
+- Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room. Minimum distance between onsets = head (more before an accidental) and half of each neighbour's syllable + 4 px; short notes take it from long ones.
+- Bar widths on a page follow each bar's minimum width. Too dense: lyric font shrinks down to 10 px, then every other syllable moves to a second lyric row (canvas class `tall`, a bit higher). Syllables are never left out.
+- Bar lines: solid, text colour, 1.5 px, full staff height, at every bar start on the page and at the page end. Bar number (muted, 10 px) over each bar's start, matching `sub`.
+- Notes drawn = `visibleNotes(song.notes, roles)`: one line where I sing (same for the piano roll).
+- Mine: accent colour. Others: `--other`. Syllable under each onset (mine first), mine bold at the current note. Role name above each run of same-role notes, left out where it would overprint the previous one.
+- Current note highlighted with a translucent box. Page = `barsPerPage` bars, flips when the playhead enters the next page.
 
 ## Piano roll (canvas)
 
@@ -63,7 +69,8 @@ Strings:
 
 - Target = my note containing the current time (with onset grace ignored here). Sung = latest voiced frame in the last 150 ms.
 - Shows sung note name folded into target octave, `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`.
-- Meter: bar with tolerance band, centre tick, dot at cents clamped ±100.
+- Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at cents clamped ±100 only while a voiced frame exists.
+- Mic indicator in the transport row: small status icon, no button styling.
 
 ## Transport
 
@@ -71,7 +78,7 @@ Strings:
 - `loop`: toggles loop on the current phrase. Active state highlighted.
 - `phraseStart`: seek to current phrase start.
 - `tempo`: cycles 100 → 90 → 80 → 70 → 100.
-- `pause`: engine.pause, `session.endPass`, route results when a pass result exists, else stay paused.
+- `pause`: engine.pause, `session.endPass` (passes still go to history), stay paused on practice. Only with `features.results` on: route results when a pass result exists.
 - Play again after pause: `session.startPass`, engine.play.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
   `[@test] ../tests/steps/screen-practice.steps.ts`
@@ -80,8 +87,13 @@ Strings:
 Feature: Practice screen
   Scenario: renders header
     Given song "08" loaded with key "F", bpm 93, title placeholder
-    When the screen renders at bar 5
+    When the screen renders at bar 5 with the staff 600 px wide
     Then the subline reads "Takt 5–8 · F · 93 BPM"
+
+  Scenario: phone staff pages hold 2 bars
+    Given song "08" loaded with key "F", bpm 93, title placeholder
+    When the screen renders at bar 5 with the staff 340 px wide
+    Then the subline reads "Takt 5–6 · F · 93 BPM"
 
   Scenario: mode cycles
     Given mode all
@@ -96,12 +108,27 @@ Feature: Practice screen
     Given a sung frame 80 cents above
     Then the readout shows "+80 Cent · zu hoch"
 
+  Scenario: readout and mic are passive indicators
+    Given target D5 and no sung frame
+    Then the meter is labelled "tief" and "hoch" and shows no dot
+    Given a sung frame 14 cents above
+    Then the meter shows a dot
+    And neither the readout nor the mic indicator is a control
+
   Scenario: octave folded readout
     Given target D5 and a sung frame at D4 plus 5 cents
     Then the readout shows "D5" and "+5 Cent · sauber"
 
-  Scenario: pause leads to results
+  Scenario: pause stays on practice
     Given a pass with at least one entered note
+    When I press pause
+    Then session.endPass ran and the route stays "#/practice/08"
+    When I press the back button
+    Then the route is "#/songs"
+
+  Scenario: pause leads to results when the results screen is on
+    Given the results screen is enabled
+    And a pass with at least one entered note
     When I press pause
     Then session.endPass ran and the route is "#/results/08"
 
@@ -109,6 +136,11 @@ Feature: Practice screen
     Given a pass with no entered note
     When I press pause
     Then the route stays and playback is paused
+
+  Scenario: mic stamps follow what the singer hears
+    Given engine latency 0.040
+    When the screen opens
+    Then pitch.start got the song time and a playback latency of 0.040
 
   Scenario: mic denied
     Given pitch.start returns denied

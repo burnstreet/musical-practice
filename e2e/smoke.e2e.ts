@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 // Synthetic song 90 (e2e/fixture.py): all notes A4, the fake microphone sings a steady 440 Hz.
-test('unlock, pick role and song, sing with the microphone, see the reaction, stop, back to start', async ({ page }) => {
+test('unlock, pick role and song, sing with the microphone, see the reaction, pause, back to the song list', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
@@ -21,17 +21,18 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, st
 
   await page.getByRole('button', { name: 'Abspielen' }).click()
   await page.getByRole('button', { name: 'Weiter' }).click() // headphone sheet
-  await expect(page.getByRole('button', { name: 'Pause und Auswertung' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
 
   // the sung A4 against target A4 shows up as a live reading
   await expect(page.getByText(/Ziel A4/)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/\d+ Cent · sauber/)).toBeVisible({ timeout: 15_000 })
 
-  await page.getByRole('button', { name: 'Pause und Auswertung' }).click()
-  await expect(page).toHaveURL(/#\/results\/90$/)
-  await expect(page.getByRole('img', { name: /Prozent Treffsicherheit/ })).toBeVisible()
+  // results screen is off (features.results): pause just pauses
+  await page.getByRole('button', { name: 'Pause', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Abspielen' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/practice\/90$/)
 
-  await page.getByRole('button', { name: 'Schließen' }).click()
+  await page.getByRole('button', { name: 'Zurück zur Auswahl' }).click()
   await expect(page).toHaveURL(/#\/songs$/)
   await expect(page.getByRole('heading', { name: 'Lied zum Üben' })).toBeVisible()
   expect(errors).toEqual([])

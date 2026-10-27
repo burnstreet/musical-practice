@@ -154,6 +154,7 @@ Feature: Pass result
 - `frame` routes by `t` into the entered note whose `[start, end]` contains `t`, mine only. Frames before `enter` of that note dropped.
 - `enter` on an already entered note clears its frames (loop restart, seek back). Last entry wins.
 - `startPass` clears entered set and frames. `endPass` scores, appends, returns. Pass number = `passes().length`.
+- `myNotes` = my notes of `visibleNotes(song.notes, roles)`. `enter` ignores the dropped unison copies, so a duet note counts once.
   `[@test] ../tests/steps/scorer.steps.ts`
 
 ```gherkin
@@ -172,4 +173,9 @@ Feature: Session
     Given a session
     When I start a pass and end it without entering a note
     Then endPass returns null and passes() is empty
+
+  Scenario: duet in unison scored once
+    Given a session for roles [maria, josef] with maria and josef both on note [1.0,2.0] midi 67
+    When I start a pass, enter both copies, feed frames at 67, end the pass
+    Then scoredNotes is 1 and myNotes has 1 note
 ```
