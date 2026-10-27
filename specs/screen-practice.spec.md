@@ -29,7 +29,7 @@ Strings:
 | noTarget | `–` |
 | loop | aria `Phrase wiederholen` (toggle) |
 | phraseStart | aria `Zurück zum Anfang der Phrase` |
-| pause | aria `Pause und Auswertung` |
+| pause | aria `Pause`; with `features.results` on `Pause und Auswertung` |
 | tempo | `{t}%`, aria `Tempo {t} Prozent` |
 | mic | aria `Mikrofon aktiv` / `Mikrofon aus` |
 | micDenied | `Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.` |
@@ -38,7 +38,7 @@ Strings:
 ## Setup
 
 - On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start(engine.time, engine.latency)` only when the song has notes for the selected roles.
-- No notes for my roles: `noPart` hint, mic button hidden, pause button goes to songs instead of results, mode forced `all`.
+- No notes for my roles: `noPart` hint, mic indicator hidden, mode forced `all`. With `features.results` on, pause goes to songs.
 - `pitch.start` returns `denied` or `unsupported`: `micDenied` banner, mic button shows off state, playback allowed, results disabled.
 - Leaving: `engine.unload`, `pitch.stop`, `history.record` with session passes.
 
@@ -71,7 +71,7 @@ Strings:
 - `loop`: toggles loop on the current phrase. Active state highlighted.
 - `phraseStart`: seek to current phrase start.
 - `tempo`: cycles 100 → 90 → 80 → 70 → 100.
-- `pause`: engine.pause, `session.endPass`, route results when a pass result exists, else stay paused.
+- `pause`: engine.pause, `session.endPass` (passes still go to history), stay paused on practice. Only with `features.results` on: route results when a pass result exists.
 - Play again after pause: `session.startPass`, engine.play.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
   `[@test] ../tests/steps/screen-practice.steps.ts`
@@ -100,8 +100,16 @@ Feature: Practice screen
     Given target D5 and a sung frame at D4 plus 5 cents
     Then the readout shows "D5" and "+5 Cent · sauber"
 
-  Scenario: pause leads to results
+  Scenario: pause stays on practice
     Given a pass with at least one entered note
+    When I press pause
+    Then session.endPass ran and the route stays "#/practice/08"
+    When I press the back button
+    Then the route is "#/songs"
+
+  Scenario: pause leads to results when the results screen is on
+    Given the results screen is enabled
+    And a pass with at least one entered note
     When I press pause
     Then session.endPass ran and the route is "#/results/08"
 

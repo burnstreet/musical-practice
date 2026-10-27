@@ -7,6 +7,7 @@ import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
 import { type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
+import { features } from '../features'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -223,8 +224,10 @@ export class GuPractice extends LitElement {
     const { engine, route } = getContext()
     engine.pause()
     this.playing = false
+    const passed = this.mic && this.session.endPass() // history still gets the pass
+    if (!features.results) return
     if (!this.singsHere) route('#/songs')
-    else if (this.mic && this.session.endPass()) route(`#/results/${this.songId}`)
+    else if (passed) route(`#/results/${this.songId}`)
   }
 
   private back() {
@@ -337,7 +340,7 @@ export class GuPractice extends LitElement {
         <button class="round" aria-label="Zurück zum Anfang der Phrase" @click=${() => this.seek(this.phrase().start)}>${TO_START}</button>
         ${
           this.playing
-            ? html`<button class="round main" aria-label="Pause und Auswertung" @click=${this.pause}>${PAUSE}</button>`
+            ? html`<button class="round main" aria-label=${features.results ? 'Pause und Auswertung' : 'Pause'} @click=${this.pause}>${PAUSE}</button>`
             : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`
         }
         <button class="round" aria-label="Tempo ${this.tempo} Prozent" @click=${() => this.setTempo(NEXT_TEMPO[this.tempo])}>${this.tempo}%</button>
