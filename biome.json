@@ -1,5 +1,6 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "includes": ["src/**", "tests/**", "e2e/**", "web/*.js", "*.ts", "*.json", "!**/dist", "!**/node_modules", "!web/data", "!e2e/.tmp", "!package-lock.json"]
   },
@@ -16,3 +17,4 @@
   "overrides": [{ "includes": ["src/**"], "linter": { "rules": { "suspicious": { "noFocusedTests": "off" } } } }],
   "assist": { "actions": { "source": { "organizeImports": "on" } } }
 }
+
