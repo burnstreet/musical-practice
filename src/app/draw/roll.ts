@@ -1,4 +1,4 @@
-import type { Note } from '../../core/content'
+import { type Note, visibleNotes } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
 import { COLORS, type DrawState, FONT, fit } from './staff'
 
@@ -31,7 +31,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const t0 = t - BEHIND
   const t1 = t + AHEAD
   const x = (time: number) => ((time - t0) / (t1 - t0)) * w
-  const inView = song.notes.filter((n) => n.end > t0 && n.start < t1)
+  const notes = visibleNotes(song.notes, roles)
+  const inView = notes.filter((n) => n.end > t0 && n.start < t1)
   const mineInView = inView.filter((n) => roles.includes(n.role))
   const [lo, hi] = rowRange((mineInView.length ? mineInView : inView).map((n) => n.midi))
   const rowH = h / (hi - lo + 1)
@@ -95,7 +96,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
-  const mine = song.notes.filter((n) => roles.includes(n.role))
+  const mine = notes.filter((n) => roles.includes(n.role))
   const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
