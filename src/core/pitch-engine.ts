@@ -8,8 +8,11 @@ export interface PitchEngine {
   start(songTime: () => number): Promise<StartResult>
   stop(): void
   setOffsetMs(ms: number): void
-  on(ev: 'frame', fn: (f: PitchFrame) => void): void
+  /** Returns the unsubscribe function. */
+  on(ev: 'frame', fn: (f: PitchFrame) => void): () => void
   level(): number
+  /** Mic running (start returned ok, no stop since). */
+  active(): boolean
 }
 
 /** Seams for tests; defaults use the browser. */
@@ -26,6 +29,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
   let offsetMs = 0
   let rms = 0
   let cleanup = () => {}
+  let running = false
 
   async function start(songTime: () => number): Promise<StartResult> {
     const getUserMedia = deps.getUserMedia ?? defaultGetUserMedia()
@@ -59,19 +63,28 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
       stream.getTracks().forEach((t) => t.stop())
       void ctx.close()
     }
+    running = true
     return 'ok'
   }
 
   function stop() {
     cleanup()
     cleanup = () => {}
+    running = false
   }
 
   return {
     start,
     stop,
     setOffsetMs: (ms) => { offsetMs = ms },
-    on: (_ev, fn) => void listeners.push(fn),
+    on: (_ev, fn) => {
+      listeners.push(fn)
+      return () => {
+        const i = listeners.indexOf(fn)
+        if (i >= 0) listeners.splice(i, 1)
+      }
+    },
     level: () => rms,
+    active: () => running,
   }
 }

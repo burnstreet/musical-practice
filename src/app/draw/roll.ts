@@ -1,12 +1,11 @@
 import type { Note } from '../../core/content'
-import { foldCents } from '../../core/scorer'
-import { C, FONT, fit, type DrawState } from './staff'
+import { foldCents, noteName } from '../../core/scorer'
+import { COLORS, FONT, fit, type DrawState } from './staff'
 
 const BEHIND = 1.5
 const AHEAD = 3.5
 const MIN_ROWS = 10
 const MARGIN = 2
-const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 /** Inclusive midi range of the rows: notes ±2 semitones, padded to at least 10 rows (G4 area when empty). */
 export function rowRange(midis: number[]): [number, number] {
@@ -18,7 +17,7 @@ export function rowRange(midis: number[]): [number, number] {
 }
 
 /** Sung midi folded into the octave of my note nearest in time to `t` (the one sounding, if any). */
-export function fold(midi: number, t: number, mine: Note[]): number {
+export function foldToTargetOctave(midi: number, t: number, mine: Note[]): number {
   const gap = (n: Note) => Math.max(n.start - t, t - n.end, 0)
   const target = mine.reduce<Note | null>((a, n) => (!a || gap(n) < gap(a) ? n : a), null)
   return target ? target.midi + foldCents(midi, target.midi) / 100 : midi
@@ -39,16 +38,16 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const y = (midi: number) => (hi - midi + 0.5) * rowH // centre of the row
 
   // Rows and labels
-  ctx.strokeStyle = C.line
+  ctx.strokeStyle = COLORS.line
   ctx.lineWidth = 1
   ctx.beginPath()
   for (let r = 0; r <= hi - lo + 1; r++) ctx.moveTo(34, r * rowH), ctx.lineTo(w, r * rowH)
   ctx.stroke()
-  ctx.fillStyle = C.muted
+  ctx.fillStyle = COLORS.muted
   ctx.font = `${Math.min(11, rowH * 0.7)}px ${FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  for (let m = lo; m <= hi; m++) ctx.fillText(NAMES[m % 12] + (Math.floor(m / 12) - 1), 2, y(m))
+  for (let m = lo; m <= hi; m++) ctx.fillText(noteName(m), 2, y(m))
 
   // Target bars: others dashed, mine with elapsed fill
   const barH = Math.max(2, rowH - 4)
@@ -61,13 +60,13 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     rect(n, x(n.start), x(n.end))
     ctx.setLineDash([4, 4])
     ctx.globalAlpha = 0.12
-    ctx.fillStyle = ctx.strokeStyle = C.other
+    ctx.fillStyle = ctx.strokeStyle = COLORS.other
     ctx.fill()
     ctx.globalAlpha = 1
     ctx.stroke()
     ctx.setLineDash([])
   }
-  ctx.fillStyle = ctx.strokeStyle = C.accent
+  ctx.fillStyle = ctx.strokeStyle = COLORS.accent
   for (const n of mineInView) {
     const done = n.end <= t
     rect(n, x(n.start), x(n.end))
@@ -86,7 +85,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   }
 
   // Playhead
-  ctx.strokeStyle = C.text
+  ctx.strokeStyle = COLORS.text
   ctx.lineWidth = 1.5
   ctx.setLineDash([3, 4])
   ctx.beginPath()
@@ -97,9 +96,9 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
 
   // Sung line: dark outline under a 4 px white line, null frames break it
   const mine = song.notes.filter((n) => roles.includes(n.role))
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(fold(f.midi, f.t, mine))]))
+  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
   ctx.lineCap = ctx.lineJoin = 'round'
-  for (const [colour, width] of [[C.surface, 8], [C.text, 4]] as const) {
+  for (const [colour, width] of [[COLORS.surface, 8], [COLORS.text, 4]] as const) {
     ctx.strokeStyle = colour
     ctx.lineWidth = width
     ctx.beginPath()
@@ -110,9 +109,9 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   if (last) {
     ctx.beginPath()
     ctx.arc(last[0], last[1], 7, 0, 2 * Math.PI)
-    ctx.fillStyle = C.text
+    ctx.fillStyle = COLORS.text
     ctx.fill()
-    ctx.strokeStyle = C.surface
+    ctx.strokeStyle = COLORS.surface
     ctx.lineWidth = 3
     ctx.stroke()
   }

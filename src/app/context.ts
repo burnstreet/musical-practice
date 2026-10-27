@@ -33,7 +33,7 @@ export interface AppContext extends ShellDeps {
   /** Set by the practice screen on enter; shell clears it on routes to songs/start. */
   live: { songId: string; song: LoadedSong; session: Session } | null
   openSettings(): void
-  /** Resolves when the user may play (sheet confirmed or already seen). */
+  /** Resolves when the singer may play (sheet confirmed or already seen). */
   ensureHeadphoneSheet(): Promise<void>
 }
 

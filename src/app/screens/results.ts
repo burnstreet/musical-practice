@@ -1,8 +1,6 @@
 import { LitElement, css, html, svg } from 'lit'
+import { noteName } from '../../core/scorer'
 import { getContext } from '../context'
-
-const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-const noteName = (m: number) => `${NAMES[m % 12]}${Math.floor(m / 12) - 1}`
 
 export class GuResults extends LitElement {
   static properties = { songId: { type: String } }
@@ -90,7 +88,7 @@ export class GuResults extends LitElement {
     const range = p.rangeMidi ? `${noteName(p.rangeMidi[0])} – ${noteName(p.rangeMidi[1])}` : '–'
     const stat = (k: string, v: string) => html`<div><div class="k">${k}</div><div class="v">${v}</div></div>`
     return html`<div class="page">
-      <header>${close}<div><h1>${c.live!.song.song.id}</h1><div class="k">Durchgang ${passes.length}</div></div></header>
+      <header>${close}<div><h1>Lied ${c.live!.song.meta.number} · ${c.live!.song.meta.title}</h1><div class="k">Durchgang ${passes.length}</div></div></header>
       <div class="card top">
         <div class="ring"><svg viewBox="0 0 120 120" aria-label="${p.hitPct} Prozent Treffsicherheit"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--line)" stroke-width="12" /><circle cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(p.hitPct * 314) / 100} 314" transform="rotate(-90 60 60)" /></svg>
           <div class="c"><b>${`${p.hitPct}%`}</b><span>getroffen</span></div></div>

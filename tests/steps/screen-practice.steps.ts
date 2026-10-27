@@ -55,6 +55,8 @@ function world(ctx: any) {
       setMode: (m: string) => { log(`mode ${m}`); ctx.mode = m },
       setTempo: (t: number) => { log(`tempo ${t}`); ctx.tempo = t },
       setLoop: (p: unknown) => { ctx.loop = p },
+      tempo: () => ctx.tempo ?? 100,
+      loop: () => ctx.loop ?? null,
       time: () => ctx.time,
       playing: () => ctx.playing,
       on: on(ctx.engineL),
@@ -63,8 +65,9 @@ function world(ctx: any) {
       start: async () => { log('pitch.start'); return ctx.startResult },
       stop: () => log('pitch.stop'),
       setOffsetMs: () => {},
-      on: on(ctx.pitchL),
+      on: (ev: string, fn: (x: any) => void) => { on(ctx.pitchL)(ev, fn); return () => {} },
       level: () => 0,
+      active: () => false,
     },
     sw: {} as any,
     isIosSafariTab: () => false,
@@ -153,7 +156,10 @@ export default steps(({ Given, When, Then }) => {
     await frame(ctx, { midi: 74 + ((dir === 'above' ? 1 : -1) * +n) / 100 })
   })
   Then(/^the readout shows (".+)$/, (ctx, list) => {
-    for (const [, s] of list.matchAll(/"([^"]+)"/g)) expect(text(ctx.el)).toContain(s)
+    for (const [, s] of list.matchAll(/"([^"]+)"/g)) {
+      if (/^[A-G]#?\d$/.test(s)) expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(s) // the sung note, not the "Ziel" label
+      else expect(text(ctx.el)).toContain(s)
+    }
   })
 
   // Passes

@@ -17,7 +17,7 @@ export interface DrawState {
 }
 
 /** tokens.css values (a canvas cannot use custom properties directly). */
-export const C = { accent: '#C8E05A', other: '#A9D3F7', muted: '#CFE0F5', line: '#3F78BF', surface: '#17498C', text: '#FFFFFF' }
+export const COLORS = { accent: '#C8E05A', other: '#A9D3F7', muted: '#CFE0F5', line: '#3F78BF', surface: '#17498C', text: '#FFFFFF' }
 export const FONT = "'DM Sans', system-ui, sans-serif"
 const MUSIC = "'Noto Music', 'Segoe UI Symbol', 'Apple Symbols', serif"
 
@@ -88,7 +88,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
 
   // Lines, bar lines, clef, key signature
-  ctx.strokeStyle = ctx.fillStyle = C.muted
+  ctx.strokeStyle = ctx.fillStyle = COLORS.muted
   ctx.globalAlpha = 0.7
   ctx.lineWidth = 1
   ctx.beginPath()
@@ -108,7 +108,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const notes = song.notes.filter((n) => n.bar >= page * 4 && n.bar < page * 4 + 4)
   const x = (n: Note) => startX + (n.bar - page * 4) * barW + barW * (0.12 + (0.76 * n.beat) / barQ)
   const mine = (n: Note) => roles.includes(n.role)
-  const colour = (n: Note) => (mine(n) ? C.accent : C.other)
+  const colour = (n: Note) => (mine(n) ? COLORS.accent : COLORS.other)
   const sounding = notes.filter((n) => n.start <= t && t < n.end)
   const current = sounding.find(mine) ?? sounding[0]
 
