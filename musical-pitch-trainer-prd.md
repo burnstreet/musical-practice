@@ -24,7 +24,7 @@ UI will be german, to be designed with claude design.
 
 ## Implementation thoughts
 - **Platform:** .Net / Blazor PWA
-- **Content builder (Node CLI):**
+- **Content builder:**
   - Text import: PDF/DOCX to lyric lines.
   - Vocal extractor: align the full mix and the backing track by cross-correlation, fit a gain by least squares, compute `vocal ≈ full − gain × backing`, then run YIN/pYIN pitch tracking with voicing detection, smoothing and median filtering. Output: pitch-track JSON (about 100 frames/s, `null` when unvoiced).
   - Fallback when subtraction fails (mismatched mastering, lossy-codec drift): vocal-focused neural detector on the full mix (e.g. CREPE via ONNX), plus a per-song manual override.
