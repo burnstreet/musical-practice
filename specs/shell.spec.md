@@ -53,7 +53,7 @@ Feature: Guards
 
 ## PWA
 
-- Web manifest: name `Gesangs-Übetool`, short name `Üben`, `display: standalone`, theme and background `#1F5FAB`, icons from the LKG logo (admin supplies PNG 192 and 512).
+- Web manifest: name and short name `LKG Musical 2026` (also `apple-mobile-web-app-title` and page title, the name shown when installed), `display: standalone`, theme and background `#1F5FAB`, icons from the LKG logo (admin supplies PNG 192 and 512).
 - Service worker precaches app shell (html, js, css, fonts, icons). `content/` never cached by the worker; library handles it.
 - Update: new worker installs, waits. On next app launch it activates. Toast `Neue Version geladen` for 4 s. Never reload or prompt during practice.
   `[@test] ../tests/steps/shell.steps.ts`
