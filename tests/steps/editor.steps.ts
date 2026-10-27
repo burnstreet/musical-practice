@@ -1,5 +1,6 @@
 import { expect } from 'vitest'
 import { steps } from '../gherkin'
+// @ts-expect-error plain JS module, no types
 import { setRole, togglePhraseStart } from '../../web/edit-ops.js'
 
 export default steps(({ Given, When, Then }) => {
