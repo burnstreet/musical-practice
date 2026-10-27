@@ -45,14 +45,17 @@ Strings:
 
 ## Header
 
-- `sub` bar range = current staff page (4 bars), key from song, bpm from song times tempo.
+- `sub` bar range = current staff page (`barsPerPage` of the staff canvas width: 2 below 560 px, else 4), key from song, bpm from song times tempo.
 - Mode button cycles all → others → backing → all. Saves to settings.
 
-## Staff (canvas, 4 bars per page)
+## Staff (canvas, 2 or 4 bars per page)
 
-- Treble clef, key signature from `song.key`, 5 lines. Note heads with stems, no beams, no rests. Accidentals only on pitches outside the key.
-- Mine: accent colour. Others: `--other`. Syllable under each note, mine bold at the current note. Role name above each run of same-role notes.
-- Current note highlighted with a translucent box. Page flips when playhead enters bar 4k.
+- Treble clef, key signature from `song.key`, 5 lines. No beams, no rests, no ties. Accidentals only on pitches outside the key.
+- Note value from `dur` (quarters), quantised to the nearest written value: whole (hollow, no stem), half (hollow, stem), quarter (filled, stem), eighth / sixteenth (filled, stem, 1 / 2 flags); augmentation dot for dotted values (dotted sixteenth to dotted half).
+- Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room; onsets at least a minimum apart (head + dot), short notes take it from long ones.
+- Notes drawn = `visibleNotes(song.notes, roles)`: one line where I sing (same for the piano roll).
+- Mine: accent colour. Others: `--other`. Syllable under each onset (mine first), mine bold at the current note; shrunk down to 9 px to fit between neighbours, else left out. Role name above each run of same-role notes, left out where it would overprint the previous one.
+- Current note highlighted with a translucent box. Page = `barsPerPage` bars, flips when the playhead enters the next page.
 
 ## Piano roll (canvas)
 
@@ -82,8 +85,13 @@ Strings:
 Feature: Practice screen
   Scenario: renders header
     Given song "08" loaded with key "F", bpm 93, title placeholder
-    When the screen renders at bar 5
+    When the screen renders at bar 5 with the staff 600 px wide
     Then the subline reads "Takt 5–8 · F · 93 BPM"
+
+  Scenario: phone staff pages hold 2 bars
+    Given song "08" loaded with key "F", bpm 93, title placeholder
+    When the screen renders at bar 5 with the staff 340 px wide
+    Then the subline reads "Takt 5–6 · F · 93 BPM"
 
   Scenario: mode cycles
     Given mode all
