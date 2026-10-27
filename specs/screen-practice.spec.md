@@ -37,7 +37,7 @@ Strings:
 
 ## Setup
 
-- On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start` only when the song has notes for the selected roles.
+- On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start(engine.time, engine.latency)` only when the song has notes for the selected roles.
 - No notes for my roles: `noPart` hint, mic button hidden, pause button goes to songs instead of results, mode forced `all`.
 - `pitch.start` returns `denied` or `unsupported`: `micDenied` banner, mic button shows off state, playback allowed, results disabled.
 - Leaving: `engine.unload`, `pitch.stop`, `history.record` with session passes.
@@ -109,6 +109,11 @@ Feature: Practice screen
     Given a pass with no entered note
     When I press pause
     Then the route stays and playback is paused
+
+  Scenario: mic stamps follow what the singer hears
+    Given engine latency 0.040
+    When the screen opens
+    Then pitch.start got the song time and a playback latency of 0.040
 
   Scenario: mic denied
     Given pitch.start returns denied

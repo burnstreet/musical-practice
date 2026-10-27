@@ -102,6 +102,8 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
         get currentTime() {
           return clock.t
         },
+        baseLatency: ctx.base,
+        outputLatency: ctx.out,
         destination: {},
         resume: async () => {},
         createGain: () => {
@@ -180,6 +182,11 @@ export default steps(({ Given, When, Then }) => {
   })
 
   Given(/^a loaded song$/, (ctx) => setup(ctx))
+  Given(/^a loaded song on a context with baseLatency ([\d.]+) and outputLatency ([\d.]+)$/, (ctx, base, out) => {
+    Object.assign(ctx, { base: +base, out: +out })
+    return setup(ctx)
+  })
+  Then(/^latency\(\) is ([\d.]+)$/, (ctx, s) => expect(ctx.engine.latency()).toBeCloseTo(+s, 6))
   When(/^I set tempo (\d+) and play for 1 real second$/, async (ctx, t) => {
     ctx.engine.setTempo(+t)
     await ctx.engine.play()
