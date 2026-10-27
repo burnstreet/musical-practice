@@ -47,7 +47,7 @@ export class GuPractice extends LitElement {
   }
   static styles = css`
     :host { display: grid; gap: 12px; box-sizing: border-box; min-height: 100vh; padding: 28px 20px 24px; max-width: 560px; margin: 0 auto;
-      grid-template-areas: 'head' 'note' 'mode' 'staff' 'roll' 'readout' 'transport'; grid-template-rows: auto auto auto auto auto auto 1fr; }
+      grid-template-areas: 'head' 'note' 'mode' 'staff' 'roll' 'readout' 'transport'; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto auto 1fr; }
     @media (min-width: 960px) {
       :host { max-width: 1280px; padding: 24px 40px 32px; column-gap: 24px; row-gap: 16px; grid-template-columns: minmax(0, 1fr) 360px;
         grid-template-areas: 'head head' 'note note' 'staff mode' 'staff readout' 'roll transport' 'roll .'; grid-template-rows: auto auto auto auto auto 1fr; }
