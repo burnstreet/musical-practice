@@ -176,7 +176,7 @@ export class GuSettingsSheet extends LitElement {
         <h3><label for="offset">Verzögerung Mikrofon</label></h3>
         <input id="offset" type="range" min="-300" max="300" step="10" .value=${String(s.micOffsetMs)} @input=${offset} />
         <p>${s.micOffsetMs} ms</p>
-        <p>Wenn dein Ton zu früh oder zu spät angezeigt wird.</p>
+        <p>Gleicht die Verzögerung von Kopfhörer und Mikrofon für die Bewertung aus. Am besten messen lassen.</p>
         <p>Gemessen: Wiedergabe ${ms(engine.latency())} ms · Mikrofon ${ms(pitch.inputLatency())} ms</p>
         <button ?disabled=${this.cal === 'running'} @click=${this.measure}>Verzögerung messen</button>
         <p>Sag „ta“ genau mit jedem Klick – oder halte den Kopfhörer ans Mikrofon.</p>
