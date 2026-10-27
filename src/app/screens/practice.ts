@@ -212,6 +212,7 @@ export class GuPractice extends LitElement {
         (await pitch.start(
           () => engine.time(),
           () => engine.latency(),
+          s.micDeviceId,
         )) === 'ok'
     ctx.live = { songId: this.songId, song: loaded, session: this.session }
     this.t = engine.time()
@@ -242,10 +243,21 @@ export class GuPractice extends LitElement {
     ctx.route('#/songs')
   }
 
+  /** Animation frame scheduler; tests swap it. */
+  requestFrame = (cb: () => void) => void requestAnimationFrame(cb)
+  private redrawQueued = false
+
+  /** Frames only join the buffer; at most one redraw per animation frame (while playing the engine tick redraws). */
   private onFrame(f: PitchFrame) {
     this.session.frame(f)
-    this.frames = [...this.frames.filter((g) => g.t >= f.t - 1.5), f]
-    this.requestUpdate()
+    this.frames.push(f)
+    while (this.frames[0].at < f.at - 1.5) this.frames.shift()
+    if (this.playing || this.redrawQueued) return
+    this.redrawQueued = true
+    this.requestFrame(() => {
+      this.redrawQueued = false
+      this.requestUpdate()
+    })
   }
 
   private setMode(m: Mode, save = true) {

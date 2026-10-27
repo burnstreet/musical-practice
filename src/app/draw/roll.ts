@@ -23,7 +23,7 @@ export function foldToTargetOctave(midi: number, t: number, mine: Note[]): numbe
   return target ? target.midi + foldCents(midi, target.midi) / 100 : midi
 }
 
-/** Piano roll, 5 s window, playhead at 1/3. No-op without a context (happy-dom). */
+/** Piano roll, 5 s window, playhead at 30 %. No-op without a context (happy-dom). */
 export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): void {
   if (!ctx) return
   const { w, h } = fit(ctx)
@@ -90,14 +90,14 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.lineWidth = 1.5
   ctx.setLineDash([3, 4])
   ctx.beginPath()
-  ctx.moveTo(w / 3, 0)
-  ctx.lineTo(w / 3, h)
+  ctx.moveTo(x(t), 0) // same axis as notes and sung line (BEHIND/(BEHIND+AHEAD) = 30 %)
+  ctx.lineTo(x(t), h)
   ctx.stroke()
   ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
   const mine = notes.filter((n) => roles.includes(n.role))
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
+  const pts = frames.map((f) => (f.midi === null ? null : [x(f.at), y(foldToTargetOctave(f.midi, f.at, mine))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
     [COLORS.surface, 8],
