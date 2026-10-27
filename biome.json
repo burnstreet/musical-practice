@@ -17,4 +17,3 @@
   "overrides": [{ "includes": ["src/**"], "linter": { "rules": { "suspicious": { "noFocusedTests": "off" } } } }],
   "assist": { "actions": { "source": { "organizeImports": "on" } } }
 }
-
