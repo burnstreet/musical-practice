@@ -10,3 +10,7 @@ web/data/*.musicxml
 work/
 tools/.venv/
 __pycache__/
+node_modules/
+dist/
+tools/tests/.features/
+.pytest_cache/
