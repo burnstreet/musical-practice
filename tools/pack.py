@@ -121,7 +121,7 @@ def build_song(s, notes, dur):
         bars.append(bars[-1] + bar_len)
     bars = [round(b, 3) for b in bars]
     out = [
-        {"start": n["start"], "end": n["end"], "midi": n["midi"], "syllable": n.get("syllable", n.get("lyric", "")),
+        {"start": n["start"], "end": n["end"], "midi": n["midi"], "syllable": n.get("syllable") or n.get("lyric") or "",
          "role": n["role"], "phrase": n["phrase"], "bar": i, "beat": n["beat"], "dur": n["dur"]}
         for n, i in zip(ordered, seq)
     ]
