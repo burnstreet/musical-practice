@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { foldToTargetOctave, rowRange } from '../src/app/draw/roll'
-import { barsPerPage, keyFifths, layoutBar, layoutPage, noteValue, type PageOnset, pageOf, staffPos } from '../src/app/draw/staff'
+import { barsPerPage, keyFifths, layoutBar, layoutPage, noteValue, type PageOnset, pageOf, restsIn, staffPos } from '../src/app/draw/staff'
 import type { Note } from '../src/core/content'
 
 describe('staff layout', () => {
@@ -72,6 +72,33 @@ describe('note values', () => {
     expect(noteValue(0.3)).toEqual({ base: 0.25, dot: false })
     expect(noteValue(0.1)).toEqual({ base: 0.25, dot: false })
     expect(noteValue(5)).toEqual({ base: 4, dot: false })
+  })
+})
+
+describe('rests', () => {
+  const n = (beat: number, len: number) => ({ beat, len })
+  it('fills an empty bar with one whole-bar rest, also in 3/4', () => {
+    expect(restsIn([], 4)).toEqual([n(0, 4)])
+    expect(restsIn([], 3)).toEqual([n(0, 3)])
+  })
+  it('fills the gaps before, between and after notes on the beat grid', () => {
+    // 4/4: quarter on 1, eighth on 2.5 -> quarter rest on 0, eighth rest on 2, quarter rest on 3
+    expect(restsIn([n(1, 1), n(2.5, 0.5)], 4)).toEqual([n(0, 1), n(2, 0.5), n(3, 1)])
+  })
+  it('uses a half rest only on a half-bar boundary', () => {
+    expect(restsIn([n(0, 1)], 4)).toEqual([n(1, 1), n(2, 2)])
+    expect(restsIn([n(0, 2)], 4)).toEqual([n(2, 2)])
+    expect(restsIn([n(3, 1)], 4)).toEqual([n(0, 2), n(2, 1)])
+  })
+  it('splits off-beat gaps into eighths and sixteenths', () => {
+    expect(restsIn([n(0, 0.25), n(1, 1)], 4)).toEqual([n(0.25, 0.25), n(0.5, 0.5), n(2, 2)])
+  })
+  it('quantises gaps shorter than an eighth of a beat away', () => {
+    expect(restsIn([n(0, 0.95), n(1, 3)], 4)).toEqual([])
+    expect(restsIn([n(0, 1), n(1.1, 2.9)], 4)).toEqual([])
+  })
+  it('treats overlapping notes (other voices) as one covered span', () => {
+    expect(restsIn([n(0, 2), n(1, 2)], 4)).toEqual([n(3, 1)])
   })
 })
 
@@ -167,6 +194,14 @@ describe('lyric-aware page layout', () => {
       expect(r.xs[k]).toBeGreaterThanOrEqual(r.barX[p.bar] + opts.pad - 1e-6) // room for an accidental after the bar line
       expect(r.xs[k]).toBeLessThanOrEqual(r.barX[p.bar] + r.barW[p.bar] - opts.tail + 1e-6)
     })
+  })
+
+  it('gives a rest its own place between notes, without a label', () => {
+    const onsets = [on(0, 0, 30), on(0, 1, 0), on(0, 2, 30)] // quarter, quarter rest, half
+    const r = layoutPage([0], onsets, { ...opts, width: 300 })
+    expect(r.xs[1] - r.xs[0]).toBeGreaterThanOrEqual(opts.head)
+    expect(r.xs[2] - r.xs[1]).toBeGreaterThanOrEqual(opts.head)
+    check(onsets, 300, r)
   })
 
   it('leaves an empty bar its minimum width', () => {
