@@ -12,7 +12,7 @@ export class GuStart extends LitElement {
     :host { display: flex; box-sizing: border-box; min-height: 100vh; align-items: center; justify-content: center; padding: 48px 24px 32px; background: var(--bg); color: var(--text); font-family: var(--font-body); }
     .wrap { width: 100%; max-width: 1100px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 32px 64px; }
     .head { display: flex; flex-direction: column; align-items: center; gap: 28px; text-align: center; }
-    .logo { width: 260px; max-width: 100%; height: 96px; border-radius: 20px; background: #fff; border: 2px dashed var(--other); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: var(--bg); font-size: 13px; font-weight: 700; line-height: 1.4; }
+    .logo { width: 260px; max-width: 100%; height: auto; border-radius: 20px; background: #fff; padding: 12px; box-sizing: border-box; object-fit: contain; }
     .kicker { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
     h1 { margin: 8px 0 0; font-family: var(--font-display); font-size: 36px; font-weight: 600; line-height: 1.1; }
     .sub { font-size: 14px; color: var(--muted); margin-top: 8px; }
@@ -98,7 +98,7 @@ export class GuStart extends LitElement {
       : 'Zum ersten Entsperren brauchst du Internet.'
     return html`<div class="wrap">
       <div class="head">
-        <div class="logo">[Logo LKG Radeland<br />hier einsetzen]</div>
+        <img class="logo" src="logo.png" alt="LKG Radeland" />
         <div>
           <div class="kicker">Weihnachtsmusical 2026</div>
           <h1>Gemeinsam üben</h1>
