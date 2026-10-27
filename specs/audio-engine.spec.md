@@ -30,6 +30,7 @@ export interface AudioEngine {
   on(ev: 'tick', fn: (t: number) => void): void    // every animation frame while playing
   on(ev: 'loop', fn: (phrase: Phrase) => void): void
   on(ev: 'ended', fn: () => void): void
+  on(ev: 'pause', fn: () => void): void           // every pause(), whoever called it (settings calibration, end, unload)
   on(ev: 'enter', fn: (note: Note) => void): void  // playhead crossed note.start forward, or landed inside after seek
 }
 ```
@@ -113,6 +114,12 @@ Feature: Latency
   Scenario: latency unknown
     Given a loaded song
     Then latency() is 0.000
+
+Feature: Pause event
+  Scenario: pause is announced
+    Given no loop set
+    When I pause the engine
+    Then a pause event fires and playing() is false
 
 Feature: End
   Scenario: song ends

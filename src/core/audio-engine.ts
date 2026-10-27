@@ -26,6 +26,8 @@ export interface AudioEngine {
   on(ev: 'tick', fn: (t: number) => void): void
   on(ev: 'loop', fn: (phrase: Phrase) => void): void
   on(ev: 'ended', fn: () => void): void
+  /** Every pause(), whoever called it. */
+  on(ev: 'pause', fn: () => void): void
   on(ev: 'enter', fn: (note: Note) => void): void
 }
 
@@ -162,6 +164,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       voices.pause()
       backing.pause()
       voicesGain.gain.cancelScheduledValues(ac!.currentTime)
+      emit('pause')
     },
     seek(sec) {
       voices.currentTime = backing.currentTime = sec
