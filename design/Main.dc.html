@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Singen live</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:28px 20px 24px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+<a href="Songs.dc.html" aria-label="Zurück zur Auswahl" style="width:44px;height:44px;border-radius:22px;background:#17498C;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+</a>
+<div style="text-align:center;flex:1;min-width:0">
+<div style="font-family:'Fraunces',serif;font-size:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Lied 3 · [Liedtitel]</div>
+<div style="font-size:12px;color:#CFE0F5;margin-top:2px">Takt 5–8 · C-Dur · 72 BPM</div>
+</div>
+<button aria-label="Einstellungen" style="width:44px;height:44px;border-radius:22px;background:#17498C;border:0;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+</button>
+</div>
+
+<button aria-label="Voicetrack-Modus ändern: nur für andere" style="height:44px;border-radius:14px;background:#17498C;border:0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px"><span style="color:#CFE0F5">Voicetrack</span><span style="display:flex;align-items:center;gap:8px;font-weight:700">nur für andere<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+
+<div style="background:#17498C;border-radius:20px;padding:12px 10px 8px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#CFE0F5;padding:0 4px">
+<span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:5px;background:{{accent}};display:inline-block"></span>Meine Stimme · Maria, Chor</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:5px;background:#A9D3F7;display:inline-block"></span>Andere</span>
+</div>
+<svg viewBox="0 0 350 112" width="350" height="112" role="img" aria-label="Notenzeile: Josef singt drei Töne, dann Maria vier Töne, aktuell der zweite, danach Erzähler zwei Töne">
+<g stroke="#CFE0F5" stroke-width="1" stroke-opacity="0.7"><line x1="4" y1="30" x2="346" y2="30"/><line x1="4" y1="40" x2="346" y2="40"/><line x1="4" y1="50" x2="346" y2="50"/><line x1="4" y1="60" x2="346" y2="60"/><line x1="4" y1="70" x2="346" y2="70"/>
+<line x1="116" y1="30" x2="116" y2="70"/><line x1="268" y1="30" x2="268" y2="70"/></g>
+<text x="6" y="70" font-size="48" fill="#CFE0F5" font-family="Noto Music, Segoe UI Symbol, Apple Symbols, serif" aria-hidden="true">𝄞</text>
+<rect x="160" y="22" width="34" height="56" rx="8" fill="{{accent}}" fill-opacity="0.2"/>
+<g font-family="DM Sans, sans-serif" font-size="11" font-weight="700" text-anchor="middle">
+<text x="74" y="18" fill="#A9D3F7">Josef</text><text x="194" y="18" fill="{{accent}}">Maria</text><text x="306" y="18" fill="#A9D3F7">Erzähler</text>
+</g>
+<g fill="#A9D3F7" stroke="#A9D3F7" stroke-width="1.5">
+<ellipse cx="50" cy="60" rx="5.5" ry="4" transform="rotate(-20 50 60)"/><line x1="55" y1="60" x2="55" y2="32"/>
+<ellipse cx="74" cy="55" rx="5.5" ry="4" transform="rotate(-20 74 55)"/><line x1="79" y1="55" x2="79" y2="27"/>
+<ellipse cx="98" cy="50" rx="5.5" ry="4" transform="rotate(-20 98 50)"/><line x1="93" y1="50" x2="93" y2="78"/>
+<ellipse cx="294" cy="50" rx="5.5" ry="4" transform="rotate(-20 294 50)"/><line x1="289" y1="50" x2="289" y2="78"/>
+<ellipse cx="322" cy="55" rx="5.5" ry="4" transform="rotate(-20 322 55)"/><line x1="327" y1="55" x2="327" y2="27"/>
+</g>
+<g fill="{{accent}}" stroke="{{accent}}" stroke-width="1.5">
+<ellipse cx="140" cy="45" rx="5.5" ry="4" transform="rotate(-20 140 45)"/><line x1="135" y1="45" x2="135" y2="73"/>
+<ellipse cx="176" cy="40" rx="5.5" ry="4" transform="rotate(-20 176 40)"/><line x1="171" y1="40" x2="171" y2="68"/>
+<ellipse cx="212" cy="35" rx="5.5" ry="4" transform="rotate(-20 212 35)"/><line x1="207" y1="35" x2="207" y2="63"/>
+<ellipse cx="248" cy="40" rx="5.5" ry="4" transform="rotate(-20 248 40)"/><line x1="243" y1="40" x2="243" y2="68"/>
+</g>
+<g font-family="DM Sans, sans-serif" font-size="12" text-anchor="middle">
+<text x="50" y="100" fill="#A9D3F7">Der</text><text x="74" y="100" fill="#A9D3F7">Mond</text><text x="98" y="100" fill="#A9D3F7">ist</text>
+<text x="140" y="100" fill="{{accent}}">auf</text><text x="176" y="100" fill="{{accent}}" font-weight="700">ge</text><text x="212" y="100" fill="{{accent}}">gan</text><text x="248" y="100" fill="{{accent}}">gen</text>
+<text x="294" y="100" fill="#A9D3F7">die</text><text x="322" y="100" fill="#A9D3F7">gold</text>
+</g>
+</svg>
+</div>
+
+<div style="background:#17498C;border-radius:20px;padding:10px 10px 8px">
+<svg viewBox="0 0 350 168" width="350" height="168" role="img" aria-label="Tonhöhenverlauf: Zielnoten deiner Stimme als gelbgrüne Balken, gesungene Linie in Weiß, aktuell D5 leicht zu hoch">
+<g stroke="#3F78BF" stroke-width="1"><line x1="34" y1="0" x2="350" y2="0"/><line x1="34" y1="28" x2="350" y2="28"/><line x1="34" y1="56" x2="350" y2="56"/><line x1="34" y1="84" x2="350" y2="84"/><line x1="34" y1="112" x2="350" y2="112"/><line x1="34" y1="140" x2="350" y2="140"/><line x1="34" y1="168" x2="350" y2="168"/></g>
+<g font-family="DM Sans, sans-serif" font-size="11" fill="#CFE0F5"><text x="2" y="18">E5</text><text x="2" y="46">D5</text><text x="2" y="74">C5</text><text x="2" y="102">B4</text><text x="2" y="130">A4</text><text x="2" y="158">G4</text></g>
+<rect x="44" y="60" width="56" height="20" rx="8" fill="{{accent}}" fill-opacity="0.9"/>
+<rect x="104" y="32" width="50" height="20" rx="8" fill="{{accent}}" fill-opacity="0.3" stroke="{{accent}}" stroke-width="2"/>
+<rect x="104" y="32" width="16" height="20" rx="8" fill="{{accent}}" fill-opacity="0.9"/>
+<rect x="160" y="4" width="60" height="20" rx="8" fill="{{accent}}" fill-opacity="0.18" stroke="{{accent}}" stroke-width="2" stroke-opacity="0.7"/>
+<rect x="226" y="32" width="44" height="20" rx="8" fill="{{accent}}" fill-opacity="0.18" stroke="{{accent}}" stroke-width="2" stroke-opacity="0.7"/>
+<rect x="284" y="92" width="62" height="20" rx="8" fill="#A9D3F7" fill-opacity="0.12" stroke="#A9D3F7" stroke-width="2" stroke-dasharray="4 4"/>
+<line x1="120" y1="0" x2="120" y2="168" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 4"/>
+<polyline points="44,74 60,71 80,70 98,70 104,60 112,46 120,38" fill="none" stroke="#17498C" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="44,74 60,71 80,70 98,70 104,60 112,46 120,38" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="120" cy="38" r="7" fill="#FFFFFF" stroke="#17498C" stroke-width="3"/>
+</svg>
+</div>
+
+<div style="background:#17498C;border-radius:20px;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font-family:'Fraunces',serif;font-size:28px;font-weight:600;line-height:1">D5</span><span style="font-size:13px;color:#CFE0F5">Ziel D5</span></div>
+<span style="font-size:14px;font-weight:700">+14 Cent · leicht zu hoch</span>
+</div>
+<div style="position:relative;height:8px;border-radius:4px;background:#3F78BF">
+<div style="position:absolute;left:35%;width:30%;top:0;bottom:0;background:{{accent}};opacity:0.5;border-radius:4px"></div>
+<div style="position:absolute;left:50%;top:-3px;width:2px;height:14px;background:#FFFFFF;margin-left:-1px"></div>
+<div style="position:absolute;left:57%;top:-5px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;border:3px solid #17498C;margin-left:-9px;box-sizing:border-box"></div>
+</div>
+</div>
+
+<div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#CFE0F5">
+<span>0:42</span>
+<div style="flex:1;height:4px;border-radius:2px;background:#3F78BF;position:relative"><div style="width:31%;height:100%;border-radius:2px;background:#FFFFFF"></div></div>
+<span>2:15</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<button aria-label="Abschnitt wiederholen" style="width:52px;height:52px;border-radius:26px;background:#17498C;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></svg>
+</button>
+<button aria-label="Zurück zum Anfang der Phrase" style="width:52px;height:52px;border-radius:26px;background:#17498C;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></svg>
+</button>
+<a href="Auswertung.dc.html" aria-label="Pause und Auswertung" style="width:72px;height:72px;border-radius:36px;background:{{accent}};display:flex;align-items:center;justify-content:center">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="#0F2F57" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+</a>
+<button aria-label="Tempo 100 Prozent" style="width:52px;height:52px;border-radius:26px;background:#17498C;border:0;color:#FFFFFF;font-size:13px;font-weight:700">100%</button>
+<button aria-label="Mikrofon aktiv" style="width:52px;height:52px;border-radius:26px;background:#17498C;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8E05A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+</button>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#C8E05A","options":["#C8E05A","#8FD16A","#FFD166","#FFFFFF"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#C8E05A' };
+}
+}
+</script>
+</body>
+</html>

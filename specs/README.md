@@ -2,7 +2,7 @@
 
 Tessl-style: one `.spec.md` per module. Frontmatter `targets` = code the spec covers. Each requirement has a Gherkin scenario in a fenced `gherkin` block; that block is the acceptance test, executed as described in `overview.spec.md` → Testing Decisions. `[@test]` links name the step-definition file.
 
-Read first: `overview.spec.md`, then `content-format.spec.md`.
+Read first: `overview.spec.md`, then `content-format.spec.md`. Artboards the screen specs refer to: `../design/`.
 
 | file | layer |
 |---|---|

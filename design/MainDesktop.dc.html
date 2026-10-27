@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Singen live Desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height:800px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:24px 40px 32px;display:flex;flex-direction:column;gap:24px">
+
+<header style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:16px">
+<a href="SongsDesktop.dc.html" aria-label="Zurück zur Auswahl" style="width:48px;height:48px;border-radius:24px;background:#17498C;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+</a>
+<div><div style="font-family:'Fraunces',serif;font-size:26px;font-weight:600">Lied 3 · [Liedtitel]</div><div style="font-size:14px;color:#CFE0F5;margin-top:2px">Takt 5–8 · C-Dur · 72 BPM</div></div>
+</div>
+<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:14px;color:#CFE0F5">
+<span style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:6px;background:{{accent}};display:inline-block"></span>Meine Stimme · Maria, Chor</span>
+<span style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:6px;background:#A9D3F7;display:inline-block"></span>Andere Stimmen</span>
+</div>
+</header>
+
+<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+
+<main style="flex:999 1 640px;min-width:0;display:flex;flex-direction:column;gap:24px">
+
+<div style="background:#17498C;border-radius:24px;padding:20px 24px">
+<svg viewBox="0 0 800 136" width="100%" role="img" aria-label="Notenzeile: Josef drei Töne, Maria vier Töne mit aktuellem zweiten Ton, Erzähler drei Töne" style="display:block;height:auto">
+<g stroke="#CFE0F5" stroke-width="1.2" stroke-opacity="0.7"><line x1="4" y1="40" x2="796" y2="40"/><line x1="4" y1="50" x2="796" y2="50"/><line x1="4" y1="60" x2="796" y2="60"/><line x1="4" y1="70" x2="796" y2="70"/><line x1="4" y1="80" x2="796" y2="80"/>
+<line x1="250" y1="40" x2="250" y2="80"/><line x1="520" y1="40" x2="520" y2="80"/></g>
+<text x="8" y="82" font-size="56" fill="#CFE0F5" font-family="Noto Music, Segoe UI Symbol, Apple Symbols, serif" aria-hidden="true">𝄞</text>
+<rect x="334" y="30" width="52" height="68" rx="10" fill="{{accent}}" fill-opacity="0.2"/>
+<g font-family="DM Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle">
+<text x="140" y="24" fill="#A9D3F7">Josef</text><text x="390" y="24" fill="{{accent}}">Maria</text><text x="660" y="24" fill="#A9D3F7">Erzähler</text>
+</g>
+<g fill="#A9D3F7" stroke="#A9D3F7" stroke-width="1.8">
+<ellipse cx="70" cy="70" rx="6.5" ry="4.8" transform="rotate(-20 70 70)"/><line x1="76" y1="70" x2="76" y2="38"/>
+<ellipse cx="140" cy="65" rx="6.5" ry="4.8" transform="rotate(-20 140 65)"/><line x1="146" y1="65" x2="146" y2="33"/>
+<ellipse cx="210" cy="60" rx="6.5" ry="4.8" transform="rotate(-20 210 60)"/><line x1="204" y1="60" x2="204" y2="92"/>
+<ellipse cx="580" cy="60" rx="6.5" ry="4.8" transform="rotate(-20 580 60)"/><line x1="574" y1="60" x2="574" y2="92"/>
+<ellipse cx="660" cy="65" rx="6.5" ry="4.8" transform="rotate(-20 660 65)"/><line x1="666" y1="65" x2="666" y2="33"/>
+<ellipse cx="740" cy="70" rx="6.5" ry="4.8" transform="rotate(-20 740 70)"/><line x1="746" y1="70" x2="746" y2="38"/>
+</g>
+<g fill="{{accent}}" stroke="{{accent}}" stroke-width="1.8">
+<ellipse cx="300" cy="55" rx="6.5" ry="4.8" transform="rotate(-20 300 55)"/><line x1="294" y1="55" x2="294" y2="87"/>
+<ellipse cx="360" cy="50" rx="6.5" ry="4.8" transform="rotate(-20 360 50)"/><line x1="354" y1="50" x2="354" y2="82"/>
+<ellipse cx="420" cy="45" rx="6.5" ry="4.8" transform="rotate(-20 420 45)"/><line x1="414" y1="45" x2="414" y2="77"/>
+<ellipse cx="480" cy="50" rx="6.5" ry="4.8" transform="rotate(-20 480 50)"/><line x1="474" y1="50" x2="474" y2="82"/>
+</g>
+<g font-family="DM Sans, sans-serif" font-size="16" text-anchor="middle">
+<text x="70" y="122" fill="#A9D3F7">Der</text><text x="140" y="122" fill="#A9D3F7">Mond</text><text x="210" y="122" fill="#A9D3F7">ist</text>
+<text x="300" y="122" fill="{{accent}}">auf</text><text x="360" y="122" fill="{{accent}}" font-weight="700">ge</text><text x="420" y="122" fill="{{accent}}">gan</text><text x="480" y="122" fill="{{accent}}">gen</text>
+<text x="580" y="122" fill="#A9D3F7">die</text><text x="660" y="122" fill="#A9D3F7">gold</text><text x="740" y="122" fill="#A9D3F7">nen</text>
+</g>
+</svg>
+</div>
+
+<div style="background:#17498C;border-radius:24px;padding:14px 24px 8px;display:flex;flex-direction:column;gap:4px">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#CFE0F5">Nächste Zeile</div>
+<svg viewBox="0 0 800 136" width="100%" role="img" aria-label="Nächste Notenzeile: Erzähler drei Töne, dann Chor vier Töne, dann Maria drei Töne" style="display:block;height:auto">
+<g opacity="0.65">
+<g stroke="#CFE0F5" stroke-width="1.2" stroke-opacity="0.7"><line x1="4" y1="40" x2="796" y2="40"/><line x1="4" y1="50" x2="796" y2="50"/><line x1="4" y1="60" x2="796" y2="60"/><line x1="4" y1="70" x2="796" y2="70"/><line x1="4" y1="80" x2="796" y2="80"/>
+<line x1="250" y1="40" x2="250" y2="80"/><line x1="520" y1="40" x2="520" y2="80"/></g>
+<text x="8" y="82" font-size="56" fill="#CFE0F5" font-family="Noto Music, Segoe UI Symbol, Apple Symbols, serif" aria-hidden="true">𝄞</text>
+<g font-family="DM Sans, sans-serif" font-size="14" font-weight="700" text-anchor="middle">
+<text x="140" y="24" fill="#A9D3F7">Erzähler</text><text x="390" y="24" fill="{{accent}}">Chor</text><text x="660" y="24" fill="{{accent}}">Maria</text>
+</g>
+<g fill="#A9D3F7" stroke="#A9D3F7" stroke-width="1.8">
+<ellipse cx="70" cy="65" rx="6.5" ry="4.8" transform="rotate(-20 70 65)"/><line x1="76" y1="65" x2="76" y2="33"/>
+<ellipse cx="140" cy="60" rx="6.5" ry="4.8" transform="rotate(-20 140 60)"/><line x1="134" y1="60" x2="134" y2="92"/>
+<ellipse cx="210" cy="55" rx="6.5" ry="4.8" transform="rotate(-20 210 55)"/><line x1="204" y1="55" x2="204" y2="87"/>
+</g>
+<g fill="{{accent}}" stroke="{{accent}}" stroke-width="1.8">
+<ellipse cx="300" cy="50" rx="6.5" ry="4.8" transform="rotate(-20 300 50)"/><line x1="294" y1="50" x2="294" y2="82"/>
+<ellipse cx="360" cy="55" rx="6.5" ry="4.8" transform="rotate(-20 360 55)"/><line x1="354" y1="55" x2="354" y2="87"/>
+<ellipse cx="420" cy="60" rx="6.5" ry="4.8" transform="rotate(-20 420 60)"/><line x1="414" y1="60" x2="414" y2="92"/>
+<ellipse cx="480" cy="55" rx="6.5" ry="4.8" transform="rotate(-20 480 55)"/><line x1="474" y1="55" x2="474" y2="87"/>
+<ellipse cx="580" cy="45" rx="6.5" ry="4.8" transform="rotate(-20 580 45)"/><line x1="574" y1="45" x2="574" y2="77"/>
+<ellipse cx="660" cy="50" rx="6.5" ry="4.8" transform="rotate(-20 660 50)"/><line x1="654" y1="50" x2="654" y2="82"/>
+<ellipse cx="740" cy="55" rx="6.5" ry="4.8" transform="rotate(-20 740 55)"/><line x1="734" y1="55" x2="734" y2="87"/>
+</g>
+<g font-family="DM Sans, sans-serif" font-size="16" text-anchor="middle">
+<text x="70" y="122" fill="#A9D3F7">Stern</text><text x="140" y="122" fill="#A9D3F7">lein</text><text x="210" y="122" fill="#A9D3F7">pran</text>
+<text x="300" y="122" fill="{{accent}}">gen</text><text x="360" y="122" fill="{{accent}}">am</text><text x="420" y="122" fill="{{accent}}">Him</text><text x="480" y="122" fill="{{accent}}">mel</text>
+<text x="580" y="122" fill="{{accent}}">hell</text><text x="660" y="122" fill="{{accent}}">und</text><text x="740" y="122" fill="{{accent}}">klar</text>
+</g>
+</g>
+</svg>
+</div>
+
+<div style="background:#17498C;border-radius:24px;padding:16px 24px 12px">
+<svg viewBox="0 0 800 216" width="100%" role="img" aria-label="Tonhöhenverlauf: Zielnoten deiner Stimme gelbgrün, gesungene Linie weiß, aktuell D5 leicht zu hoch" style="display:block;height:auto">
+<g stroke="#3F78BF" stroke-width="1"><line x1="44" y1="0" x2="800" y2="0"/><line x1="44" y1="36" x2="800" y2="36"/><line x1="44" y1="72" x2="800" y2="72"/><line x1="44" y1="108" x2="800" y2="108"/><line x1="44" y1="144" x2="800" y2="144"/><line x1="44" y1="180" x2="800" y2="180"/><line x1="44" y1="216" x2="800" y2="216"/></g>
+<g font-family="DM Sans, sans-serif" font-size="14" fill="#CFE0F5"><text x="4" y="23">E5</text><text x="4" y="59">D5</text><text x="4" y="95">C5</text><text x="4" y="131">B4</text><text x="4" y="167">A4</text><text x="4" y="203">G4</text></g>
+<rect x="60" y="80" width="120" height="26" rx="10" fill="{{accent}}" fill-opacity="0.9"/>
+<rect x="190" y="44" width="110" height="26" rx="10" fill="{{accent}}" fill-opacity="0.3" stroke="{{accent}}" stroke-width="2"/>
+<rect x="190" y="44" width="50" height="26" rx="10" fill="{{accent}}" fill-opacity="0.9"/>
+<rect x="310" y="8" width="130" height="26" rx="10" fill="{{accent}}" fill-opacity="0.18" stroke="{{accent}}" stroke-width="2" stroke-opacity="0.7"/>
+<rect x="450" y="44" width="90" height="26" rx="10" fill="{{accent}}" fill-opacity="0.18" stroke="{{accent}}" stroke-width="2" stroke-opacity="0.7"/>
+<rect x="600" y="152" width="150" height="26" rx="10" fill="#A9D3F7" fill-opacity="0.12" stroke="#A9D3F7" stroke-width="2" stroke-dasharray="5 5"/>
+<line x1="240" y1="0" x2="240" y2="216" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 4"/>
+<polyline points="60,94 100,91 140,90 180,90 190,80 215,62 240,50" fill="none" stroke="#17498C" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="60,94 100,91 140,90 180,90 190,80 215,62 240,50" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="240" cy="50" r="9" fill="#FFFFFF" stroke="#17498C" stroke-width="3"/>
+</svg>
+</div>
+
+</main>
+
+<aside style="flex:1 1 320px;max-width:400px;display:flex;flex-direction:column;gap:16px">
+
+<button aria-label="Voicetrack-Modus ändern: nur für andere" style="height:48px;border-radius:14px;background:#17498C;border:0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:15px"><span style="color:#CFE0F5">Voicetrack</span><span style="display:flex;align-items:center;gap:8px;font-weight:700">nur für andere<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+
+<div style="background:#17498C;border-radius:24px;padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+<div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#CFE0F5">Aktueller Ton</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font-family:'Fraunces',serif;font-size:56px;font-weight:600;line-height:1">D5</span><span style="font-size:14px;color:#CFE0F5">Ziel D5</span></div>
+</div>
+<div style="font-size:18px;font-weight:700">+14 Cent · leicht zu hoch</div>
+<div style="position:relative;height:10px;border-radius:5px;background:#3F78BF;margin-top:4px">
+<div style="position:absolute;left:35%;width:30%;top:0;bottom:0;background:{{accent}};opacity:0.5;border-radius:5px"></div>
+<div style="position:absolute;left:50%;top:-4px;width:2px;height:18px;background:#FFFFFF;margin-left:-1px"></div>
+<div style="position:absolute;left:57%;top:-6px;width:22px;height:22px;border-radius:11px;background:#FFFFFF;border:3px solid #17498C;margin-left:-11px;box-sizing:border-box"></div>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#CFE0F5"><span>−50</span><span>0</span><span>+50</span></div>
+</div>
+
+<div style="background:#17498C;border-radius:24px;padding:20px 24px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#CFE0F5">
+<span>0:42</span>
+<div style="flex:1;height:5px;border-radius:3px;background:#3F78BF"><div style="width:31%;height:100%;border-radius:3px;background:#FFFFFF"></div></div>
+<span>2:15</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<button aria-label="Abschnitt wiederholen" style="width:52px;height:52px;border-radius:26px;background:#1F5FAB;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></svg>
+</button>
+<button aria-label="Zurück zum Anfang der Phrase" style="width:52px;height:52px;border-radius:26px;background:#1F5FAB;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></svg>
+</button>
+<a href="AuswertungDesktop.dc.html" aria-label="Pause und Auswertung" style="width:72px;height:72px;border-radius:36px;background:{{accent}};display:flex;align-items:center;justify-content:center">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="#0F2F57" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+</a>
+<button aria-label="Tempo 100 Prozent" style="width:52px;height:52px;border-radius:26px;background:#1F5FAB;border:0;color:#FFFFFF;font-size:13px;font-weight:700">100%</button>
+<button aria-label="Mikrofon aktiv" style="width:52px;height:52px;border-radius:26px;background:#1F5FAB;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8E05A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+</button>
+</div>
+</div>
+
+</aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#C8E05A","options":["#C8E05A","#8FD16A","#FFD166","#FFFFFF"]},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#C8E05A' };
+}
+}
+</script>
+</body>
+</html>

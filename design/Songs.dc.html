@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Rolle und Lied wählen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width:390px;height:1180px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:36px 20px 32px;display:flex;flex-direction:column;gap:18px">
+
+<div>
+<div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#C8E05A">Weihnachtsmusical 2026</div>
+<h1 style="margin:6px 0 0;font-family:'Fraunces',serif;font-size:32px;font-weight:600;line-height:1.1">Wer bist du im Stück?</h1>
+<div style="font-size:14px;color:#CFE0F5;margin-top:6px">Du kannst mehrere Rollen wählen.</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button aria-pressed="false" style="height:44px;padding:0 18px;border-radius:22px;border:2px solid #A9D3F7;background:transparent;color:#FFFFFF;font-size:14px;font-weight:500">Erzähler</button>
+<button aria-pressed="true" style="height:44px;padding:0 18px 0 14px;border-radius:22px;border:2px solid #C8E05A;background:#C8E05A;color:#0F2F57;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F2F57" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Maria</button>
+<button aria-pressed="false" style="height:44px;padding:0 18px;border-radius:22px;border:2px solid #A9D3F7;background:transparent;color:#FFFFFF;font-size:14px;font-weight:500">Josef</button>
+<button aria-pressed="false" style="height:44px;padding:0 18px;border-radius:22px;border:2px solid #A9D3F7;background:transparent;color:#FFFFFF;font-size:14px;font-weight:500">Engel</button>
+<button aria-pressed="false" style="height:44px;padding:0 18px;border-radius:22px;border:2px solid #A9D3F7;background:transparent;color:#FFFFFF;font-size:14px;font-weight:500">Hirten</button>
+<button aria-pressed="false" style="height:44px;padding:0 18px;border-radius:22px;border:2px solid #A9D3F7;background:transparent;color:#FFFFFF;font-size:14px;font-weight:500">Könige</button>
+<button aria-pressed="true" style="height:44px;padding:0 18px 0 14px;border-radius:22px;border:2px solid #C8E05A;background:#C8E05A;color:#0F2F57;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F2F57" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Chor</button>
+</div>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:8px">
+<div style="font-family:'Fraunces',serif;font-size:22px;font-weight:600">Lied zum Üben</div>
+<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#CFE0F5"><span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;display:inline-block"></span>deine Rolle singt mit</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">1</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Chor · Erzähler</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">2</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Maria · Josef</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</a>
+
+<div style="background:#17498C;border-radius:16px;border:2px solid #C8E05A;padding:10px 12px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:14px;min-height:44px">
+<span style="width:36px;height:36px;border-radius:18px;background:#C8E05A;color:#0F2F57;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">3</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Chor · Engel · Hirten</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</div>
+<div role="group" aria-label="Voicetrack" style="display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{modes}}" as="m" hint-placeholder-count="4">
+<button aria-pressed="{{m.on}}" style="display:flex;align-items:flex-start;gap:12px;text-align:left;width:100%;min-height:44px;padding:10px 12px;border-radius:12px;border:2px solid {{m.border}};background:#1F5FAB;color:#FFFFFF;box-sizing:border-box">
+<span style="width:20px;height:20px;border-radius:10px;border:2px solid {{m.ring}};box-sizing:border-box;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center"><span style="width:10px;height:10px;border-radius:5px;background:{{m.dot}}"></span></span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:700">{{m.title}}</span><span style="display:block;font-size:12px;line-height:1.4;color:#CFE0F5;margin-top:2px">{{m.desc}}</span></span>
+</button>
+</sc-for>
+</div>
+<a href="Main.dc.html" style="height:52px;border-radius:26px;background:#C8E05A;color:#0F2F57;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#0F2F57" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>Üben starten</a>
+</div>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">4</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Josef · Hirten</span></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">5</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Chor</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">6</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Könige · Erzähler</span></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">7</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Maria · Engel · Chor</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">8</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Hirten · Engel</span></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">9</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Maria · Josef · Erzähler</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</a>
+
+<a href="Main.dc.html" style="display:flex;align-items:center;gap:14px;background:#17498C;border-radius:16px;padding:10px 14px;min-height:64px;box-sizing:border-box">
+<span style="width:36px;height:36px;border-radius:18px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none">10</span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:700">[Liedtitel eintragen]</span><span style="display:block;font-size:12px;color:#CFE0F5;margin-top:2px">Alle</span></span>
+<span style="width:8px;height:8px;border-radius:4px;background:#C8E05A;flex:none"></span>
+</a>
+
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1180}}'>
+class Component extends DCLogic {
+renderVals() {
+const sel = 1;
+const defs = [
+['Mit Voicetrack', 'Alle Stimmen sind zu hören.'],
+['Voicetrack nur für andere', 'Meine Rolle ist stumm, die anderen Stimmen sind zu hören.'],
+['Auto', 'Meine Stimme wird nur eingespielt, wenn ich nicht mitsinge.'],
+['Nur Playback', 'Nur die Begleitung, keine Stimmen.']
+];
+const modes = defs.map(([title, desc], i) => {
+const on = i === sel;
+return { title, desc, on, border: on ? '#C8E05A' : '#3F78BF', ring: on ? '#C8E05A' : '#A9D3F7', dot: on ? '#C8E05A' : 'transparent' };
+});
+return { modes };
+}
+}
+</script>
+</body>
+</html>
