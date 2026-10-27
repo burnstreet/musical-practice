@@ -1,4 +1,5 @@
 import type { Manifest } from './content'
+import { openDb, withStore } from './db'
 
 export type VaultState = 'locked' | 'unlocked' | 'password-changed'
 export type UnlockResult = 'ok' | 'wrong-password' | 'no-manifest'
@@ -20,20 +21,10 @@ export interface VaultStore {
 }
 
 const REC = 'current'
-const done = <T>(req: IDBRequest<T>) => new Promise<T>((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error) })
 
 /** Default store: IndexedDB database `gu`, object store `vault`, one record under key "current". */
 export function idbStore(): VaultStore {
-  const open = () => new Promise<IDBDatabase>((res, rej) => {
-    const r = indexedDB.open('gu', 1)
-    r.onupgradeneeded = () => r.result.createObjectStore('vault')
-    r.onsuccess = () => res(r.result)
-    r.onerror = () => rej(r.error)
-  })
-  const tx = async <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T>) => {
-    const db = await open()
-    try { return await done(f(db.transaction('vault', mode).objectStore('vault'))) } finally { db.close() }
-  }
+  const tx = <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T>) => withStore(openDb, 'vault', mode, f)
   return {
     get: () => tx('readonly', (s) => s.get(REC)),
     put: async (rec) => void (await tx('readwrite', (s) => s.put(rec, REC))),
