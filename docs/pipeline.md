@@ -198,7 +198,7 @@ Ablauf: phrases → pack → `content/` committen → pushen.
    `web/data/*.json` sind gitignored. `content/salt` ist öffentlich (steht auch
    im Manifest) und darf committet werden.
 4. Auf `main` pushen. Der Workflow `.github/workflows/pages.yml` baut mit
-   Node 22, kopiert `content/` nach `dist/content/` und veröffentlicht `dist/`
+   Node 26, kopiert `content/` nach `dist/content/` und veröffentlicht `dist/`
    auf GitHub Pages (Einstellungen → Pages → Quelle: GitHub Actions).
 
 Lokal ansehen: `tools\.venv\Scripts\python.exe tools\serve.py` → http://localhost:8765/
