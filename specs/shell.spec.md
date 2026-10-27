@@ -1,0 +1,155 @@
+---
+name: Shell
+description: App shell. Routing, guards, PWA manifest and service worker, update toast, settings sheet, headphone sheet, install hint, tokens and fonts, persisted preferences.
+targets:
+  - ../src/app/shell.ts
+  - ../src/app/settings.ts
+  - ../src/app/sw.ts
+  - ../src/app/tokens.css
+---
+
+# Shell
+
+Lit root element `<gu-app>`. Routes by hash. German, `lang="de"`.
+
+```ts { .api }
+export type Route = '#/start' | '#/songs' | `#/practice/${string}` | `#/results/${string}`
+
+export interface Settings {
+  tolerance: Tolerance            // default 50
+  micOffsetMs: number             // default 0, -300..300
+  headphoneSheetSeen: boolean
+  installHintSeen: boolean
+  roles: RoleId[]                 // last selection
+  mode: Mode                      // last voicetrack mode, default 'all'
+}
+export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset(): void }  // localStorage key "gu.settings"
+```
+
+## Routing
+
+- Start route shown when vault state is `locked` or `password-changed`. Any other route redirects there.
+- Unlocked app start: songs. Practice and results routes need a ready song, else redirect to songs.
+  `[@test] ../tests/steps/shell.steps.ts`
+
+```gherkin
+Feature: Guards
+  Scenario: locked goes to start
+    Given vault state locked
+    When I open "#/songs"
+    Then the route is "#/start"
+
+  Scenario: unlocked skips start
+    Given vault state unlocked
+    When I open "#/start"
+    Then the route is "#/songs"
+
+  Scenario: practice needs a ready song
+    Given vault unlocked and song "05" not ready
+    When I open "#/practice/05"
+    Then the route is "#/songs"
+```
+
+## PWA
+
+- Web manifest: name `Gesangs-Übetool`, short name `Üben`, `display: standalone`, theme and background `#1F5FAB`, icons from the LKG logo (admin supplies PNG 192 and 512).
+- Service worker precaches app shell (html, js, css, fonts, icons). `content/` never cached by the worker; library handles it.
+- Update: new worker installs, waits. On next app launch it activates. Toast `Neue Version geladen` for 4 s. Never reload or prompt during practice.
+  `[@test] ../tests/steps/shell.steps.ts`
+
+```gherkin
+Feature: Updates
+  Scenario: toast on next launch
+    Given a new service worker was installed during the previous run
+    When the app launches
+    Then the new worker is active and a toast "Neue Version geladen" shows
+
+  Scenario: no interruption
+    Given a practice session running
+    When a new service worker finishes installing
+    Then no toast, no reload, route unchanged
+```
+
+## Settings sheet
+
+Opened from the gear button on songs and practice screens. Items, top to bottom:
+
+1. `Toleranz`: segmented `Leicht (75 Cent)` / `Normal (50 Cent)` / `Streng (30 Cent)`.
+2. `Verzögerung Mikrofon`: slider −300…+300 ms, step 10, value shown as `{n} ms`. Help text: `Wenn dein Ton zu früh oder zu spät angezeigt wird.`
+3. `Mikrofon testen`: button starts pitch engine, shows level bar and detected note name, stops on sheet close.
+4. `Kopfhörer`: text `Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.`
+5. `Sperren und Daten löschen`: red button, confirm dialog `Alle Lieder und Ergebnisse werden von diesem Gerät gelöscht. Fortfahren?` with `Löschen` / `Abbrechen`. Confirm calls vault.lock, then route start.
+
+`[@test] ../tests/steps/shell.steps.ts`
+
+```gherkin
+Feature: Settings
+  Scenario: tolerance persists
+    When I choose "Streng (30 Cent)"
+    Then settings.tolerance is 30 after reload
+
+  Scenario: lock wipes and leaves
+    Given unlocked with songs stored
+    When I press "Sperren und Daten löschen" and confirm "Löschen"
+    Then vault is locked, library has no files, history empty, route is "#/start"
+
+  Scenario: lock cancelled
+    When I press "Sperren und Daten löschen" and choose "Abbrechen"
+    Then nothing changes
+```
+
+## Headphone sheet
+
+- Before the first `play` on a device: sheet with title `Kopfhörer aufsetzen`, text as in settings item 4, checkbox `Nicht mehr anzeigen`, button `Weiter`. Checkbox sets `headphoneSheetSeen`.
+  `[@test] ../tests/steps/shell.steps.ts`
+
+```gherkin
+Feature: Headphone sheet
+  Scenario: shown once
+    Given headphoneSheetSeen false
+    When I start practice and press "Weiter" with "Nicht mehr anzeigen" checked
+    Then playback starts and the sheet never shows again
+
+  Scenario: shown again without checkbox
+    Given headphoneSheetSeen false
+    When I press "Weiter" without the checkbox
+    Then the sheet shows again at the next practice start
+```
+
+## Install hint
+
+- iOS Safari in browser tab (not standalone), `installHintSeen` false: card on songs screen: `Zum Startbildschirm hinzufügen, damit die Lieder gespeichert bleiben: Teilen-Symbol, dann „Zum Home-Bildschirm“.` Button `Verstanden` sets the flag.
+  `[@test] ../tests/steps/shell.steps.ts`
+
+```gherkin
+Feature: Install hint
+  Scenario: iOS tab
+    Given user agent iOS Safari, not standalone, installHintSeen false
+    Then the songs screen shows the install card
+    When I press "Verstanden"
+    Then the card is gone after reload
+
+  Scenario: Android or standalone
+    Given Android Chrome, or iOS standalone
+    Then no install card
+```
+
+## Tokens and fonts
+
+CSS custom properties in `tokens.css`, from the canvas:
+
+| token | value |
+|---|---|
+| `--bg` | #1F5FAB |
+| `--surface` | #17498C |
+| `--line` | #3F78BF |
+| `--accent` | #C8E05A |
+| `--ink` | #0F2F57 |
+| `--text` | #FFFFFF |
+| `--muted` | #CFE0F5 |
+| `--other` | #A9D3F7 |
+| `--font-body` | 'DM Sans', system-ui, sans-serif |
+| `--font-display` | 'Fraunces', serif |
+
+Fonts bundled as woff2 (`DM Sans` 400/500/700, `Fraunces` 500/600 opsz 9..144). No Google Fonts request.
+Touch targets at least 44 px. Phone width 390 and desktop 1280 layouts per the canvas.
