@@ -3,6 +3,7 @@
 Usage: PITCH_PASSWORD=... python tools/pack.py [--strict] [--out content] [--new-salt] [--root .]
 Format: specs/content-format.spec.md. Incomplete songs go to <out>/report.txt and are not packed.
 """
+
 import argparse
 import base64
 import hashlib
@@ -10,7 +11,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
@@ -45,7 +46,24 @@ def ffmpeg(*args):
 
 def encode(src, dst, af=None):
     """Mono 44.1 kHz 128 kbps MP3, bit-exact so equal inputs give equal bytes."""
-    ffmpeg("-i", str(src), *(["-af", af] if af else []), "-ac", "1", "-ar", str(RATE), "-b:a", "128k", "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact", str(dst))
+    ffmpeg(
+        "-i",
+        str(src),
+        *(["-af", af] if af else []),
+        "-ac",
+        "1",
+        "-ar",
+        str(RATE),
+        "-b:a",
+        "128k",
+        "-map_metadata",
+        "-1",
+        "-fflags",
+        "+bitexact",
+        "-flags:a",
+        "+bitexact",
+        str(dst),
+    )
 
 
 def seconds(path):
@@ -121,8 +139,17 @@ def build_song(s, notes, dur):
         bars.append(bars[-1] + bar_len)
     bars = [round(b, 3) for b in bars]
     out = [
-        {"start": n["start"], "end": n["end"], "midi": n["midi"], "syllable": n.get("syllable") or n.get("lyric") or "",
-         "role": n["role"], "phrase": n["phrase"], "bar": i, "beat": n["beat"], "dur": n["dur"]}
+        {
+            "start": n["start"],
+            "end": n["end"],
+            "midi": n["midi"],
+            "syllable": n.get("syllable") or n.get("lyric") or "",
+            "role": n["role"],
+            "phrase": n["phrase"],
+            "bar": i,
+            "beat": n["beat"],
+            "dur": n["dur"],
+        }
         for n, i in zip(ordered, seq)
     ]
     phrases = []
@@ -179,11 +206,16 @@ def main(argv=None):
         notes, voices, backing, dur = prepared
         song = build_song(s, notes, dur)
         used = {n["role"] for n in song["notes"]}
-        songs.append({
-            "id": s["id"], "number": s["number"], "title": s["title"], "durationSec": round(dur, 1),
-            "roles": [r for r in role_ids if r in used],
-            "files": {"voices": put(voices.read_bytes()), "backing": put(backing.read_bytes()), "notes": put_json(song)},
-        })
+        songs.append(
+            {
+                "id": s["id"],
+                "number": s["number"],
+                "title": s["title"],
+                "durationSec": round(dur, 1),
+                "roles": [r for r in role_ids if r in used],
+                "files": {"voices": put(voices.read_bytes()), "backing": put(backing.read_bytes()), "notes": put_json(song)},
+            }
+        )
     library = put_json({"roles": cfg["roles"], "songs": songs})
 
     for f in work.iterdir():
@@ -193,9 +225,15 @@ def main(argv=None):
         if f.stem not in sizes:
             f.unlink()
     manifest = {
-        "format": 1, "build": datetime.now(timezone.utc).isoformat(timespec="seconds"), "keyId": sha16(salt),
-        "salt": base64.b64encode(salt).decode(), "iterations": ITERATIONS, "library": library,
-        "songCount": len(songs), "totalBytes": sum(sizes.values()), "files": sizes,
+        "format": 1,
+        "build": datetime.now(UTC).isoformat(timespec="seconds"),
+        "keyId": sha16(salt),
+        "salt": base64.b64encode(salt).decode(),
+        "iterations": ITERATIONS,
+        "library": library,
+        "songCount": len(songs),
+        "totalBytes": sum(sizes.values()),
+        "files": sizes,
     }
     (out / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     (out / "report.txt").write_text("\n".join(problems) + "\n" if problems else "all songs complete\n", encoding="utf-8")

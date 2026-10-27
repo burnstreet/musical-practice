@@ -13,7 +13,10 @@ export interface Vault {
   onWipe(fn: () => Promise<void>): void
 }
 
-export interface VaultRecord { key: CryptoKey; keyId: string }
+export interface VaultRecord {
+  key: CryptoKey
+  keyId: string
+}
 export interface VaultStore {
   get(): Promise<VaultRecord | undefined>
   put(rec: VaultRecord): Promise<void>
@@ -32,8 +35,7 @@ export function idbStore(): VaultStore {
   }
 }
 
-const open = (key: CryptoKey, cipher: ArrayBuffer) =>
-  crypto.subtle.decrypt({ name: 'AES-GCM', iv: cipher.slice(0, 12) }, key, cipher.slice(12))
+const open = (key: CryptoKey, cipher: ArrayBuffer) => crypto.subtle.decrypt({ name: 'AES-GCM', iv: cipher.slice(0, 12) }, key, cipher.slice(12))
 
 export function createVault(store: VaultStore = idbStore()): Vault {
   let key: CryptoKey | null = null
@@ -59,8 +61,18 @@ export function createVault(store: VaultStore = idbStore()): Vault {
       if (!manifest) return 'no-manifest'
       const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
       const salt = Uint8Array.from(atob(manifest.salt), (c) => c.charCodeAt(0))
-      const derived = await crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: manifest.iterations }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt'])
-      try { await open(derived, libraryCipher) } catch { return 'wrong-password' }
+      const derived = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: manifest.iterations },
+        base,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt'],
+      )
+      try {
+        await open(derived, libraryCipher)
+      } catch {
+        return 'wrong-password'
+      }
       await store.put({ key: derived, keyId: manifest.keyId })
       key = derived
       st = 'unlocked'

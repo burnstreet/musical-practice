@@ -1,6 +1,6 @@
-import { LitElement, css, html } from 'lit'
-import { getContext } from '../context'
+import { css, html, LitElement } from 'lit'
 import type { Manifest } from '../../core/content'
+import { getContext } from '../context'
 
 const eye = html`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`
 const lock = html`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>`
@@ -30,7 +30,14 @@ export class GuStart extends LitElement {
     .size, .foot { font-size: 13px; line-height: 1.5; color: var(--muted); margin: 0; }
     .foot { display: flex; gap: 12px; align-items: flex-start; flex-basis: 100%; max-width: 440px; }
   `
-  static properties = { mb: { state: true }, value: { state: true }, show: { state: true }, busy: { state: true }, error: { state: true }, known: { state: true } }
+  static properties = {
+    mb: { state: true },
+    value: { state: true },
+    show: { state: true },
+    busy: { state: true },
+    error: { state: true },
+    known: { state: true },
+  }
 
   declare mb: number | null
   declare value: string
@@ -93,9 +100,7 @@ export class GuStart extends LitElement {
 
   render() {
     const { vault } = getContext()
-    const size = this.mb !== null
-      ? `Nach dem Entsperren werden etwa ${this.mb} MB geladen. Am besten im WLAN.`
-      : 'Zum ersten Entsperren brauchst du Internet.'
+    const size = this.mb !== null ? `Nach dem Entsperren werden etwa ${this.mb} MB geladen. Am besten im WLAN.` : 'Zum ersten Entsperren brauchst du Internet.'
     return html`<div class="wrap">
       <div class="head">
         <img class="logo" src="logo.png" alt="LKG Radeland" />

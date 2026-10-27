@@ -1,4 +1,4 @@
-import { LitElement, css, html, svg } from 'lit'
+import { css, html, LitElement, svg } from 'lit'
 import { noteName } from '../../core/scorer'
 import { getContext } from '../context'
 
@@ -30,7 +30,9 @@ export class GuResults extends LitElement {
   `
 
   private chart(phrases: { index: number }[], p: any, tol: number) {
-    const W = 318, H = 120, Z = 60
+    const W = 318,
+      H = 120,
+      Z = 60
     const by = new Map<number, number | null>(p.phrases.map((x: any) => [x.index, x.meanCents]))
     const range = Math.max(tol * 1.5, ...[...by.values()].map((c) => Math.abs(c ?? 0)))
     const k = 50 / range
@@ -104,4 +106,3 @@ export class GuResults extends LitElement {
 }
 
 customElements.define('gu-results', GuResults)
-

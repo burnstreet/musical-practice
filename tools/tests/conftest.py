@@ -5,6 +5,7 @@ A block is taken when its nearest preceding `[@test]` link points at a .py file;
 Test modules bind them with: `from conftest import FEATURES_DIR` and
 `scenarios(str(FEATURES_DIR / 'completeness.feature'))`.
 """
+
 import re
 import shutil
 from pathlib import Path

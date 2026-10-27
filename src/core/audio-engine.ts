@@ -1,4 +1,4 @@
-import { roleSpans, type Note, type Phrase, type RoleId, type Span } from './content'
+import { type Note, type Phrase, type RoleId, roleSpans, type Span } from './content'
 import type { LoadedSong } from './types'
 
 export type Mode = 'all' | 'others' | 'backing'
@@ -165,12 +165,16 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       voices.playbackRate = backing.playbackRate = t / 100
       if (isPlaying) schedule()
     },
-    setLoop(p) { loop = p },
+    setLoop(p) {
+      loop = p
+    },
     tempo: () => (voices ? Math.round(voices.playbackRate * 100) : 100) as Tempo,
     loop: () => loop,
     time: () => voices.currentTime,
     playing: () => isPlaying,
-    on(ev: string, fn: (x?: any) => void) { (listeners[ev] ??= []).push(fn) },
+    on(ev: string, fn: (x?: any) => void) {
+      ;(listeners[ev] ??= []).push(fn)
+    },
   }
   return engine
 }

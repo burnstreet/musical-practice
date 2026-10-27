@@ -1,8 +1,8 @@
 import { expect } from 'vitest'
-import { steps } from '../gherkin'
 import type { ShellDeps } from '../../src/app/context'
 import type { GuApp } from '../../src/app/shell'
 import type { VaultState } from '../../src/core/vault'
+import { steps } from '../gherkin'
 import '../../src/app/shell'
 
 /** Fresh fake deps per scenario; also resets DOM, storage and hash. */
@@ -20,7 +20,10 @@ function deps(ctx: any): ShellDeps {
       unlock: async () => 'ok',
       state: () => ctx.state,
       decrypt: async (c: ArrayBuffer) => c,
-      lock: async () => { for (const w of wipes) await w(); ctx.state = 'locked' },
+      lock: async () => {
+        for (const w of wipes) await w()
+        ctx.state = 'locked'
+      },
       onWipe: (fn: () => Promise<void>) => void wipes.push(fn),
     },
     library: {
@@ -32,7 +35,9 @@ function deps(ctx: any): ShellDeps {
       songs: () => [],
       roles: () => [],
       isReady: (id: string) => ctx.ready.has(id),
-      getSong: async () => { throw new Error('fake') },
+      getSong: async () => {
+        throw new Error('fake')
+      },
       wipe: async () => {},
     },
     history: { record: async () => {}, list: async () => [], badge: async () => null, wipe: async () => {} },
@@ -52,11 +57,10 @@ const settle = async (el: GuApp) => {
 
 /** Visible text across shadow roots. */
 const deepText = (n: Node): string =>
-  n.nodeType === Node.TEXT_NODE ? n.textContent ?? '' : [...((n as Element).shadowRoot?.childNodes ?? []), ...n.childNodes].map(deepText).join(' ')
+  n.nodeType === Node.TEXT_NODE ? (n.textContent ?? '') : [...((n as Element).shadowRoot?.childNodes ?? []), ...n.childNodes].map(deepText).join(' ')
 
 /** All elements across shadow roots. */
-const deepAll = (n: Element | ShadowRoot): Element[] =>
-  [...n.children].flatMap((c) => [c, ...(c.shadowRoot ? deepAll(c.shadowRoot) : []), ...deepAll(c)])
+const deepAll = (n: Element | ShadowRoot): Element[] => [...n.children].flatMap((c) => [c, ...(c.shadowRoot ? deepAll(c.shadowRoot) : []), ...deepAll(c)])
 
 /** Clickable element (button, label) whose text is exactly t. */
 const byText = (root: Element, t: string) => {
@@ -77,8 +81,14 @@ async function app(ctx: any): Promise<GuApp> {
 }
 
 export default steps(({ Given, When, Then }) => {
-  Given(/^vault state (locked|unlocked)$/, (ctx, st) => { deps(ctx); ctx.state = st })
-  Given(/^vault unlocked and song "(\w+)" not ready$/, (ctx) => { deps(ctx); ctx.state = 'unlocked' })
+  Given(/^vault state (locked|unlocked)$/, (ctx, st) => {
+    deps(ctx)
+    ctx.state = st
+  })
+  Given(/^vault unlocked and song "(\w+)" not ready$/, (ctx) => {
+    deps(ctx)
+    ctx.state = 'unlocked'
+  })
 
   When(/^I open "([^"]+)"$/, async (ctx, hash) => {
     const el = await app(ctx)
@@ -103,7 +113,10 @@ export default steps(({ Given, When, Then }) => {
     location.hash = '#/practice/05'
     await app(ctx)
   })
-  When(/^a new service worker finishes installing$/, async (ctx) => { ctx.sw.waiting = true; await settle(ctx.el) })
+  When(/^a new service worker finishes installing$/, async (ctx) => {
+    ctx.sw.waiting = true
+    await settle(ctx.el)
+  })
   Then(/^no toast, no reload, route unchanged$/, (ctx) => {
     expect(ctx.sw.active).toBe(false)
     expect(deepText(ctx.el)).not.toContain('Neue Version geladen')
@@ -111,14 +124,20 @@ export default steps(({ Given, When, Then }) => {
   })
 
   // Settings
-  const press = async (ctx: any, t: string) => { byText(ctx.el, t).click(); await settle(ctx.el) }
+  const press = async (ctx: any, t: string) => {
+    byText(ctx.el, t).click()
+    await settle(ctx.el)
+  }
   const openSettings = async (ctx: any) => {
     const el = await app(ctx)
     el.ctx.openSettings()
     await settle(el)
   }
-  When(/^I choose "([^"]+)"$/, async (ctx, t) => { await openSettings(ctx); await press(ctx, t) })
-  Then(/^settings\.tolerance is (\d+) after reload$/, async (ctx, n) => {
+  When(/^I choose "([^"]+)"$/, async (ctx, t) => {
+    await openSettings(ctx)
+    await press(ctx, t)
+  })
+  Then(/^settings\.tolerance is (\d+) after reload$/, async (_ctx, n) => {
     const { settings } = await import('../../src/app/settings')
     expect(JSON.parse(localStorage.getItem('gu.settings')!).tolerance).toBe(+n)
     expect(settings.get().tolerance).toBe(+n)
@@ -128,7 +147,9 @@ export default steps(({ Given, When, Then }) => {
     ctx.files = new Set(['a', 'b'])
     ctx.sessions = ['s1']
     d.vault.onWipe(async () => ctx.files.clear())
-    d.vault.onWipe(async () => { ctx.sessions = [] })
+    d.vault.onWipe(async () => {
+      ctx.sessions = []
+    })
   })
   When(/^I press "Sperren und Daten löschen" and (?:confirm|choose) "([^"]+)"$/, async (ctx, choice) => {
     ctx.files ??= new Set(['a'])
@@ -155,7 +176,9 @@ export default steps(({ Given, When, Then }) => {
   const startPractice = async (ctx: any) => {
     const el = await app(ctx)
     ctx.played = false
-    ctx.gate = el.ctx.ensureHeadphoneSheet().then(() => { ctx.played = true })
+    ctx.gate = el.ctx.ensureHeadphoneSheet().then(() => {
+      ctx.played = true
+    })
     await settle(el)
   }
   const sheetShown = (ctx: any) => deepText(ctx.el).includes('Kopfhörer aufsetzen')
@@ -189,7 +212,11 @@ export default steps(({ Given, When, Then }) => {
   const IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
   const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
   const CARD = 'Zum Startbildschirm hinzufügen, damit die Lieder gespeichert bleiben: Teilen-Symbol, dann „Zum Home-Bildschirm“.'
-  const reload = async (ctx: any) => { ctx.el.remove(); ctx.el = null; return app(ctx) }
+  const reload = async (ctx: any) => {
+    ctx.el.remove()
+    ctx.el = null
+    return app(ctx)
+  }
   Given(/^user agent iOS Safari, not standalone, installHintSeen false$/, async (ctx) => {
     const { isIosSafariTab } = await import('../../src/app/platform')
     deps(ctx).isIosSafariTab = () => isIosSafariTab(IOS, false)

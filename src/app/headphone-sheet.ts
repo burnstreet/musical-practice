@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit'
+import { html, LitElement } from 'lit'
 import { HEADPHONE_TEXT } from './settings-sheet'
 import { sheetStyles } from './sheet'
 

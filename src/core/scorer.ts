@@ -4,14 +4,32 @@ import type { PitchFrame } from './types'
 export type Tolerance = 75 | 50 | 30
 export type Tendency = 'high' | 'low' | 'ok'
 
-export interface NoteResult { note: Note; sung: boolean; cents: number | null; hit: boolean; maxAbsCents: number | null }
-export interface PhraseResult { index: number; label: string; notes: number; sung: number; hits: number; meanCents: number | null }
+export interface NoteResult {
+  note: Note
+  sung: boolean
+  cents: number | null
+  hit: boolean
+  maxAbsCents: number | null
+}
+export interface PhraseResult {
+  index: number
+  label: string
+  notes: number
+  sung: number
+  hits: number
+  meanCents: number | null
+}
 export interface PassResult {
-  notes: NoteResult[]; phrases: PhraseResult[]
-  scoredNotes: number; hits: number; hitPct: number
-  meanCents: number | null; tendency: Tendency
+  notes: NoteResult[]
+  phrases: PhraseResult[]
+  scoredNotes: number
+  hits: number
+  hitPct: number
+  meanCents: number | null
+  tendency: Tendency
   rangeMidi: [number, number] | null
-  worstPhrase: number | null; tip: string
+  worstPhrase: number | null
+  tip: string
 }
 
 export function foldCents(sungMidi: number, targetMidi: number): number {
@@ -26,7 +44,12 @@ export function noteName(midi: number): string {
   return NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
 }
 
-export interface LiveDeviation { note: Note; sungMidiFolded: number; cents: number; level: 'ok' | 'slight' | 'far' }
+export interface LiveDeviation {
+  note: Note
+  sungMidiFolded: number
+  cents: number
+  level: 'ok' | 'slight' | 'far'
+}
 
 /** Live readout: my note sounding at `t` vs the latest voiced frame within 150 ms before `t`. Cents rounded. */
 export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null {
@@ -59,7 +82,9 @@ const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.l
 
 /** framesByNote: song note index -> frames of that entered note. Only entered notes of `roles` are scored. */
 export function scorePass(song: Song, roles: RoleId[], framesByNote: Map<number, PitchFrame[]>, tol: Tolerance): PassResult {
-  const scored = song.notes.flatMap((note, i) => (roles.includes(note.role) && framesByNote.has(i) ? [{ note, frames: considered(note, framesByNote.get(i)!) }] : []))
+  const scored = song.notes.flatMap((note, i) =>
+    roles.includes(note.role) && framesByNote.has(i) ? [{ note, frames: considered(note, framesByNote.get(i)!) }] : [],
+  )
   const notes = scored.map(({ note, frames }) => scoreNote(note, frames, tol))
   const all = scored.flatMap(({ note, frames }) => frames.map((f) => ({ cents: foldCents(f.midi, note.midi), midi: Math.round(f.midi) })))
   const meanCents = mean(all.map((f) => f.cents))
@@ -68,18 +93,30 @@ export function scorePass(song: Song, roles: RoleId[], framesByNote: Map<number,
 
   const byPhrase = new Map<number, NoteResult[]>()
   for (const r of notes) byPhrase.set(r.note.phrase, [...(byPhrase.get(r.note.phrase) ?? []), r])
-  const phrases: PhraseResult[] = [...byPhrase].sort(([a], [b]) => a - b).map(([index, rs]) => ({
-    index, label: song.phrases[index]?.label ?? '', notes: rs.length, sung: rs.filter((r) => r.sung).length, hits: rs.filter((r) => r.hit).length,
-    meanCents: mean(rs.flatMap((r) => (r.cents === null ? [] : [r.cents]))),
-  }))
+  const phrases: PhraseResult[] = [...byPhrase]
+    .sort(([a], [b]) => a - b)
+    .map(([index, rs]) => ({
+      index,
+      label: song.phrases[index]?.label ?? '',
+      notes: rs.length,
+      sung: rs.filter((r) => r.sung).length,
+      hits: rs.filter((r) => r.hit).length,
+      meanCents: mean(rs.flatMap((r) => (r.cents === null ? [] : [r.cents]))),
+    }))
   // largest |meanCents| (unsung phrase counts as 0), then more misses, then lower index (sort is stable)
-  const worst = [...phrases].sort((a, b) => Math.abs(b.meanCents ?? 0) - Math.abs(a.meanCents ?? 0) || (b.notes - b.hits) - (a.notes - a.hits))[0]
+  const worst = [...phrases].sort((a, b) => Math.abs(b.meanCents ?? 0) - Math.abs(a.meanCents ?? 0) || b.notes - b.hits - (a.notes - a.hits))[0]
 
   return {
-    notes, phrases, scoredNotes: notes.length, hits, hitPct: notes.length ? Math.round((100 * hits) / notes.length) : 0,
-    meanCents, tendency: meanCents === null ? 'ok' : meanCents > 15 ? 'high' : meanCents < -15 ? 'low' : 'ok',
+    notes,
+    phrases,
+    scoredNotes: notes.length,
+    hits,
+    hitPct: notes.length ? Math.round((100 * hits) / notes.length) : 0,
+    meanCents,
+    tendency: meanCents === null ? 'ok' : meanCents > 15 ? 'high' : meanCents < -15 ? 'low' : 'ok',
     rangeMidi: midis.length ? [Math.min(...midis), Math.max(...midis)] : null,
-    worstPhrase: worst?.index ?? null, tip: worst ? tip(worst, byPhrase.get(worst.index)!, tol) : 'Keine Töne gesungen.',
+    worstPhrase: worst?.index ?? null,
+    tip: worst ? tip(worst, byPhrase.get(worst.index)!, tol) : 'Keine Töne gesungen.',
   }
 }
 

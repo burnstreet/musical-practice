@@ -21,7 +21,26 @@ export const COLORS = { accent: '#C8E05A', other: '#A9D3F7', muted: '#CFE0F5', l
 export const FONT = "'DM Sans', system-ui, sans-serif"
 const MUSIC = "'Noto Music', 'Segoe UI Symbol', 'Apple Symbols', serif"
 
-const MAJOR: Record<string, number> = { C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, 'F#': 6, 'C#': 7, 'G#': 8, 'D#': 9, 'A#': 10, F: -1, Bb: -2, Eb: -3, Ab: -4, Db: -5, Gb: -6, Cb: -7 }
+const MAJOR: Record<string, number> = {
+  C: 0,
+  G: 1,
+  D: 2,
+  A: 3,
+  E: 4,
+  B: 5,
+  'F#': 6,
+  'C#': 7,
+  'G#': 8,
+  'D#': 9,
+  'A#': 10,
+  F: -1,
+  Bb: -2,
+  Eb: -3,
+  Ab: -4,
+  Db: -5,
+  Gb: -6,
+  Cb: -7,
+}
 const LETTERS = 'CDEFGAB'
 const NATURAL = [0, 2, 4, 5, 7, 9, 11]
 const SHARP_ORDER = 'FCGDAEB'
@@ -45,7 +64,8 @@ export function keyFifths(key: string): number {
 export function staffPos(midi: number, fifths: number): { step: number; acc: '' | '#' | 'b' | 'n' } {
   const pc = ((midi % 12) + 12) % 12
   const oct = Math.floor(midi / 12) - 1
-  const keyAcc = (l: string) => (fifths > 0 && SHARP_ORDER.slice(0, fifths).includes(l) ? '#' : fifths < 0 && FLAT_ORDER.slice(0, -fifths).includes(l) ? 'b' : '')
+  const keyAcc = (l: string) =>
+    fifths > 0 && SHARP_ORDER.slice(0, fifths).includes(l) ? '#' : fifths < 0 && FLAT_ORDER.slice(0, -fifths).includes(l) ? 'b' : ''
   let i = NATURAL.indexOf(pc)
   let acc: '' | '#' | 'b' | 'n'
   if (i >= 0) acc = keyAcc(LETTERS[i]) ? 'n' : ''

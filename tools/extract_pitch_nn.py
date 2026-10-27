@@ -6,16 +6,15 @@ Everything runs at 16 kHz with a 10 ms hop (160 samples).
 Usage: python tools/extract_pitch_nn.py <id> <stem.wav> <title> --method crepe|fcpe
        [--mix mix.wav] [--audio ...] [--stem-file label=file ...]
 """
+
 import argparse
 import json
-from pathlib import Path
 
 import librosa
 import numpy as np
 import torch
-from scipy import signal
-
 from extract_pitch import OUT, clean, fold_octaves, midi_name, plot, segment_notes
+from scipy import signal
 
 SR = 16000
 HOP = 160
@@ -44,8 +43,9 @@ def track_crepe(y: np.ndarray, fmin: float, fmax: float, periodicity_thr: float)
     import torchcrepe
 
     audio = torch.from_numpy(y)[None]
-    f0, per = torchcrepe.predict(audio, SR, HOP, fmin, fmax, model="full", decoder=torchcrepe.decode.viterbi,
-                                 return_periodicity=True, batch_size=512, device="cpu")
+    f0, per = torchcrepe.predict(
+        audio, SR, HOP, fmin, fmax, model="full", decoder=torchcrepe.decode.viterbi, return_periodicity=True, batch_size=512, device="cpu"
+    )
     per = torchcrepe.filter.median(per, 3)
     f0 = f0[0].numpy().astype(np.float64)
     per = per[0].numpy().astype(np.float64)
@@ -59,8 +59,16 @@ def track_fcpe(y: np.ndarray, fmin: float, fmax: float, threshold: float):
     model = spawn_bundled_infer_model(device="cpu")
     n_frames = len(y) // HOP + 1
     audio = torch.from_numpy(y)[None, :, None]
-    f0 = model.infer(audio, sr=SR, decoder_mode="local_argmax", threshold=threshold, f0_min=fmin, f0_max=fmax,
-                     interp_uv=False, output_interp_target_length=n_frames)
+    f0 = model.infer(
+        audio,
+        sr=SR,
+        decoder_mode="local_argmax",
+        threshold=threshold,
+        f0_min=fmin,
+        f0_max=fmax,
+        interp_uv=False,
+        output_interp_target_length=n_frames,
+    )
     f0 = f0[0, :, 0].numpy().astype(np.float64)
     voiced = f0 > 0
     return np.where(voiced, f0, np.nan), voiced, np.where(voiced, 1.0, 0.0)
@@ -80,8 +88,9 @@ def main():
     ap.add_argument("--fmin", default="E2")
     ap.add_argument("--fmax", default="C6")
     ap.add_argument("--highpass", type=float, default=90.0)
-    ap.add_argument("--threshold", type=float, default=None,
-                    help="voicing threshold: CREPE periodicity (default 0.3), FCPE (default 0.006)")
+    ap.add_argument(
+        "--threshold", type=float, default=None, help="voicing threshold: CREPE periodicity (default 0.3), FCPE (default 0.006)"
+    )
     ap.add_argument("--suffix", default="", help="appended to the output id, e.g. _crepe")
     ap.add_argument("--fold-octaves", action="store_true", help="merge voices singing in octaves into one line")
     args = ap.parse_args()
@@ -113,16 +122,18 @@ def main():
 
     out_id = args.id + args.suffix
     OUT.mkdir(parents=True, exist_ok=True)
-    pitch = [[round(float(ti), 3), (round(float(fi), 2) if np.isfinite(fi) else None), round(float(ci), 2)]
-             for ti, fi, ci in zip(t, f0c, conf)]
-    data = {"id": out_id, "title": f"{args.title} ({args.method})", "audio": args.audio, "hop_s": HOP_S,
-            "pitch": pitch, "notes": notes}
+    pitch = [
+        [round(float(ti), 3), (round(float(fi), 2) if np.isfinite(fi) else None), round(float(ci), 2)] for ti, fi, ci in zip(t, f0c, conf)
+    ]
+    data = {"id": out_id, "title": f"{args.title} ({args.method})", "audio": args.audio, "hop_s": HOP_S, "pitch": pitch, "notes": notes}
     if stems:
         data["stems"] = stems
     (OUT / f"{out_id}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     plot(out_id, t, f0c, conf, notes, OUT / f"{out_id}.png")
-    print(f"{out_id}: {n} frames, voiced {mask.sum() * HOP_S:.1f}s of {t[-1]:.1f}s, {len(notes)} notes, "
-          f"range {midi_name(min(x['midi'] for x in notes))}-{midi_name(max(x['midi'] for x in notes))}")
+    print(
+        f"{out_id}: {n} frames, voiced {mask.sum() * HOP_S:.1f}s of {t[-1]:.1f}s, {len(notes)} notes, "
+        f"range {midi_name(min(x['midi'] for x in notes))}-{midi_name(max(x['midi'] for x in notes))}"
+    )
 
 
 if __name__ == "__main__":

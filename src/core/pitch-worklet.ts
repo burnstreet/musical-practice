@@ -3,7 +3,9 @@ import { detect } from './pitch-detect'
 
 // AudioWorkletGlobalScope is not in the DOM lib
 declare const sampleRate: number
-declare class AudioWorkletProcessor { readonly port: MessagePort }
+declare class AudioWorkletProcessor {
+  readonly port: MessagePort
+}
 declare function registerProcessor(name: string, ctor: new () => AudioWorkletProcessor): void
 
 class PitchDetectorProcessor extends AudioWorkletProcessor {

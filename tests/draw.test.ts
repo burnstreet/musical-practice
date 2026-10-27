@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Note } from '../src/core/content'
 import { foldToTargetOctave, rowRange } from '../src/app/draw/roll'
 import { keyFifths, pageOf, staffPos } from '../src/app/draw/staff'
+import type { Note } from '../src/core/content'
 
 describe('staff layout', () => {
   it('reads the key signature from song.key', () => {

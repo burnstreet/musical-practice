@@ -1,9 +1,14 @@
 import type { RoleId } from './content'
+import { openDb, withStore } from './db'
 import type { PassResult } from './scorer'
 import type { Vault } from './vault'
-import { openDb, withStore } from './db'
 
-export interface SessionSummary { at: string; passes: number; bestHitPct: number; lastHitPct: number }
+export interface SessionSummary {
+  at: string
+  passes: number
+  bestHitPct: number
+  lastHitPct: number
+}
 
 export interface History {
   record(songId: string, roles: RoleId[], passes: PassResult[]): Promise<void>
@@ -31,7 +36,9 @@ export function createHistory(deps: { vault?: Vault; db?: () => Promise<IDBDatab
       const next = [entry, ...(await list(songId, roles))].slice(0, MAX)
       await withStore(open, 'history', 'readwrite', (s) => s.put(next, keyOf(songId, roles)))
     },
-    async badge(songId, roles) { return (await list(songId, roles))[0]?.lastHitPct ?? null },
+    async badge(songId, roles) {
+      return (await list(songId, roles))[0]?.lastHitPct ?? null
+    },
     wipe: () => withStore(open, 'history', 'readwrite', (s) => s.clear()).then(() => {}),
   }
   deps.vault?.onWipe(h.wipe)

@@ -1,8 +1,8 @@
-import { LitElement, css, html } from 'lit'
-import { getContext } from '../context'
+import { css, html, LitElement } from 'lit'
 import type { Mode } from '../../core/audio-engine'
 import type { RoleId } from '../../core/content'
 import type { DownloadProgress } from '../../core/library'
+import { getContext } from '../context'
 
 const MB = 1_000_000
 const MODES: [Mode, string, string][] = [
@@ -50,7 +50,11 @@ export class GuSongs extends LitElement {
     .start { height: 52px; border-radius: 26px; border: 0; background: var(--accent); color: var(--ink); font-size: 15px; font-weight: 700; margin-top: 6px; }
   `
   static properties = {
-    selected: { state: true }, badges: { state: true }, progress: { state: true }, open: { state: true }, mode: { state: true },
+    selected: { state: true },
+    badges: { state: true },
+    progress: { state: true },
+    open: { state: true },
+    mode: { state: true },
   }
 
   declare selected: RoleId[]
@@ -71,7 +75,9 @@ export class GuSongs extends LitElement {
 
   connectedCallback() {
     super.connectedCallback()
-    getContext().library.onProgress((p) => { this.progress = p })
+    getContext().library.onProgress((p) => {
+      this.progress = p
+    })
     void this.loadBadges()
   }
 
@@ -104,14 +110,21 @@ export class GuSongs extends LitElement {
         <div><h1>Wer bist du im Stück?</h1><div class="sub">Du kannst mehrere Rollen wählen.</div></div>
         <button class="gear" aria-label="Einstellungen" @click=${() => openSettings()}>⚙</button>
       </header>
-      ${showProgress
-        ? html`<div class="progress">${p.error
-            ? 'Download unterbrochen. Beim nächsten Start geht es weiter.'
-            : `Lädt … ${Math.round(p.doneBytes / MB)} von ${Math.round(p.totalBytes / MB)} MB`}
+      ${
+        showProgress
+          ? html`<div class="progress">${
+              p.error
+                ? 'Download unterbrochen. Beim nächsten Start geht es weiter.'
+                : `Lädt … ${Math.round(p.doneBytes / MB)} von ${Math.round(p.totalBytes / MB)} MB`
+            }
             <div class="bar"><i style="width:${p.totalBytes ? (100 * p.doneBytes) / p.totalBytes : 0}%"></i></div></div>`
-        : ''}
+          : ''
+      }
       <div class="chips">
-        ${library.roles().filter((r) => r.sings).map((r) => html`<button class="chip" aria-pressed=${this.selected.includes(r.id)} @click=${() => this.toggle(r.id)}>${r.name}</button>`)}
+        ${library
+          .roles()
+          .filter((r) => r.sings)
+          .map((r) => html`<button class="chip" aria-pressed=${this.selected.includes(r.id)} @click=${() => this.toggle(r.id)}>${r.name}</button>`)}
       </div>
       <div class="listhead"><h2>Lied zum Üben</h2><span class="legend"><span class="dot"></span>deine Rolle singt mit</span></div>
       <ul>${library.songs().map((s) => this.song(s, names))}</ul>
@@ -124,20 +137,28 @@ export class GuSongs extends LitElement {
     const mine = s.roles.some((r) => this.selected.includes(r))
     const badge = this.badges[s.id]
     return html`<li class="${open ? 'open' : ''} ${ready ? '' : 'muted'}">
-      <button class="row" data-song=${s.id} aria-expanded=${open} @click=${() => { if (ready) this.open = open ? null : s.id }}>
+      <button class="row" data-song=${s.id} aria-expanded=${open} @click=${() => {
+        if (ready) this.open = open ? null : s.id
+      }}>
         <span class="num">${s.number}</span>
         <span class="txt"><span class="title">${s.title}</span><span class="roles">${ready ? s.roles.map((r) => names.get(r) ?? r).join(' · ') : 'wird geladen'}</span></span>
         ${badge != null ? html`<span class="badge">${badge} %</span>` : ''}
         ${mine ? html`<span class="dot"></span>` : ''}
       </button>
-      ${open
-        ? html`<div class="panel" role="radiogroup" aria-label="Voicetrack">
-            ${MODES.map(([m, title, desc]) => html`<div class="mode ${this.mode === m ? 'on' : ''}">
-              <label><input type="radio" name="mode" .checked=${this.mode === m} @change=${() => { this.mode = m }} />${title}</label>
-              <small>${desc}</small></div>`)}
+      ${
+        open
+          ? html`<div class="panel" role="radiogroup" aria-label="Voicetrack">
+            ${MODES.map(
+              ([m, title, desc]) => html`<div class="mode ${this.mode === m ? 'on' : ''}">
+              <label><input type="radio" name="mode" .checked=${this.mode === m} @change=${() => {
+                this.mode = m
+              }} />${title}</label>
+              <small>${desc}</small></div>`,
+            )}
             <button class="start" @click=${() => this.start(s.id)}>Üben starten</button>
           </div>`
-        : ''}
+          : ''
+      }
     </li>`
   }
 }

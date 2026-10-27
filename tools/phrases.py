@@ -5,6 +5,7 @@
 Manual `phraseStart` flags win (DOCX not consulted). Otherwise lyric lines are
 matched against the note syllables; exit 1 and print the first unmatched syllable.
 """
+
 import json
 import re
 import sys
@@ -59,7 +60,7 @@ def derive_phrases(notes, lines):
             if fail is None:
                 fail = bad
             if k:
-                for n in notes[i:i + k]:
+                for n in notes[i : i + k]:
                     n["phrase"] = phrase  # running counter: a repeated line gets a new phrase
                 i, nxt, phrase = i + k, x + 1, phrase + 1
                 break

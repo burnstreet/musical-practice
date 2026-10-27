@@ -1,8 +1,8 @@
 /* The fontsource package names the family 'Fraunces Variable'; the tokens say 'Fraunces'. Latin subset covers German. */
 @font-face {
-  font-family: 'Fraunces';
+  font-family: "Fraunces";
   font-style: normal;
   font-display: swap;
   font-weight: 100 900;
-  src: url(../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2) format('woff2-variations');
+  src: url(../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2) format("woff2-variations");
 }

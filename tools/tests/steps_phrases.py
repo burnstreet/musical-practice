@@ -58,8 +58,7 @@ def step_unmatched(ctx, a, b):
 def step_derive(ctx, tmp_path, capsys):
     (tmp_path / "web" / "data").mkdir(parents=True)
     (tmp_path / "sources" / "text").mkdir(parents=True)
-    (tmp_path / "web" / "data" / "01.json").write_text(
-        json.dumps({"title": "t", "notes": ctx["notes"]}), encoding="utf-8")
+    (tmp_path / "web" / "data" / "01.json").write_text(json.dumps({"title": "t", "notes": ctx["notes"]}), encoding="utf-8")
     make_docx(tmp_path / "sources" / "text" / "01 song.docx", ctx["lines"] if "lines" in ctx else [])
     try:
         phrases.main(["01"], root=tmp_path)

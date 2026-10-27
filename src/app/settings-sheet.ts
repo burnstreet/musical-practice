@@ -1,21 +1,28 @@
-import { LitElement, css, html } from 'lit'
+import { css, html, LitElement } from 'lit'
 import { noteName, type Tolerance } from '../core/scorer'
 import { getContext } from './context'
 import { sheetStyles } from './sheet'
 
 export const HEADPHONE_TEXT = 'Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.'
-const TOLERANCES: [Tolerance, string][] = [[75, 'Leicht (75 Cent)'], [50, 'Normal (50 Cent)'], [30, 'Streng (30 Cent)']]
+const TOLERANCES: [Tolerance, string][] = [
+  [75, 'Leicht (75 Cent)'],
+  [50, 'Normal (50 Cent)'],
+  [30, 'Streng (30 Cent)'],
+]
 
 /** Settings sheet. Shell renders it while open; it fires `close` when done. */
 export class GuSettingsSheet extends LitElement {
   static properties = { confirming: { state: true }, mic: { state: true }, level: { state: true }, note: { state: true } }
-  static styles = [sheetStyles, css`
+  static styles = [
+    sheetStyles,
+    css`
     input[type='range'] { width: 100%; min-height: 44px; accent-color: var(--accent); }
     .meter { height: 10px; border-radius: 5px; background: var(--ink); overflow: hidden; margin: 8px 0; }
     .meter div { height: 100%; background: var(--accent); }
     .confirm { margin-top: 16px; padding: 16px; border-radius: 14px; background: var(--ink); }
     .head { display: flex; justify-content: space-between; align-items: center; }
-  `]
+  `,
+  ]
 
   declare confirming: boolean
   declare mic: 'off' | 'on' | 'failed'
@@ -43,7 +50,9 @@ export class GuSettingsSheet extends LitElement {
     const { pitch } = getContext()
     this.borrowed = pitch.active()
     if (!this.borrowed && (await pitch.start(() => 0)) !== 'ok') return void (this.mic = 'failed')
-    this.unsubscribe = pitch.on('frame', (f) => { if (f.midi !== null) this.note = noteName(f.midi) })
+    this.unsubscribe = pitch.on('frame', (f) => {
+      if (f.midi !== null) this.note = noteName(f.midi)
+    })
     this.mic = 'on'
     this.timer = window.setInterval(() => (this.level = pitch.level()), 100)
   }
@@ -85,7 +94,13 @@ export class GuSettingsSheet extends LitElement {
 
         <h3>Toleranz</h3>
         <div class="row" role="group" aria-label="Toleranz">
-          ${TOLERANCES.map(([t, label]) => html`<button aria-pressed=${s.tolerance === t} @click=${() => { settings.set({ tolerance: t }); this.requestUpdate() }}>${label}</button>`)}
+          ${TOLERANCES.map(
+            ([t, label]) =>
+              html`<button aria-pressed=${s.tolerance === t} @click=${() => {
+                settings.set({ tolerance: t })
+                this.requestUpdate()
+              }}>${label}</button>`,
+          )}
         </div>
 
         <h3><label for="offset">Verzögerung Mikrofon</label></h3>
@@ -94,23 +109,27 @@ export class GuSettingsSheet extends LitElement {
         <p>Wenn dein Ton zu früh oder zu spät angezeigt wird.</p>
 
         <h3>Mikrofon testen</h3>
-        ${this.mic === 'on'
-          ? html`<div class="meter" role="meter" aria-label="Pegel" aria-valuemin="0" aria-valuemax="1" aria-valuenow=${this.level}><div style="width:${Math.min(100, this.level * 300)}%"></div></div>
+        ${
+          this.mic === 'on'
+            ? html`<div class="meter" role="meter" aria-label="Pegel" aria-valuemin="0" aria-valuemax="1" aria-valuenow=${this.level}><div style="width:${Math.min(100, this.level * 300)}%"></div></div>
               <p aria-live="polite">${this.note || '–'}</p>
               <button @click=${this.stopMic}>Test beenden</button>`
-          : html`<button @click=${this.startMic}>Mikrofon testen</button>
-              ${this.mic === 'failed' ? html`<p role="alert">Kein Zugriff auf das Mikrofon.</p>` : ''}`}
+            : html`<button @click=${this.startMic}>Mikrofon testen</button>
+              ${this.mic === 'failed' ? html`<p role="alert">Kein Zugriff auf das Mikrofon.</p>` : ''}`
+        }
 
         <h3>Kopfhörer</h3>
         <p>${HEADPHONE_TEXT}</p>
 
         <div style="height:24px"></div>
-        ${this.confirming
-          ? html`<div class="confirm" role="alertdialog" aria-describedby="c">
+        ${
+          this.confirming
+            ? html`<div class="confirm" role="alertdialog" aria-describedby="c">
               <p id="c">Alle Lieder und Ergebnisse werden von diesem Gerät gelöscht. Fortfahren?</p>
               <div class="row"><button class="danger" @click=${this.lock}>Löschen</button><button @click=${() => (this.confirming = false)}>Abbrechen</button></div>
             </div>`
-          : html`<button class="danger" @click=${() => (this.confirming = true)}>Sperren und Daten löschen</button>`}
+            : html`<button class="danger" @click=${() => (this.confirming = true)}>Sperren und Daten löschen</button>`
+        }
       </div>
     </div>`
   }

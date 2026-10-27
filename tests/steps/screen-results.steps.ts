@@ -1,27 +1,71 @@
 import { expect } from 'vitest'
-import { steps } from '../gherkin'
 import { setContext } from '../../src/app/context'
 import { settings } from '../../src/app/settings'
+import { steps } from '../gherkin'
 
 const phrases = [0, 1, 2, 3].map((index) => ({ index, label: `p${index}`, start: index * 4 + 1, end: index * 4 + 4 }))
 const pass = (o: any = {}) => ({
-  notes: [], phrases: [0, 1, 2, 3].map((index) => ({ index, label: '', notes: 2, sung: index === 1 ? 0 : 2, hits: 1, meanCents: index === 1 ? null : index === 2 ? -60 : 10 })),
-  scoredNotes: 8, hits: 4, hitPct: 50, meanCents: 10, tendency: 'ok', rangeMidi: [60, 64], worstPhrase: 2, tip: 'Tipp Text', ...o,
+  notes: [],
+  phrases: [0, 1, 2, 3].map((index) => ({
+    index,
+    label: '',
+    notes: 2,
+    sung: index === 1 ? 0 : 2,
+    hits: 1,
+    meanCents: index === 1 ? null : index === 2 ? -60 : 10,
+  })),
+  scoredNotes: 8,
+  hits: 4,
+  hitPct: 50,
+  meanCents: 10,
+  tendency: 'ok',
+  rangeMidi: [60, 64],
+  worstPhrase: 2,
+  tip: 'Tipp Text',
+  ...o,
 })
 
 const deepText = (n: Node): string =>
-  n.nodeType === Node.TEXT_NODE ? n.textContent ?? '' : [...((n as Element).shadowRoot?.childNodes ?? []), ...n.childNodes].map(deepText).join(' ')
+  n.nodeType === Node.TEXT_NODE ? (n.textContent ?? '') : [...((n as Element).shadowRoot?.childNodes ?? []), ...n.childNodes].map(deepText).join(' ')
 
 function given(ctx: any, p: any = {}, count = 3) {
   document.body.innerHTML = ''
   localStorage.clear()
   ctx.el = null
   ctx.routed = []
-  ctx.engine = { loop: 'unset', tempo: 0, t: -1, on: true, play: async () => { ctx.engine.on = true }, pause: () => { ctx.engine.on = false }, seek: (s: number) => { ctx.engine.t = s }, setTempo: (t: number) => { ctx.engine.tempo = t }, setLoop: (l: any) => { ctx.engine.loop = l }, time: () => ctx.engine.t, playing: () => ctx.engine.on }
+  ctx.engine = {
+    loop: 'unset',
+    tempo: 0,
+    t: -1,
+    on: true,
+    play: async () => {
+      ctx.engine.on = true
+    },
+    pause: () => {
+      ctx.engine.on = false
+    },
+    seek: (s: number) => {
+      ctx.engine.t = s
+    },
+    setTempo: (t: number) => {
+      ctx.engine.tempo = t
+    },
+    setLoop: (l: any) => {
+      ctx.engine.loop = l
+    },
+    time: () => ctx.engine.t,
+    playing: () => ctx.engine.on,
+  }
   const passes = Array.from({ length: count }, (_, i) => (i === count - 1 ? pass(p) : pass({ hitPct: 10 * (i + 1) })))
   setContext({
-    settings, engine: ctx.engine, route: (to: string) => ctx.routed.push(to),
-    live: { songId: 's', song: { meta: { number: 8, title: '[Titel]' }, song: { phrases } }, session: { passes: () => passes, trend: () => passes.map((x) => x.hitPct) } },
+    settings,
+    engine: ctx.engine,
+    route: (to: string) => ctx.routed.push(to),
+    live: {
+      songId: 's',
+      song: { meta: { number: 8, title: '[Titel]' }, song: { phrases } },
+      session: { passes: () => passes, trend: () => passes.map((x) => x.hitPct) },
+    },
   } as any)
 }
 
@@ -62,7 +106,8 @@ export default steps(({ Given, When, Then }) => {
     const t = await text(ctx)
     const values = [...(await mount(ctx)).shadowRoot!.querySelectorAll('.v')].map((v) => v.textContent!.trim())
     for (const m of list.matchAll(/"([^"]*)"/g)) {
-      if (/^(sauber|(leicht )?zu (hoch|tief))$/.test(m[1])) expect(values).toContain(m[1]) // tendency value exactly, not a substring
+      if (/^(sauber|(leicht )?zu (hoch|tief))$/.test(m[1]))
+        expect(values).toContain(m[1]) // tendency value exactly, not a substring
       else expect(t).toContain(m[1])
     }
   })
@@ -90,4 +135,3 @@ export default steps(({ Given, When, Then }) => {
     expect(await text(ctx)).not.toContain('Aufnahme anhören')
   })
 })
-

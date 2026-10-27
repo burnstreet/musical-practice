@@ -12,8 +12,14 @@ export type StepFn = (ctx: any, ...captures: string[]) => unknown
 export type Registry = [RegExp, StepFn][]
 type Define = (re: RegExp, fn: StepFn) => void
 
-export interface Scenario { name: string; steps: string[] }
-export interface Feature { name: string; scenarios: Scenario[] }
+export interface Scenario {
+  name: string
+  steps: string[]
+}
+export interface Feature {
+  name: string
+  scenarios: Scenario[]
+}
 
 /** Collects step definitions. The keyword is irrelevant for matching. */
 export function steps(define: (k: { Given: Define; When: Define; Then: Define }) => void): Registry {
@@ -50,7 +56,7 @@ function parseGherkin(text: string): Feature[] {
   const features: Feature[] = []
   for (const raw of text.split('\n')) {
     const line = raw.trim()
-    let m
+    let m: RegExpMatchArray | null
     if ((m = line.match(/^Feature:\s*(.*)$/))) features.push({ name: m[1], scenarios: [] })
     else if ((m = line.match(/^Scenario:\s*(.*)$/))) features.at(-1)!.scenarios.push({ name: m[1], steps: [] })
     else if ((m = line.match(/^(?:Given|When|Then|And|But|\*)\s+(.*)$/))) features.at(-1)!.scenarios.at(-1)!.steps.push(m[1])

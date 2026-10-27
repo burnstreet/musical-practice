@@ -1,7 +1,7 @@
-import { LitElement, css, html } from 'lit'
-import { sheetStyles } from './sheet'
-import { setContext, type AppContext, type Route, type ShellDeps } from './context'
+import { css, html, LitElement } from 'lit'
+import { type AppContext, type Route, type ShellDeps, setContext } from './context'
 import { settings } from './settings'
+import { sheetStyles } from './sheet'
 import './settings-sheet'
 import './headphone-sheet'
 import { leaveSession } from './screens/practice'
@@ -20,12 +20,15 @@ export function guard(ctx: AppContext, hash: string): Route {
 export class GuApp extends LitElement {
   /** Set before the element connects: main.ts with the real modules, tests with fakes. */
   static deps: ShellDeps | null = null
-  static styles = [sheetStyles, css`
+  static styles = [
+    sheetStyles,
+    css`
     :host { display: block; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-body); }
     .hint { margin: 16px; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
     .hint p { color: var(--text); margin: 0 0 12px; }
     .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 20px; border-radius: 999px; background: var(--accent); color: var(--ink); font-weight: 700; z-index: 20; }
-  `]
+  `,
+  ]
   static properties = { hash: { state: true }, toast: { state: true }, settingsOpen: { state: true }, headphoneDone: { state: true } }
 
   declare hash: string
@@ -53,10 +56,18 @@ export class GuApp extends LitElement {
       ...deps,
       settings,
       live: null,
-      route: (to) => { location.hash = to },
-      openSettings: () => { this.settingsOpen = true },
+      route: (to) => {
+        location.hash = to
+      },
+      openSettings: () => {
+        this.settingsOpen = true
+      },
       ensureHeadphoneSheet: () =>
-        settings.get().headphoneSheetSeen ? Promise.resolve() : new Promise<void>((r) => { this.headphoneDone = r }),
+        settings.get().headphoneSheetSeen
+          ? Promise.resolve()
+          : new Promise<void>((r) => {
+              this.headphoneDone = r
+            }),
     }
     setContext(this.ctx)
     window.addEventListener('hashchange', this.onHash)
@@ -97,12 +108,17 @@ export class GuApp extends LitElement {
 
   render() {
     const hint = this.hash === '#/songs' && !settings.get().installHintSeen && this.ctx.isIosSafariTab()
-    return html`${hint
+    return html`${
+      hint
         ? html`<aside class="hint">
             <p>Zum Startbildschirm hinzufügen, damit die Lieder gespeichert bleiben: Teilen-Symbol, dann „Zum Home-Bildschirm“.</p>
-            <button @click=${() => { settings.set({ installHintSeen: true }); this.requestUpdate() }}>Verstanden</button>
+            <button @click=${() => {
+              settings.set({ installHintSeen: true })
+              this.requestUpdate()
+            }}>Verstanden</button>
           </aside>`
-        : ''}
+        : ''
+    }
       ${this.screen()}
       ${this.settingsOpen ? html`<gu-settings-sheet @close=${() => (this.settingsOpen = false)}></gu-settings-sheet>` : ''}
       ${this.headphoneDone ? html`<gu-headphone-sheet @done=${this.onHeadphone}></gu-headphone-sheet>` : ''}
@@ -112,13 +128,16 @@ export class GuApp extends LitElement {
   private screen() {
     const [, screen, id] = this.hash.match(/^#\/(\w+)\/?(.*)$/) ?? []
     switch (screen) {
-      case 'start': return html`<gu-start></gu-start>`
-      case 'songs': return html`<gu-songs></gu-songs>`
-      case 'practice': return html`<gu-practice .songId=${id}></gu-practice>`
-      case 'results': return html`<gu-results .songId=${id}></gu-results>`
+      case 'start':
+        return html`<gu-start></gu-start>`
+      case 'songs':
+        return html`<gu-songs></gu-songs>`
+      case 'practice':
+        return html`<gu-practice .songId=${id}></gu-practice>`
+      case 'results':
+        return html`<gu-results .songId=${id}></gu-results>`
     }
   }
 }
 
 customElements.define('gu-app', GuApp)
-

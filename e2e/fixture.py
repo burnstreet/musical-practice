@@ -3,6 +3,7 @@ into <dist>/content with password "e2e", plus a fake microphone recording at 440
 
 usage: python e2e/fixture.py <dist-dir> <work-dir>
 """
+
 import json
 import math
 import shutil
@@ -24,13 +25,41 @@ data.mkdir(parents=True)
 
 
 def sine_mp3(path, secs, freq):
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", f"sine=frequency={freq}:duration={secs}:sample_rate=44100",
-                    "-ac", "1", "-b:a", "64k", str(path)], check=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            f"sine=frequency={freq}:duration={secs}:sample_rate=44100",
+            "-ac",
+            "1",
+            "-b:a",
+            "64k",
+            str(path),
+        ],
+        check=True,
+    )
 
 
 # 18 notes on A4, 1 s apart from 1 s; maria sings the first 12, chor the rest. 3 phrases.
-notes = [{"start": 1.0 + i, "end": 1.9 + i, "midi": 69, "lyric": "la", "role": "maria" if i < 12 else "chor",
-          "phrase": i // 6, "bar": i // 4, "beat": float(i % 4), "dur": 1.0} for i in range(18)]
+notes = [
+    {
+        "start": 1.0 + i,
+        "end": 1.9 + i,
+        "midi": 69,
+        "lyric": "la",
+        "role": "maria" if i < 12 else "chor",
+        "phrase": i // 6,
+        "bar": i // 4,
+        "beat": float(i % 4),
+        "dur": 1.0,
+    }
+    for i in range(18)
+]
 (data / "90.json").write_text(json.dumps({"notes": notes}), encoding="utf-8")
 sine_mp3(data / "90.mp3", 20, 330)
 sine_mp3(data / "90_playback.mp3", 20, 220)

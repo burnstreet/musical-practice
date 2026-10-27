@@ -1,9 +1,17 @@
 import { expect, it } from 'vitest'
-import { Session } from '../src/core/session'
 import type { Note, Song } from '../src/core/content'
+import { Session } from '../src/core/session'
 
 const note = (start: number, role: Note['role']): Note => ({ start, end: start + 1, midi: 67, syllable: 'la', role, phrase: 0, bar: 0, beat: 0, dur: 1 })
-const song: Song = { id: '08', bpm: 90, key: 'F', timeSig: [4, 4], bars: [0], notes: [note(1, 'maria'), note(3, 'josef')], phrases: [{ index: 0, label: 'P1', start: 0, end: 4 }] }
+const song: Song = {
+  id: '08',
+  bpm: 90,
+  key: 'F',
+  timeSig: [4, 4],
+  bars: [0],
+  notes: [note(1, 'maria'), note(3, 'josef')],
+  phrases: [{ index: 0, label: 'P1', start: 0, end: 4 }],
+}
 const f = (t: number) => ({ t, midi: 67, clarity: 0.9, rms: 0.1 })
 
 it('frame ignores frames outside entered notes and frames of other roles', () => {

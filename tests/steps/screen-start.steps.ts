@@ -1,7 +1,7 @@
-import { expect, vi } from 'vitest'
+import { expect } from 'vitest'
+import { type AppContext, setContext } from '../../src/app/context'
+import type { UnlockResult, VaultState } from '../../src/core/vault'
 import { steps } from '../gherkin'
-import { setContext, type AppContext } from '../../src/app/context'
-import type { VaultState, UnlockResult } from '../../src/core/vault'
 import '../../src/app/screens/start'
 
 const manifest = { library: 'lib', keyId: 'k', salt: '', iterations: 1, totalBytes: 95400000, songCount: 1, files: {} }
@@ -21,11 +21,15 @@ function fake(ctx: any) {
     library: {
       fetchManifest: async () => (ctx.size ? manifest : null),
       sizeInfo: () => (ctx.size ? { songCount: 1, totalBytes: ctx.size } : null),
-      sync: async () => { ctx.synced = true },
+      sync: async () => {
+        ctx.synced = true
+      },
       fetchLibraryCipher: async () => new ArrayBuffer(1),
       songs: () => [{ id: 's', title: '[Titel]' }],
     },
-    route: (to: string) => { ctx.routed = to },
+    route: (to: string) => {
+      ctx.routed = to
+    },
   } as unknown as AppContext
   setContext(ctx.c)
   return ctx.c
@@ -48,11 +52,18 @@ async function render(ctx: any) {
 const text = (ctx: any) => ctx.el.shadowRoot.textContent as string
 
 export default steps(({ Given, When, Then }) => {
-  Given(/^a manifest with totalBytes (\d+)$/, (ctx, n) => { fake(ctx); ctx.size = Number(n) })
+  Given(/^a manifest with totalBytes (\d+)$/, (ctx, n) => {
+    fake(ctx)
+    ctx.size = Number(n)
+  })
   When(/^the start screen renders$/, (ctx) => render(ctx))
   Then(/^it shows "([^"]+)"$/, (ctx, s) => expect(text(ctx).replace(/\s+/g, ' ')).toContain(s))
 
-  Given(/^the vault answers (wrong-password|ok)$/, (ctx, a) => { fake(ctx); ctx.size = 1e6; ctx.answer = a })
+  Given(/^the vault answers (wrong-password|ok)$/, (ctx, a) => {
+    fake(ctx)
+    ctx.size = 1e6
+    ctx.answer = a
+  })
   When(/^I submit "([^"]*)"$/, async (ctx, pw) => {
     const el = await render(ctx)
     const input = el.shadowRoot.querySelector('input') as HTMLInputElement
@@ -83,6 +94,9 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.routed).toBe(r)
   })
 
-  Given(/^vault state password-changed$/, (ctx) => { fake(ctx); ctx.state = 'password-changed' })
+  Given(/^vault state password-changed$/, (ctx) => {
+    fake(ctx)
+    ctx.state = 'password-changed'
+  })
   Then(/^"([^"]+)" is visible$/, (ctx, s) => expect(text(ctx)).toContain(s))
 })

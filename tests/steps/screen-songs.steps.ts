@@ -1,12 +1,19 @@
 import { expect } from 'vitest'
-import { steps } from '../gherkin'
-import { setContext, type AppContext } from '../../src/app/context'
+import { type AppContext, setContext } from '../../src/app/context'
 import { settings } from '../../src/app/settings'
 import type { DownloadProgress } from '../../src/core/library'
+import { steps } from '../gherkin'
 import '../../src/app/screens/songs'
 
 const MB = 1_000_000
-const meta = (id: string, roles: string[]) => ({ id, number: Number(id), title: `Lied ${id}`, durationSec: 60, roles, files: { voices: 'v', backing: 'b', notes: 'n' } })
+const meta = (id: string, roles: string[]) => ({
+  id,
+  number: Number(id),
+  title: `Lied ${id}`,
+  durationSec: 60,
+  roles,
+  files: { voices: 'v', backing: 'b', notes: 'n' },
+})
 
 /** Fresh fake context per scenario; also resets DOM and storage. */
 function fake(ctx: any) {
@@ -26,7 +33,9 @@ function fake(ctx: any) {
       songs: () => ctx.songs,
       roles: () => ctx.roles,
       isReady: (id: string) => !ctx.notReady.has(id),
-      onProgress: (fn: (p: DownloadProgress) => void) => { ctx.emit = fn },
+      onProgress: (fn: (p: DownloadProgress) => void) => {
+        ctx.emit = fn
+      },
     },
     history: { badge: async (id: string) => ctx.badges[id] ?? null },
   } as unknown as AppContext
@@ -58,7 +67,10 @@ const button = (ctx: any, name: string) =>
 export default steps(({ Given, When, Then }) => {
   Given(/^roles maria \(sings\) and esel \(not sings\)$/, (ctx) => {
     fake(ctx)
-    ctx.roles = [{ id: 'maria', name: 'Maria', sings: true }, { id: 'esel', name: 'Esel', sings: false }]
+    ctx.roles = [
+      { id: 'maria', name: 'Maria', sings: true },
+      { id: 'esel', name: 'Esel', sings: false },
+    ]
   })
   Given(/^song "(\d+)" with roles \[(.*)\] and song "(\d+)" with roles \[(.*)\]$/, (ctx, a, ra, b, rb) => {
     fake(ctx)
@@ -93,7 +105,9 @@ export default steps(({ Given, When, Then }) => {
     await settle(ctx.el)
   })
 
-  When(/^the screen renders$/, async (ctx) => { await mount(ctx) })
+  When(/^the screen renders$/, async (ctx) => {
+    await mount(ctx)
+  })
   When(/^I select "([^"]+)"$/, async (ctx, name) => {
     await mount(ctx)
     chip(ctx, name)!.click()
@@ -117,15 +131,21 @@ export default steps(({ Given, When, Then }) => {
     expect(row(ctx, b).querySelector('.dot')).toBeNull()
     expect(settings.get().roles).toEqual(['maria'])
   })
-  Then(/^row (\d+) shows "([^"]+)"$/, (ctx, n, t) => { expect(row(ctx, n).textContent).toContain(t) })
+  Then(/^row (\d+) shows "([^"]+)"$/, (ctx, n, t) => {
+    expect(row(ctx, n).textContent).toContain(t)
+  })
   Then(/^row (\d+) shows "([^"]+)" and does not expand on tap$/, async (ctx, n, t) => {
     expect(row(ctx, n).textContent).toContain(t)
     row(ctx, n).click()
     await settle(ctx.el)
     expect(text(ctx)).not.toContain('Üben starten')
   })
-  Then(/^"([^"]+)" is visible$/, (ctx, t) => { expect(text(ctx)).toContain(t) })
-  Then(/^the progress bar is hidden$/, (ctx) => { expect(q(ctx, '.progress')).toBeNull() })
+  Then(/^"([^"]+)" is visible$/, (ctx, t) => {
+    expect(text(ctx)).toContain(t)
+  })
+  Then(/^the progress bar is hidden$/, (ctx) => {
+    expect(q(ctx, '.progress')).toBeNull()
+  })
   Then(/^settings\.mode is "(\w+)" and the route is "([^"]+)"$/, (ctx, mode, route) => {
     expect(settings.get().mode).toBe(mode)
     expect(ctx.routed).toEqual([route])

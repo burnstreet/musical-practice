@@ -9,14 +9,7 @@ describe('gherkin runner', () => {
     const features = parseSpec('tests/fixtures/sample.spec.md', 'tests/fixtures/sample.steps.ts')
     expect(features.map((f) => f.name)).toEqual(['Adding', 'Second block'])
     expect(features[0].scenarios.map((s) => s.name)).toEqual(['captures and any keyword', 'fresh context'])
-    expect(features[0].scenarios[0].steps).toEqual([
-      'the number "2"',
-      'the number "3"',
-      'I add them',
-      'the sum is "5"',
-      'I add "4" more',
-      'the sum is "9"',
-    ])
+    expect(features[0].scenarios[0].steps).toEqual(['the number "2"', 'the number "3"', 'I add them', 'the sum is "5"', 'I add "4" more', 'the sum is "9"'])
   })
 
   it('throws on an unmatched step', async () => {

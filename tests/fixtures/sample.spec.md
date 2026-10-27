@@ -43,7 +43,7 @@ Feature: Inherited
     Given a step nobody defines
 ```
 
-  `[@test] ./sample.steps.ts`
+`[@test] ./sample.steps.ts`
 
 ```gherkin
 Feature: Second block
