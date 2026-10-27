@@ -5,6 +5,7 @@ import { settings } from './settings'
 import './settings-sheet'
 import './headphone-sheet'
 import './screens/results'
+import './screens/start'
 
 /** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song. */
 function guard(ctx: AppContext, hash: string): Route {
