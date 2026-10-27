@@ -106,6 +106,8 @@ function world(ctx: any) {
       time: () => ctx.time,
       playing: () => ctx.playing,
       latency: () => ctx.latency ?? 0,
+      ctxTime: () => 0,
+      click: () => () => {},
       on: on(ctx.engineL),
     },
     pitch: {
@@ -124,6 +126,7 @@ function world(ctx: any) {
       inputLatency: () => 0,
       setDevice: async () => 'ok' as const,
       devices: async () => [],
+      clocks: () => [() => 0, () => 0],
       active: () => false,
     },
     sw: {} as any,

@@ -17,6 +17,7 @@ export type StartResult = 'ok' | 'denied' | 'unsupported'
 export interface PitchEngine {
   start(songTime: () => number, playbackLatency?: () => number, deviceId?: string): Promise<StartResult>   // requests mic; latency in s, default 0; deviceId '' = auto
   setDevice(deviceId: string): Promise<StartResult>       // restarts with the same clocks when running
+  clocks(): [songTime: () => number, playbackLatency: () => number]  // of the last start, to restore after calibration
   devices(): Promise<{ deviceId: string; label: string }[]> // audio inputs, labels only after permission
   stop(): void
   setOffsetMs(ms: number): void                           // user setting, -300..300
@@ -71,6 +72,7 @@ Feature: Time stamps
     When a frame arrives
     Then its at is 9.989 and its t is 9.629
     And inputLatency() is 0.010
+    And clocks() gives back song time 10.000 and playback latency 0.300
 
   Scenario: no playback latency given
     Given songTime returns 10.000, mic baseLatency 0.010, mic outputLatency 0.030 and offset 0 ms
