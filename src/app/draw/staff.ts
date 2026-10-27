@@ -91,6 +91,34 @@ export function noteValue(dur: number): { base: number; dot: boolean } {
   return VALUES.reduce((a, v) => (off(v) < off(a) ? v : a))
 }
 
+/** Rest values, longest first; a value only starts on a multiple of itself from the bar start. No dotted rests. */
+const REST_VALUES = [2, 1, 0.5, 0.25]
+const snap = (beat: number) => Math.round(beat * 4) / 4
+/**
+ * Rests of one bar (beats in quarters from the bar start) for the spans no note covers. `len` of a note = its written
+ * value. Gap ends snap to the sixteenth grid, so gaps under 1/8 beat vanish. An empty bar gets one whole-bar rest.
+ */
+export function restsIn(notes: { beat: number; len: number }[], barQ: number): { beat: number; len: number }[] {
+  if (!notes.length) return [{ beat: 0, len: barQ }]
+  const rests: { beat: number; len: number }[] = []
+  let covered = 0
+  const fill = (from: number, to: number) => {
+    let p = snap(from)
+    const end = Math.min(snap(to), barQ)
+    while (p < end) {
+      const v = REST_VALUES.find((v) => p + v <= end && Math.abs(p / v - Math.round(p / v)) < 1e-9)!
+      rests.push({ beat: p, len: v })
+      p += v
+    }
+  }
+  for (const n of [...notes].sort((a, b) => a.beat - b.beat)) {
+    if (n.beat > covered) fill(covered, n.beat)
+    covered = Math.max(covered, n.beat + n.len)
+  }
+  fill(covered, barQ)
+  return rests
+}
+
 /** Engraver-style spacing: room grows with duration ^ 0.6, not linearly. */
 const SPACING = 0.6
 /**
@@ -238,6 +266,17 @@ export function fit(ctx: CanvasRenderingContext2D): { w: number; h: number } {
 }
 
 /** Artboard heights: one lyric row, or two when the page staggers its syllables (the canvas gets class `tall`). */
+/**
+ * Rest glyphs by length in quarters (4 = whole-bar rest) and where their ink sits: whole hangs from the fourth line,
+ * half sits on the middle line, the others centre on a staff step. Placed by measured ink, as system music fonts differ.
+ */
+const RESTS: Record<number, { glyph: string; anchor: 'top' | 'bottom' | 'centre'; step: number }> = {
+  4: { glyph: '\u{1D13B}', anchor: 'top', step: 6 },
+  2: { glyph: '\u{1D13C}', anchor: 'bottom', step: 4 },
+  1: { glyph: '\u{1D13D}', anchor: 'centre', step: 4 },
+  0.5: { glyph: '\u{1D13E}', anchor: 'centre', step: 4 },
+  0.25: { glyph: '\u{1D13F}', anchor: 'centre', step: 3 },
+}
 const BASE = 112
 const TALL = 126
 
@@ -255,32 +294,57 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const first = page * per
   const bars = Array.from({ length: per }, (_, i) => first + i)
   const notes = visibleNotes(song.notes, roles).filter((n) => n.bar >= first && n.bar < first + per)
+  const written = (n: Note) => noteValue(n.dur).base * (noteValue(n.dur).dot ? 1.5 : 1)
+  // Onsets of the page, sorted: notes sharing a beat, and rests (no syllable) in the gaps of each bar
   const keys = [...new Set(notes.map((n) => `${n.bar}:${n.beat}`))]
-  const at = (n: Note) => keys.indexOf(`${n.bar}:${n.beat}`)
-  const onsetNotes = keys.map((k) => notes.filter((n) => `${n.bar}:${n.beat}` === k))
-  /** The note whose syllable an onset shows: mine first. */
-  const lyric = onsetNotes.map((here) => here.find(mine) ?? here[0])
+  const onsets: { bar: number; beat: number; here: Note[]; rest?: { len: number; voice: Note | undefined } }[] = [
+    ...keys.map((k) => {
+      const here = notes.filter((n) => `${n.bar}:${n.beat}` === k)
+      return { bar: here[0].bar, beat: here[0].beat, here }
+    }),
+    ...bars.flatMap((bar) => {
+      const inBar = notes.filter((n) => n.bar === bar)
+      return restsIn(
+        inBar.map((n) => ({ beat: n.beat, len: written(n) })),
+        barQ,
+      ).map((r) => {
+        // the rest belongs to the voice that just stopped (mine first), else to the one about to start
+        const before = inBar.filter((n) => n.beat + written(n) <= r.beat + 1e-9)
+        const end = Math.max(...before.map((n) => n.beat + written(n)))
+        const ended = before.filter((n) => n.beat + written(n) === end)
+        const voice = ended.find(mine) ?? ended[0] ?? inBar.find(mine) ?? inBar[0]
+        return { bar, beat: r.beat, here: [], rest: { len: r.len, voice } }
+      })
+    }),
+  ].sort((a, b) => a.bar - b.bar || a.beat - b.beat)
+  const index = new Map(onsets.map((o, k) => [`${o.bar}:${o.beat}`, k]))
+  const at = (n: Note) => index.get(`${n.bar}:${n.beat}`)!
+  /** The note whose syllable an onset shows: mine first; none for a rest. */
+  const lyric = onsets.map(({ here }) => here.find(mine) ?? here[0])
   const layout = (s: number) => {
     ctx.font = `700 ${12 * s}px ${FONT}` // measured bold: the current note's syllable is drawn bold
     const startX = 46 * s + Math.abs(fifths) * 8 * s
-    const onsets = onsetNotes.map((here, k) => ({
-      bar: here[0].bar,
-      beat: here[0].beat,
-      label: lyric[k].syllable ? ctx.measureText(lyric[k].syllable).width : 0,
-      acc: here.some((n) => staffPos(n.midi, fifths).acc !== ''),
-    }))
-    const page = layoutPage(bars, onsets, {
-      barQ,
-      width: w - 4 - startX,
-      leftRoom: startX - 4,
-      head: 16 * s,
-      acc: 12 * s,
-      pad: 18 * s,
-      tail: 10 * s,
-      sep: 4 * s,
-      empty: 40 * s,
-      minScale: 10 / 12,
-    })
+    const page = layoutPage(
+      bars,
+      onsets.map(({ bar, beat, here }, k) => ({
+        bar,
+        beat,
+        label: lyric[k]?.syllable ? ctx.measureText(lyric[k].syllable).width : 0,
+        acc: here.some((n) => staffPos(n.midi, fifths).acc !== ''),
+      })),
+      {
+        barQ,
+        width: w - 4 - startX,
+        leftRoom: startX - 4,
+        head: 20 * s, // a flag reaches 11 px right of its head, a rest or head 6 px left of its x
+        acc: 12 * s,
+        pad: 18 * s,
+        tail: 10 * s,
+        sep: 4 * s,
+        empty: 40 * s,
+        minScale: 10 / 12,
+      },
+    )
     return { s, startX, ...page }
   }
   let L = layout(h / (canvas.classList.contains('tall') ? TALL : BASE))
@@ -418,9 +482,29 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     }
   }
 
+  // Rests, faint in the colour of their voice; a whole-bar rest hangs from the fourth line, centred in the bar
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.font = `${32 * s}px ${MUSIC}`
+  const ink = (m: TextMetrics) => m.actualBoundingBoxAscent + m.actualBoundingBoxDescent
+  ctx.font = `${(32 * s * 2.8 * gap) / (ink(ctx.measureText(RESTS[1].glyph)) || 2.8 * gap)}px ${MUSIC}` // quarter rest ink = 2.8 spaces
+  ctx.globalAlpha = 0.6
+  onsets.forEach(({ bar, rest }, k) => {
+    if (!rest) return
+    const i = bar - first
+    const whole = rest.len >= barQ || rest.len >= 4
+    const { glyph, anchor, step } = RESTS[whole ? 4 : rest.len]
+    const m = ctx.measureText(glyph)
+    const [a, d] = [m.actualBoundingBoxAscent, m.actualBoundingBoxDescent]
+    const base = anchor === 'top' ? y(step) + a : anchor === 'bottom' ? y(step) - d : y(step) + (a - d) / 2
+    ctx.fillStyle = rest.voice ? colour(rest.voice) : COLORS.muted
+    ctx.fillText(glyph, whole ? startX + L.barX[i] + L.barW[i] / 2 : startX + L.xs[k], base)
+  })
+  ctx.globalAlpha = 1
+
   // Syllables: one per onset, all of them; staggered pages put every other one on a second row
   lyric.forEach((n, k) => {
-    if (!n.syllable) return
+    if (!n?.syllable) return
     ctx.font = `${n === current && mine(n) ? 700 : 400} ${12 * s * L.scale}px ${FONT}`
     ctx.fillStyle = colour(n)
     ctx.fillText(n.syllable, startX + L.xs[k], (L.stagger && k % 2 ? 114 : 100) * s)
