@@ -17,6 +17,10 @@ export interface AudioEngine {
   loop(): Phrase | null
   time(): number
   playing(): boolean
+  /** Playback context clock in seconds; creates the context when no song was loaded yet. */
+  ctxTime(): number
+  /** Calibration click (1 kHz, 20 ms) at context time `at` on the real output path; returns a stop for it. */
+  click(at: number): () => void
   /** Seconds from song time to the speaker (context base + output latency), 0 when unknown. */
   latency(): number
   on(ev: 'tick', fn: (t: number) => void): void
@@ -44,6 +48,7 @@ const browser: AudioEngineDeps = {
 const RAMP = 0.03
 const LEAD = 0.15 // fade out starts this long before a span
 const DRIFT = 0.025
+const CLICK = 0.02
 
 export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine {
   let ac: AudioContext | undefined
@@ -180,6 +185,26 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     time: () => voices.currentTime,
     playing: () => isPlaying,
     latency: () => (ac?.baseLatency ?? 0) + (ac?.outputLatency ?? 0),
+    ctxTime() {
+      ac ??= deps.createContext()
+      return ac.currentTime
+    },
+    click(at) {
+      ac ??= deps.createContext()
+      void ac.resume()
+      const osc = ac.createOscillator()
+      const env = ac.createGain()
+      osc.frequency.value = 1000
+      env.gain.setValueAtTime(0, at)
+      env.gain.linearRampToValueAtTime(0.8, at + 0.002)
+      env.gain.setValueAtTime(0.8, at + CLICK - 0.002)
+      env.gain.linearRampToValueAtTime(0, at + CLICK)
+      osc.connect(env)
+      env.connect(ac.destination)
+      osc.start(at)
+      osc.stop(at + CLICK)
+      return () => osc.stop(ac!.currentTime)
+    },
     on(ev: string, fn: (x?: any) => void) {
       if (!listeners[ev]) listeners[ev] = []
       listeners[ev].push(fn)
