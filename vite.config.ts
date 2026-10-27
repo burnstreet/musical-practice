@@ -15,8 +15,8 @@ export default defineConfig({
         globIgnores: ['content/**'], // library stores content in IndexedDB
       },
       manifest: {
-        name: 'Gesangs-Übetool',
-        short_name: 'Üben',
+        name: 'LKG Musical 2026',
+        short_name: 'LKG Musical 2026',
         lang: 'de',
         display: 'standalone',
         start_url: './',
