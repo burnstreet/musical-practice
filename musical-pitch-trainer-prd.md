@@ -1,5 +1,7 @@
 # Musical Pitch Trainer
 
+> Superseded on 2026-10-27 by `specs/overview.spec.md` and the module specs in `specs/`. Kept as history.
+
 ## Problem Statement
 A cast member practicing musical songs has no way to tell whether they hit the notes. Existing tools (e.g. OnKey) are Mac-only and tied to streaming services. The practice material is private: audio tracks with and without guide vocals, plus lyrics as PDF/Word. It needs to work on phone and desktop.
 
