@@ -5,7 +5,7 @@ import { settings } from '../../src/app/settings'
 import type { DownloadProgress } from '../../src/core/library'
 import '../../src/app/screens/songs'
 
-const MB = 1024 * 1024
+const MB = 1_000_000
 const meta = (id: string, roles: string[]) => ({ id, number: Number(id), title: `Lied ${id}`, durationSec: 60, roles, files: { voices: 'v', backing: 'b', notes: 'n' } })
 
 /** Fresh fake context per scenario; also resets DOM and storage. */

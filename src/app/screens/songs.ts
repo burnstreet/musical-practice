@@ -4,7 +4,7 @@ import type { Mode } from '../../core/audio-engine'
 import type { RoleId } from '../../core/content'
 import type { DownloadProgress } from '../../core/library'
 
-const MB = 1024 * 1024
+const MB = 1_000_000
 const MODES: [Mode, string, string][] = [
   ['all', 'Mit Voicetrack', 'Alle Stimmen sind zu hören.'],
   ['others', 'Voicetrack nur für andere', 'Meine Rolle ist stumm, die anderen Stimmen sind zu hören.'],

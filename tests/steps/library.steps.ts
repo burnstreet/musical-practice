@@ -6,15 +6,12 @@ import { createLibrary } from '../../src/core/library'
 import { openDb } from '../../src/core/db'
 import type { Vault, VaultState } from '../../src/core/vault'
 import type { Manifest } from '../../src/core/content'
+import { encryptWith } from '../fakes/crypto'
 
 const KEY = crypto.subtle.importKey('raw', new Uint8Array(32).fill(3), 'AES-GCM', false, ['encrypt', 'decrypt'])
 const enc = (t: string | Uint8Array) => (typeof t === 'string' ? new TextEncoder().encode(t) : t)
 
-async function encrypt(plain: Uint8Array): Promise<ArrayBuffer> {
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await KEY, plain as BufferSource))
-  return new Uint8Array([...iv, ...ct]).buffer
-}
+const encrypt = async (plain: Uint8Array) => encryptWith(await KEY, plain)
 
 const fakeVault = (st: VaultState): Vault => {
   const hooks: (() => Promise<void>)[] = []

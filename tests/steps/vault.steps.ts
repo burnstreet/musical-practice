@@ -2,6 +2,7 @@ import { expect } from 'vitest'
 import { steps } from '../gherkin'
 import { createVault, type VaultRecord, type VaultStore } from '../../src/core/vault'
 import type { Manifest } from '../../src/core/content'
+import { encryptWith } from '../fakes/crypto'
 
 // fake-indexeddb cannot clone a CryptoKey, so steps inject an in-memory store.
 const memStore = (): VaultStore => {
@@ -16,9 +17,7 @@ const manifest = (keyId = '0123456789abcdef'): Manifest => ({ format: 1, build: 
 async function encrypt(password: string, text: string): Promise<ArrayBuffer> {
   const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
   const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: SALT, iterations: 1000 }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt'])
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)))
-  return new Uint8Array([...iv, ...ct]).buffer
+  return encryptWith(key, new TextEncoder().encode(text))
 }
 
 export default steps(({ Given, When, Then }) => {
