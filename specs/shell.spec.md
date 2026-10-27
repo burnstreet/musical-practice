@@ -30,6 +30,7 @@ export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset
 
 - Start route shown when vault state is `locked` or `password-changed`. Any other route redirects there.
 - Unlocked app start: songs. Practice and results routes need a ready song, else redirect to songs.
+- Results route: only with `features.results` (`src/app/features.ts`, off for now) and the live session of that song; otherwise practice of that song.
   `[@test] ../tests/steps/shell.steps.ts`
 
 ```gherkin
