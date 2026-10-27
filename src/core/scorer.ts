@@ -38,10 +38,10 @@ export function foldCents(sungMidi: number, targetMidi: number): number {
 }
 
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-/** English note name with sharps, C4 = 60. Rounds fractional midi. */
+/** English note name with sharps, without octave (octaves are folded everywhere). Rounds fractional midi. */
 export function noteName(midi: number): string {
   const m = Math.round(midi)
-  return NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
+  return NAMES[((m % 12) + 12) % 12]
 }
 
 export interface LiveDeviation {
