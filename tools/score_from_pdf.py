@@ -12,11 +12,11 @@ notehead.
 
 Usage: python tools/score_from_pdf.py <pdf> <out.json> [--key-flats N | --key-sharps N]
 """
+
 import argparse
 import json
 from pathlib import Path
 
-import numpy as np
 import pymupdf
 
 NOTEHEADS = {"œ": 1.0, "˙": 2.0, "w": 4.0}
@@ -44,8 +44,7 @@ def load_page(pdf):
                 if s["font"] == "Maestro":
                     for c in s["chars"]:
                         if c["c"] != " ":
-                            glyphs.append({"ch": c["c"], "x": c["origin"][0], "y": c["origin"][1],
-                                           "x0": c["bbox"][0], "x1": c["bbox"][2]})
+                            glyphs.append({"ch": c["c"], "x": c["origin"][0], "y": c["origin"][1], "x0": c["bbox"][0], "x1": c["bbox"][2]})
                 elif "Bold" not in s["font"] and s["size"] < 11:
                     # lyric syllables: one span per word; split hyphenated syllables by char x
                     word, wx0 = "", None
@@ -124,8 +123,13 @@ def parse(pdf, flats=0, sharps=0):
         sg = [g for g in glyphs if y_lo < g["y"] < y_hi]
         heads = [g for g in sg if g["ch"] in NOTEHEADS]
         # barlines span the staff exactly (stems don't) and have no notehead beside them
-        spans = [v for v in vlines if abs(v["y0"] - top) < 1.5 and abs(v["y1"] - lines[-1]) < 1.5
-                 and not any(h["x0"] - 1.5 < v["x"] < h["x1"] + 1.5 for h in heads)]
+        spans = [
+            v
+            for v in vlines
+            if abs(v["y0"] - top) < 1.5
+            and abs(v["y1"] - lines[-1]) < 1.5
+            and not any(h["x0"] - 1.5 < v["x"] < h["x1"] + 1.5 for h in heads)
+        ]
         bars = sorted(v["x"] for v in spans)
         thick = sorted(v["x"] for v in spans if v["w"] > 1.2)
         rests = [g for g in sg if g["ch"] in RESTS]
@@ -146,8 +150,7 @@ def parse(pdf, flats=0, sharps=0):
             x0, x1 = min(g["x0"] for g in ch) - 1.5, max(g["x1"] for g in ch) + 1.5
             dur = NOTEHEADS[topg["ch"]]
             if dur == 1.0:
-                nb = sum(1 for b in beams if b["x0"] - 0.5 <= x1 and b["x1"] + 0.5 >= x0
-                         and y_lo < (b["y0"] + b["y1"]) / 2 < y_hi)
+                nb = sum(1 for b in beams if b["x0"] - 0.5 <= x1 and b["x1"] + 0.5 >= x0 and y_lo < (b["y0"] + b["y1"]) / 2 < y_hi)
                 nf = max([FLAGS[f["ch"]] for f in flags if 0 <= f["x"] - topg["x"] < 12], default=0)
                 dur = 1.0 / 2 ** max(nb, nf)
             pitches = [step_to_midi(int(round((g["y"] - top) / half)), flats, sharps) for g in ch]
@@ -171,8 +174,12 @@ def parse(pdf, flats=0, sharps=0):
         merged = []
         for e in ev:
             prev = merged[-1] if merged else None
-            tied = (prev and prev["midi"] is not None and prev["midi"] == e["midi"]
-                    and any(t["x0"] <= prev["x1"] + 1 and t["x1"] >= e["x0"] - 1 for t in st_ties))
+            tied = (
+                prev
+                and prev["midi"] is not None
+                and prev["midi"] == e["midi"]
+                and any(t["x0"] <= prev["x1"] + 1 and t["x1"] >= e["x0"] - 1 for t in st_ties)
+            )
             if tied:
                 prev["dur"] += e["dur"]
                 prev["tied"] = True
@@ -222,10 +229,20 @@ def main():
         fl = args.key_flats > 0
         items = " ".join(("r" if e["midi"] is None else midi_name(e["midi"], fl)) + f"/{e['dur']:g}" for e in seq if e["bar"] == b)
         print(f"bar {b:2d}: {s:g} beats  {items}{flag}")
-    out = [{"bar": e["bar"], "beat": e["beat"], "dur": e["dur"], "midi": e["midi"],
+    out = [
+        {
+            "bar": e["bar"],
+            "beat": e["beat"],
+            "dur": e["dur"],
+            "midi": e["midi"],
             "name": midi_name(e["midi"], args.key_flats > 0) if e["midi"] is not None else None,
-            "chord": e.get("chord"), "lyric": e.get("lyric"), "staff": e["staff"], "after_thick": e["after_thick"]}
-           for e in seq]
+            "chord": e.get("chord"),
+            "lyric": e.get("lyric"),
+            "staff": e["staff"],
+            "after_thick": e["after_thick"],
+        }
+        for e in seq
+    ]
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps({"beats_per_bar": 4, "notes": out}, ensure_ascii=False, indent=1), encoding="utf-8")
 

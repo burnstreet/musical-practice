@@ -1,0 +1,158 @@
+export type { PitchFrame } from './types'
+
+export const ROLE_IDS = [
+  'erzaehler1',
+  'erzaehler2',
+  'anna',
+  'mutter',
+  'engel',
+  'benjamin',
+  'roemer',
+  'hirte',
+  'josef',
+  'wirt',
+  'weihnachtsmann',
+  'maria',
+  'esel',
+  'kuh',
+  'schaf',
+  'chor',
+] as const
+export type RoleId = (typeof ROLE_IDS)[number]
+
+export interface Manifest {
+  format: 1
+  build: string
+  keyId: string
+  salt: string
+  iterations: number
+  library: string
+  songCount: number
+  totalBytes: number
+  files: Record<string, number>
+}
+export interface Role {
+  id: RoleId
+  name: string
+  sings: boolean
+}
+export interface SongMeta {
+  id: string
+  number: number
+  title: string
+  durationSec: number
+  roles: RoleId[]
+  files: { voices: string; backing: string; notes: string }
+}
+export interface Library {
+  roles: Role[]
+  songs: SongMeta[]
+}
+export interface Note {
+  start: number
+  end: number
+  midi: number
+  syllable: string
+  role: RoleId
+  phrase: number
+  bar: number
+  beat: number
+  dur: number
+}
+export interface Phrase {
+  index: number
+  label: string
+  start: number
+  end: number
+}
+export interface Song {
+  id: string
+  bpm: number
+  key: string
+  timeSig: [number, number]
+  bars: number[]
+  notes: Note[]
+  phrases: Phrase[]
+}
+export interface Span {
+  start: number
+  end: number
+}
+
+export class ContentError extends Error {
+  constructor(
+    public field: string,
+    message = `invalid ${field}`,
+  ) {
+    super(message)
+  }
+}
+
+const ID = /^[0-9a-f]{16}$/
+const isObj = (v: unknown): v is Record<string, any> => typeof v === 'object' && v !== null && !Array.isArray(v)
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+const isStr = (v: unknown): v is string => typeof v === 'string'
+function need(ok: boolean, field: string): void {
+  if (!ok) throw new ContentError(field)
+}
+
+export function parseManifest(json: unknown): Manifest {
+  need(isObj(json), 'manifest')
+  const m = json as Record<string, any>
+  need(m.format === 1, 'format')
+  need(isStr(m.build), 'build')
+  need(isStr(m.keyId) && ID.test(m.keyId), 'keyId')
+  need(isStr(m.salt) && /^[A-Za-z0-9+/]{22}==$/.test(m.salt), 'salt') // 16 bytes = 22 chars + ==
+  need(isNum(m.iterations), 'iterations')
+  need(isStr(m.library) && ID.test(m.library), 'library')
+  need(isNum(m.songCount), 'songCount')
+  need(isNum(m.totalBytes), 'totalBytes')
+  need(isObj(m.files) && Object.entries(m.files).every(([id, n]) => ID.test(id) && isNum(n)), 'files')
+  return m as Manifest
+}
+
+export function parseLibrary(input: unknown): Library {
+  const json = input as Record<string, any>
+  need(isObj(input) && Array.isArray(json.roles) && Array.isArray(json.songs), 'library')
+  const known = new Set<string>(ROLE_IDS)
+  for (const r of json.roles) need(isObj(r) && known.has(r.id) && isStr(r.name) && typeof r.sings === 'boolean', 'roles')
+  const inLibrary = new Set<string>(json.roles.map((r: Role) => r.id))
+  for (const s of json.songs) {
+    need(isObj(s) && isStr(s.id) && isNum(s.number) && isStr(s.title) && isNum(s.durationSec), 'songs')
+    need(Array.isArray(s.roles) && s.roles.every((r: unknown) => isStr(r) && inLibrary.has(r)), 'roles')
+    need(isObj(s.files) && ['voices', 'backing', 'notes'].every((k) => isStr(s.files[k]) && ID.test(s.files[k])), 'files')
+  }
+  return { roles: json.roles, songs: [...json.songs].sort((a, b) => a.number - b.number) }
+}
+
+export function parseSong(input: unknown): Song {
+  const json = input as Record<string, any>
+  need(isObj(input) && isStr(json.id) && isNum(json.bpm) && isStr(json.key), 'song')
+  need(Array.isArray(json.timeSig) && json.timeSig.length === 2 && json.timeSig.every(isNum), 'timeSig')
+  need(Array.isArray(json.bars) && json.bars.every(isNum), 'bars')
+  need(Array.isArray(json.notes) && Array.isArray(json.phrases), 'song')
+  const used = new Set<number>()
+  json.notes.forEach((n: any, i: number) => {
+    need(isObj(n) && isNum(n.start) && isNum(n.end) && n.end > n.start, 'notes')
+    need(Number.isInteger(n.midi) && n.midi >= 36 && n.midi <= 96, 'notes')
+    need(isStr(n.role) && isStr(n.syllable) && isNum(n.bar) && isNum(n.beat) && isNum(n.dur), 'notes')
+    need(i === 0 || n.start >= json.notes[i - 1].start, 'notes')
+    need(Number.isInteger(n.phrase) && n.phrase >= 0 && n.phrase < json.phrases.length, 'phrase')
+    used.add(n.phrase)
+  })
+  json.phrases.forEach((p: any, i: number) => {
+    need(isObj(p) && isStr(p.label) && isNum(p.start) && isNum(p.end), 'phrases')
+    need(used.has(i), 'phrase')
+  })
+  return json as Song
+}
+
+export function roleSpans(notes: Note[], roles: RoleId[]): Span[] {
+  const spans: Span[] = []
+  for (const n of notes.filter((n) => roles.includes(n.role)).sort((a, b) => a.start - b.start)) {
+    const last = spans.at(-1)
+    if (last && n.start - last.end < 0.5) last.end = Math.max(last.end, n.end)
+    else spans.push({ start: n.start, end: n.end })
+  }
+  return spans
+}

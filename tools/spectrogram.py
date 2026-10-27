@@ -8,6 +8,7 @@ over its piano-roll rows.
 Usage: python tools/spectrogram.py <vocals.wav|mp3> <out.png> [--json web/data/08.json ...]
          [--lo 40 --hi 90 --sub 3 --hop 0.01 --range-db 55]
 """
+
 import argparse
 import json
 from pathlib import Path
@@ -49,7 +50,7 @@ def main():
     db = db - np.median(db, axis=1, keepdims=True)
     peak = np.percentile(db, 99.5)
     v = np.clip((db - (peak - args.range_db)) / args.range_db, 0, 1)
-    alpha = (v ** 1.5 * 230).astype(np.uint8)
+    alpha = (v**1.5 * 230).astype(np.uint8)
     rgba = np.zeros((rows, S.shape[1], 4), dtype=np.uint8)
     rgba[..., 0], rgba[..., 1], rgba[..., 2] = 20, 40, 90
     rgba[..., 3] = alpha

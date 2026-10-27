@@ -185,17 +185,25 @@ die genannten Song-JSONs ein.
 
 ## 7. Veröffentlichen auf der Seite
 
-1. Ausgerichtete JSON nach `web/data/` kopieren (z. B. `08.json`) und die
-   Felder `audio`, `stems`, `spec`, `sheet` (Name der MusicXML in `web/data/`)
-   beibehalten bzw. setzen.
-2. MusicXML für das Notenbild: `score_to_musicxml.py ... web\data\08.musicxml`.
-3. Eintrag in `web/data/index.json`: `{"id": "08", "title": "...", "file": "08.json"}`.
-4. Server starten: `tools\.venv\Scripts\python.exe tools\serve.py` → http://localhost:8765/
-   (`?s=08&t=30` öffnet ein Lied an einer Stelle).
+Ablauf: phrases → pack → `content/` committen → pushen.
 
-Der Server kann Range-Requests (Spulen) und speichert Notenänderungen aus dem
-Editiermodus der Seite nach `web/data/<id>.json`, mit Zeitstempel-Kopie in
-`work/edits/`.
+1. Phrasen vergeben (schreibt `web/data/NN.json` neu):
+   `tools\.venv\Scripts\python.exe tools\phrases.py NN`
+2. Verschlüsselt packen (Passwort nur in der Umgebung, nie committen):
+   `$env:PITCH_PASSWORD="..."; tools\.venv\Scripts\python.exe tools\pack.py`
+   Optionen: `--strict` (unvollständige Lieder brechen ab), `--out content`,
+   `--new-salt` (neuer Salt, alle Nutzer müssen neu entsperren). Unvollständige
+   Lieder landen in `content/report.txt` und werden nicht gepackt.
+3. `content/` committen. Nur verschlüsselt: `sources/`, `scores/` und
+   `web/data/*.json` sind gitignored. `content/salt` ist öffentlich (steht auch
+   im Manifest) und darf committet werden.
+4. Auf `main` pushen. Der Workflow `.github/workflows/pages.yml` baut mit
+   Node 22, kopiert `content/` nach `dist/content/` und veröffentlicht `dist/`
+   auf GitHub Pages (Einstellungen → Pages → Quelle: GitHub Actions).
+
+Lokal ansehen: `tools\.venv\Scripts\python.exe tools\serve.py` → http://localhost:8765/
+(Range-Requests, speichert Notenänderungen aus dem Editiermodus nach
+`web/data/<id>.json`, mit Zeitstempel-Kopie in `work/edits/`).
 
 ## Komplettlauf für ein neues Lied mit Noten-PDF
 

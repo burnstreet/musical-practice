@@ -6,7 +6,13 @@ web/data/*.mp3
 web/data/*.json
 web/data/*.png
 web/data/*.musicxml
-!web/data/index.json
 work/
 tools/.venv/
 __pycache__/
+node_modules/
+dist/
+tools/tests/.features/
+.pytest_cache/
+e2e/.tmp/
+test-results/
+.ruff_cache/

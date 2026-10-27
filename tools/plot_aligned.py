@@ -2,6 +2,7 @@
 
 Usage: python tools/plot_aligned.py <aligned.json> <out.png> <t0> <t1> [<t0b> <t1b>]
 """
+
 import json
 import sys
 
@@ -34,7 +35,7 @@ for ax, (t0, t1) in zip(axes[:, 0], ranges):
     ticks = [m for m in range(lo, hi + 1) if m % 12 in (0, 5, 7)]
     ax.set_yticks(ticks)
     ax.set_yticklabels([f"{NAMES[m % 12]}{m // 12 - 1}" for m in ticks])
-    ax.grid(alpha=.3)
+    ax.grid(alpha=0.3)
 fig.suptitle(f"{d['title']}: score notes (blue; red = pitch snapped to the sung pitch) over sung pitch (orange)")
 fig.tight_layout()
 fig.savefig(out, dpi=60)

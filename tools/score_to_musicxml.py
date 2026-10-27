@@ -3,6 +3,7 @@ for editing in MuseScore.
 
 Usage: python tools/score_to_musicxml.py <score.json> <out.musicxml> [--key Dm] [--title T] [--bpm 100]
 """
+
 import argparse
 import json
 from pathlib import Path
