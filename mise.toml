@@ -1,5 +1,5 @@
 [tools]
-node = "22"
+node = "26"
 python = "3.12"
 # conda backend; works on Windows (ffmpeg + ffprobe for tools/pack.py and the tests)
 ffmpeg = "7"

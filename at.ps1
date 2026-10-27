@@ -45,7 +45,7 @@ function Doctor {
   Check 'mise' { (Get-Command mise -ErrorAction SilentlyContinue) ? (& mise --version) : (throw 'MISSING scoop install mise (https://mise.jdx.dev)') }
   Check 'node' {
     $v = (& node -v) -replace '^v'
-    if ($v -notmatch '^22\.') { throw "WRONG VERSION $v, want 22.x (./at.ps1 setup)" }
+    if ($v -notmatch '^26\.') { throw "WRONG VERSION $v, want 26.x (./at.ps1 setup)" }
     $v
   }
   Check 'venv' {

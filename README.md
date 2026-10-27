@@ -10,8 +10,8 @@
 
 `./at.ps1 <command>` (PowerShell, any cwd; `./at.ps1 help` lists all):
 
-- `setup`: idempotent. Installs [mise](https://mise.jdx.dev) via `scoop` if missing, then the tools pinned in `mise.toml` (node 22, python 3.12, ffmpeg), `tools/.venv`, dev requirements, `npm ci`, Playwright chromium, and runs `doctor`. Without mise/scoop it uses node/python from PATH.
-- `doctor`: one line per prerequisite (mise, node 22, venv python 3.12, pinned requirements, node_modules, ffmpeg, Playwright chromium); exit 1 if any is missing or has the wrong version
+- `setup`: idempotent. Installs [mise](https://mise.jdx.dev) via `scoop` if missing, then the tools pinned in `mise.toml` (node 26, python 3.12, ffmpeg), `tools/.venv`, dev requirements, `npm ci`, Playwright chromium, and runs `doctor`. Without mise/scoop it uses node/python from PATH.
+- `doctor`: one line per prerequisite (mise, node 26, venv python 3.12, pinned requirements, node_modules, ffmpeg, Playwright chromium); exit 1 if any is missing or has the wrong version
 
 All commands put the mise tools on PATH when mise is installed, so the pinned versions are used.
 - `dev` / `build` / `preview`: Vite dev server, build to `dist/`, serve the build
