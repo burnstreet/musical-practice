@@ -116,10 +116,10 @@ Measures the delay from a sound in the headphones to its pitch frame, instead of
 | calResult | `Gemessen: {n} ms (±{s} ms)` |
 | calFailed | `Nicht eindeutig – bitte nochmal.` |
 
-- Runner: pauses playback, starts the pitch engine with `songTime` = playback AudioContext time (`engine.ctxTime()`), so frame `at` is on the click clock. After a 1 s count-in, 8 clicks (1 kHz, 20 ms) every 1 s via `engine.click(at)` on the playback context (real output path). Collects frames until 0.5 s after the last click. Cancel or closing the sheet stops pending clicks and the mic; a mic the practice screen had running is restarted with its own clocks.
+- Runner: pauses playback, starts the pitch engine with `songTime` = playback AudioContext time (`engine.ctxTime()`), so frame `at` is on the click clock. After a 1 s count-in, 12 clicks (1 kHz, 20 ms) every 1 s; the first 4 are warm-up to find the rhythm and not measured via `engine.click(at)` on the playback context (real output path). Collects frames until 0.5 s after the last click. Cancel or closing the sheet stops pending clicks and the mic; a mic the practice screen had running is restarted with its own clocks.
 - Onsets: a frame is an onset when its `rms` exceeds max(4 × quiet floor, 0.01) after at least 80 ms below that threshold. Quiet floor = running average of the frames below the threshold. Resolution = one hop.
 - Matching: each click takes its first onset from 100 ms before to 800 ms after it (Bluetooth delays fit); delay = onset `at` − click time.
-- Result: median of the delays, spread = median absolute deviation. Fewer than 5 matched clicks or spread over 25 ms: `calFailed`.
+- Result: median of the delays, spread = median absolute deviation. Fewer than 5 of the 8 measured clicks matched or spread over 40 ms: `calFailed`.
 - Delay: `delayMs = round10(median)`, clamped to 0…600. It replaces the reported latencies (they can be far off). Saved, applied with `pitch.setDelayMs`; the slider shows it.
   `[@test] ../tests/steps/calibration.steps.ts`
 
@@ -149,8 +149,12 @@ Feature: Latency calibration
     Then the result is not clear
 
   Scenario: too noisy
-    Given delays of 100, 140, 180, 220, 260 ms
+    Given delays of 100, 150, 200, 250, 300 ms
     Then the result is not clear
+
+  Scenario: a human spread still counts
+    Given delays of 120, 150, 180, 210, 240 ms
+    Then the result is 180 ms with spread 30 ms
 
   Scenario: delay from the measurement
     Then a measured 156 ms gives delay 160
