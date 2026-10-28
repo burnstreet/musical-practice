@@ -76,7 +76,7 @@ Pure function `detect_sections(notes, bars)` plus a script that writes the resul
 - Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved via existing save path.
 - Phrase flag: button "Phrasenanfang" toggles `phraseStart` on the selected note. Piano roll draws a vertical marker at flagged notes.
 - Song JSON `roles` list stays derived: builder recomputes from notes.
-- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid. Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Not unit-tested (drawing).
+- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid. Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined by spaces. Each note sits in the grid bar nearest its start minus its beat. The view needs the bar grid from `/detect-sections` and the shared build (`./at.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
 - Phrases stay editable only through `Phrasenanfang`.
 - Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the existing save path (`sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
 - Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
@@ -146,6 +146,28 @@ Feature: Editor sections
     Given sections "A" and "B"
     When I cancel the confirmation of "Abschnitte neu erkennen"
     Then the sections are "A" and "B"
+
+  Scenario: the list shows bar numbers
+    Given a section "Refrain" [4.0,12.0]
+    Then its row reads from bar 3 to bar 6
+
+  Scenario: a section ending at the song end reads the last bar
+    Given bars every 2 s over 20 bars with the song ending at 40.0
+    When I add the section "Outro" from bar 19 to bar 20
+    Then its row reads from bar 19 to bar 20
+
+Feature: Editor view
+  Scenario: phrase band from the phrase flags
+    Given notes "Habt", "ihr", "Platz,", "nein" where note 3 has phraseStart
+    Then the phrase band shows "1 Habt ihr" and "2 Platz, nein"
+
+  Scenario: phrase band from derived phrases without flags
+    Given notes "Habt", "ihr", "Platz,", "nein" with phrases 0, 0, 0, 1
+    Then the phrase band shows "1 Habt ihr Platz," and "2 nein"
+
+  Scenario: staff bars come from the bar grid
+    Given bars every 2 s, a note at 3.98 s on beat 0 and a note at 5.45 s on beat 3
+    Then the staff puts both notes in bar 3
 ```
 
 ## Completeness check (`pack.py`)
