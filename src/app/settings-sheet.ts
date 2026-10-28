@@ -5,6 +5,8 @@ import { getContext } from './context'
 import { sheetStyles } from './sheet'
 
 export const HEADPHONE_TEXT = 'Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.'
+export const CALIBRATION_TIP =
+  'Tipp: Miss für jeden Kopfhörer einmal die Verzögerung (Einstellungen, „Verzögerung messen“). Dann passen Noten und Bewertung zu dem, was du hörst.'
 const TOLERANCES: [Tolerance, string][] = [
   [75, 'Leicht (75 Cent)'],
   [50, 'Normal (50 Cent)'],
@@ -219,6 +221,7 @@ export class GuSettingsSheet extends LitElement {
 
         <h3>Kopfhörer</h3>
         <p>${HEADPHONE_TEXT}</p>
+        <p>${CALIBRATION_TIP}</p>
 
         <div style="height:24px"></div>
         ${

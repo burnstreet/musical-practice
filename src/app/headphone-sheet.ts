@@ -1,5 +1,5 @@
 import { html, LitElement } from 'lit'
-import { HEADPHONE_TEXT } from './settings-sheet'
+import { CALIBRATION_TIP, HEADPHONE_TEXT } from './settings-sheet'
 import { sheetStyles } from './sheet'
 
 /** Before-play sheet. Fires `done` with detail `{ dontShow }`. */
@@ -16,6 +16,7 @@ export class GuHeadphoneSheet extends LitElement {
       <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="t">
         <h2 id="t">Kopfhörer aufsetzen</h2>
         <p>${HEADPHONE_TEXT}</p>
+        <p>${CALIBRATION_TIP}</p>
         <label><input type="checkbox" />Nicht mehr anzeigen</label>
         <div style="height:16px"></div>
         <button class="primary" @click=${this.done}>Weiter</button>

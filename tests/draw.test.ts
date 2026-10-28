@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { foldToTargetOctave, rowRange } from '../src/app/draw/roll'
-import { barsPerPage, keyFifths, layoutBar, layoutPage, noteValue, type PageOnset, pageOf, playheadX, restsIn, staffPos } from '../src/app/draw/staff'
+import { foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
+import {
+  barsPerPage,
+  keyFifths,
+  layoutBar,
+  layoutPage,
+  noteValue,
+  type PageOnset,
+  pageAt,
+  pageOf,
+  playheadX,
+  restsIn,
+  splitPages,
+  staffPos,
+} from '../src/app/draw/staff'
 import type { Note } from '../src/core/content'
 
 describe('staff layout', () => {
@@ -45,10 +58,11 @@ describe('staff layout', () => {
     expect(pageOf(bars, 8, 2)).toBe(2)
   })
 
-  it('shows 2 bars below 560 css px, else 4', () => {
-    expect(barsPerPage(360)).toBe(2)
-    expect(barsPerPage(559)).toBe(2)
-    expect(barsPerPage(560)).toBe(4)
+  it('allows one bar per 150 css px, 2 to 4', () => {
+    expect(barsPerPage(300)).toBe(2)
+    expect(barsPerPage(449)).toBe(2)
+    expect(barsPerPage(450)).toBe(3)
+    expect(barsPerPage(600)).toBe(4)
     expect(barsPerPage(900)).toBe(4)
   })
 })
@@ -140,15 +154,15 @@ describe('lyric-aware page layout', () => {
     onsets.forEach((_, k) => {
       expect(r.xs[k] - half(k), `left edge of ${k}`).toBeGreaterThanOrEqual(-opts.leftRoom - 1e-6)
       expect(r.xs[k] + half(k), `right edge of ${k}`).toBeLessThanOrEqual(width + 1e-6)
-      const next = r.stagger ? k + 2 : k + 1 // staggered: odd labels on the second row
+      const next = k + 1
       if (next < onsets.length) expect(r.xs[next] - r.xs[k], `labels ${k} and ${next}`).toBeGreaterThanOrEqual(half(k) + half(next) + opts.sep - 1e-6)
     })
   }
 
-  it('keeps the normal size and one row when the labels fit', () => {
+  it('keeps the normal size when the labels fit', () => {
     const onsets = [on(0, 0, 20), on(0, 2, 30), on(1, 0, 25), on(1, 1, 40)]
     const r = layoutPage([0, 1], onsets, { ...opts, width: 400 })
-    expect(r).toMatchObject({ scale: 1, stagger: false })
+    expect(r).toMatchObject({ scale: 1, fits: true })
     check(onsets, 400, r)
   })
 
@@ -166,21 +180,19 @@ describe('lyric-aware page layout', () => {
     check(onsets, 300, r)
   })
 
-  it('shrinks the lyric font before staggering', () => {
+  it('shrinks the lyric font when the labels do not fit', () => {
     // 8 eighths of 40 px labels: 8 · 44 = 352 needed at normal size
     const onsets = Array.from({ length: 8 }, (_, i) => on(Math.floor(i / 4), (i % 4) * 0.5, 40))
     const r = layoutPage([0, 1], onsets, { ...opts, width: 330 })
-    expect(r.stagger).toBe(false)
+    expect(r.fits).toBe(true)
     expect(r.scale).toBeLessThan(1)
     expect(r.scale).toBeGreaterThanOrEqual(opts.minScale)
     check(onsets, 330, r)
   })
 
-  it('staggers alternate labels onto a second row when even the small font does not fit', () => {
+  it('says when even the small font does not fit', () => {
     const onsets = Array.from({ length: 16 }, (_, i) => on(Math.floor(i / 8), (i % 8) * 0.5, 40, i % 3 === 0))
-    const r = layoutPage([0, 1], onsets, { ...opts, width: 500 })
-    expect(r.stagger).toBe(true)
-    check(onsets, 500, r)
+    expect(layoutPage([0, 1], onsets, { ...opts, width: 500 }).fits).toBe(false)
   })
 
   it('puts each bar right after the previous one, its notes inside it', () => {
@@ -211,6 +223,33 @@ describe('lyric-aware page layout', () => {
     check(onsets, 400, r)
   })
 })
+describe('staff pages', () => {
+  it('fill up to the most bars, fewer where the syllables do not fit on one row', () => {
+    // bars 2 and 3 are dense: together with a neighbour they do not fit
+    const dense = (b: number) => b === 2 || b === 3
+    const fits = (first: number, count: number) => count === 1 || !Array.from({ length: count }, (_, i) => first + i).some(dense)
+    expect(splitPages(7, 2, fits)).toEqual([
+      [0, 2],
+      [2, 1],
+      [3, 1],
+      [4, 2],
+      [6, 1],
+    ])
+  })
+  it('find the page of a song time', () => {
+    const pages: [number, number][] = [
+      [0, 2],
+      [2, 1],
+      [3, 2],
+    ]
+    const bars = [0, 2, 4, 6, 8]
+    expect(pageAt(pages, bars, -5)).toEqual([0, 2])
+    expect(pageAt(pages, bars, 3.9)).toEqual([0, 2])
+    expect(pageAt(pages, bars, 4)).toEqual([2, 1])
+    expect(pageAt(pages, bars, 9)).toEqual([3, 2])
+  })
+})
+
 describe('staff playhead', () => {
   // bar line at 0 s / 40 px, onsets at 0 s / 60 px and 1 s / 200 px, page end 2 s / 300 px
   const points: [number, number][] = [
@@ -228,6 +267,17 @@ describe('staff playhead', () => {
   it('stays inside the page', () => {
     expect(playheadX(points, -1)).toBe(40)
     expect(playheadX(points, 5)).toBe(300)
+  })
+})
+
+describe('roll window and lyric strip', () => {
+  it('shows 5 s on a phone, more on a wider canvas, at most 8 s', () => {
+    expect(rollWindow(320)).toBe(5)
+    expect(rollWindow(504)).toBe(7)
+    expect(rollWindow(1200)).toBe(8)
+  })
+  it('keeps every syllable at its note, pushed right only where it would touch the previous one', () => {
+    expect(lyricXs([0, 50, 60, 200], [30, 30, 30, 10], 6)).toEqual([0, 50, 86, 200])
   })
 })
 
