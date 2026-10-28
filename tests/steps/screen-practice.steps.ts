@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import { type AppContext, setContext } from '../../src/app/context'
 import { features } from '../../src/app/features'
+import { ownSpans as mergedSpans } from '../../src/app/repeat'
 import { entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
 import { leadInStart } from '../../src/core/audio-engine'
@@ -438,6 +439,7 @@ export default steps(({ Given, When, Then }) => {
       [22, 26],
       [28, 32],
     ].map(([start, end], index) => ({ index, label: `p${index}`, start, end }))
+    ctx.data.song.notes.push(note(74, 30, 31, 'maria', 5)) // a later own entry to skip to
   }
   const ownSpans = (ctx: any, spans: [number, number][]) => {
     ctx.data.song.bars = Array.from({ length: 30 }, (_, i) => i * 2)
@@ -465,7 +467,7 @@ export default steps(({ Given, When, Then }) => {
       await at(ctx, +t)
     },
   )
-  Given(/^my own spans (\[.+\]) and the heard time ([\d.]+)$/, async (ctx, list, t) => {
+  Given(/^my own spans (\[.+\])(?:, bars every 2 s)? and the heard time ([\d.]+)$/, async (ctx, list, t) => {
     world(ctx)
     ownSpans(ctx, pairs(list))
     await at(ctx, +t)
@@ -576,4 +578,64 @@ export default steps(({ Given, When, Then }) => {
     await tap(ctx, chip(ctx, 'A–B'))
   })
   When(/^I tap the chip a third time$/, (ctx) => tap(ctx, chip(ctx, 'A–B')))
+
+  // Skip
+  const SKIPS = ['Zum vorigen Einsatz', 'Zum nächsten Einsatz']
+  const disabled = (ctx: any, label: string) => (byLabel(ctx.el, label) as HTMLButtonElement).disabled
+  When(/^I tap "(Zum (?:vorigen|nächsten) Einsatz)"$/, (ctx, label) => press(ctx, label))
+  Then(/^time\(\) is ([\d.]+)$/, (ctx, t) => expect(ctx.time).toBe(+t))
+  Given(/^bars of 2 s and my role spans (\[.+\])$/, (ctx, list) => {
+    world(ctx)
+    ownSpans(ctx, pairs(list))
+  })
+  Then(/^the own spans are (\[.+\])$/, (ctx, list) => {
+    expect(mergedSpans(ctx.data.song, ['maria']).map((s) => [s.start, s.end])).toEqual(pairs(list))
+  })
+  Then(/^"(Zum nächsten Einsatz)" from ([\d.]+) has no target$/, async (ctx, label, t) => {
+    await at(ctx, +t)
+    expect(disabled(ctx, label)).toBe(true)
+  })
+  Then(/^"(Zum (?:vorigen|nächsten) Einsatz)" is disabled$/, (ctx, label) => expect(disabled(ctx, label)).toBe(true))
+  Given(/^the heard time ([\d.]+)(?: and no later span)?$/, (ctx, t) => at(ctx, +t))
+  Given(/^an empty role set$/, async (ctx) => {
+    ctx.el.remove()
+    ctx.el = null
+    settings.set({ roles: [] })
+    await screen(ctx)
+  })
+  Then(/^both skip buttons are disabled$/, (ctx) => {
+    for (const label of SKIPS) expect(disabled(ctx, label)).toBe(true)
+  })
+  Given(/^the "Einsatz" repeat is on for (\[[\d.,]+\]) and my next own span is (\[[\d.,]+\])$/, async (ctx, a, b) => {
+    world(ctx)
+    ownSpans(ctx, [...pairs(a), ...pairs(b)])
+    await at(ctx, pairs(a)[0][0] + 2)
+    await tap(ctx, chip(ctx, 'Einsatz'))
+    expect(ctx.loop).toEqual({ start: pairs(a)[0][0], end: pairs(a)[0][1], leadIn: true })
+    await tick(ctx, pairs(a)[0][0] + 5)
+  })
+  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
+    expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
+    expect(ctx.time).toBe(+t)
+    expect(chip(ctx, 'Einsatz').getAttribute('aria-pressed')).toBe('true')
+  })
+  Then(/^engine loop is unchanged and time\(\) is the lead-in landing$/, (ctx) => {
+    expect(ctx.loop).toBe(ctx.before)
+    expect(chip(ctx, 'Phrase').getAttribute('aria-pressed')).toBe('true')
+    expect(ctx.time).toBe(leadInStart(30, ctx.data.song.bars)) // the later own entry at 30.0
+  })
+
+  // Intro skip
+  const intro = (ctx: any) =>
+    [...ctx.el.shadowRoot!.querySelectorAll('button')].find((b: HTMLElement) => b.textContent!.trim() === 'Intro überspringen') as HTMLElement | undefined
+  Given(/^the first sung note of any role starts at ([\d.]+)(?: and bars every 2 s)?$/, (ctx, t) => {
+    world(ctx)
+    ctx.data.song.notes = [note(69, +t, +t + 1, 'josef', 0), note(74, +t + 2, +t + 3, 'maria', 0)] // not mine first: any role counts
+  })
+  Then(/^the button "Intro überspringen" is visible$/, (ctx) => expect(intro(ctx)).toBeDefined())
+  When(/^I press it$/, (ctx) => tap(ctx, intro(ctx)!))
+  Then(/^the button "Intro überspringen" is not shown$/, async (ctx) => {
+    await screen(ctx)
+    expect(intro(ctx)).toBeUndefined()
+  })
 })
