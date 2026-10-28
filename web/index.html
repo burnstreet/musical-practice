@@ -35,10 +35,8 @@
     <select id="roleSel"></select>
     <button id="roleBtn">Rolle setzen</button>
     <button id="phraseBtn">Phrasenanfang</button>
-    <button id="sectBtn">Abschnitte neu erkennen</button>
     <button id="saveBtn" disabled>Save</button>
     <button id="reloadBtn">Reload</button>
-    <div id="sectList"></div>
     <span class="hint">Click/drag box: select (Shift adds) &middot; drag note: move group &middot; drag note edge: resize &middot; &larr;/&rarr;: 10 ms (Shift: 100 ms, Ctrl: start only, Alt: end only)</span>
   </div>
   <div id="legend" hidden></div>
@@ -53,6 +51,14 @@
     <canvas id="bandCv"></canvas>
   </section>
   <p id="viewHint" class="hint" hidden></p>
+  <section id="sectPanel" hidden>
+    <div class="viewbar">
+      <b>Abschnitte</b>
+      <span id="sectState" class="hint"></span>
+      <button id="sectBtn">Abschnitte neu erkennen</button>
+    </div>
+    <div id="sectList"></div>
+  </section>
   <div id="wrap"><canvas id="roll"></canvas></div>
   <div id="sheet" hidden></div>
   <div id="readout">

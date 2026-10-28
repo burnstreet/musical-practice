@@ -1,6 +1,6 @@
 # Editor view: paging by the roll window, roll on the bar grid
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 Spec: ../spec.md
 
@@ -20,3 +20,5 @@ Decision (user, 2026-10-29):
 - The roll goes onto the staff's x-axis, so one page equals the roll window. Previous and next page both together.
 - A selection on another page turns to that page.
 - Seconds stay visible: show a time scale or time labels in seconds on the roll, and keep the current time display.
+
+Resolved (agent, 2026-10-29): the roll runs on the shown staff page (`Page.grid`: the page's bar lines and end); its bar lines sit under the staff's, time is linear inside each bar (not per onset, so dragging a note in the roll moves it instead of pinning it under its head). Prev/next seek as before, so staff, bands and roll turn together; zoom buttons are hidden while the staff view is on. Seconds scale stays on top of the roll, the time readout stays. `turnFor` turns the view (seek) to the first bar of a selection with no note on the page; focusing a row of the section list now selects that section, which makes this reachable. Pure helpers `timeAt` and `turnFor` covered by new scenarios in specs/builder.spec.md.

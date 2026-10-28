@@ -39,6 +39,12 @@ canvas { display:block; width:100%; height:100%; cursor:pointer; }
 #staffCv { height:150px; cursor:pointer; }
 #bandCv { height:56px; cursor:pointer; }
 body.with-view #wrap { height:260px; min-height:0; }
-#sectList { flex-basis:100%; display:grid; grid-template-columns:minmax(120px,240px) 70px 70px auto; gap:4px 6px; align-items:center; }
-#sectList input { font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:6px; min-width:0; }
-#sectList .head { color:var(--muted); font-size:.85rem; }
+body.with-view #zoomIn, body.with-view #zoomOut, body.with-view #zoomLbl { display:none; } /* the roll shows the staff's page */
+#sectPanel { background:#17498C; color:#fff; border-radius:8px; padding:6px 10px 10px; margin:6px 0; }
+#sectPanel[hidden] { display:none; }
+#sectPanel .viewbar { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+#sectPanel .hint { color:#CFE0F5; }
+#sectList { display:grid; grid-template-columns:minmax(120px,240px) 70px 70px auto; gap:4px 6px; align-items:center; justify-content:start; }
+#sectList input { font:inherit; padding:4px 6px; border:1px solid #3F78BF; border-radius:6px; min-width:0; background:#1F5FAB; color:#fff; }
+#sectList input:disabled { opacity:.6; }
+#sectList .head { color:#CFE0F5; font-size:.85rem; }
