@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
+import { phrasesOf, staffSong } from '../../src/editor/view'
 // @ts-expect-error plain JS module, no types
-import { addSection, deleteSection, rebarSection, redetectSections, renameSection, setRole, togglePhraseStart } from '../../web/edit-ops.js'
+import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart } from '../../web/edit-ops.js'
 import { steps } from '../gherkin'
 
 // 20 bars of 2 s; the song ends with the last bar unless a step says otherwise
@@ -116,5 +117,31 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the sections are unchanged and the editor shows an error$/, (ctx) => {
     expect(ctx.sections).toEqual(ctx.before)
     expect(ctx.error).toBeTruthy()
+  })
+  Then(/^its row reads from bar (\d+) to bar (\d+)$/, (ctx, from, to) => {
+    expect(sectionBars(ctx.sections[0], ctx.grid)).toEqual({ from: Number(from), to: Number(to) })
+  })
+
+  // view
+  const lyricNotes = (words: string) => [...words.matchAll(/"([^"]+)"/g)].map((m, i) => ({ start: i, end: i + 0.5, midi: 60, lyric: m[1] }))
+  Given(/^notes (.+) where note (\d+) has phraseStart$/, (ctx, words, k) => {
+    ctx.notes = lyricNotes(words)
+    ctx.notes[Number(k) - 1].phraseStart = true
+  })
+  Given(/^notes (.+) with phrases ([\d, ]+)$/, (ctx, words, phrases) => {
+    ctx.notes = lyricNotes(words)
+    phrases.split(', ').forEach((p: string, i: number) => {
+      ctx.notes[i].phrase = Number(p)
+    })
+  })
+  Then(/^the phrase band shows "([^"]+)" and "([^"]+)"$/, (ctx, a, b) => {
+    expect(phrasesOf(ctx.notes).map((p) => `${p.number} ${p.text}`)).toEqual([a, b])
+  })
+  Given(/^bars every 2 s, a note at ([\d.]+) s on beat (\d+) and a note at ([\d.]+) s on beat (\d+)$/, (ctx, s1, b1, s2, b2) => {
+    const note = (start: string, beat: string) => ({ start: Number(start), end: Number(start) + 0.4, midi: 60, beat: Number(beat), dur: 1 })
+    ctx.song = staffSong({ id: 't', notes: [note(s1, b1), note(s2, b2)] }, grid().bars)
+  })
+  Then(/^the staff puts both notes in bar (\d+)$/, (ctx, bar) => {
+    expect(ctx.song.notes.map((n: any) => n.bar + 1)).toEqual([Number(bar), Number(bar)])
   })
 })
