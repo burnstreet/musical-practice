@@ -19,7 +19,7 @@ export type Route = '#/start' | '#/songs' | `#/practice/${string}` | `#/results/
 
 export interface Settings {
   tolerance: Tolerance            // default 50
-  micOffsetMs: number             // default 0, -300..300
+  delayMs: number | null          // total scoring delay 0..600, default null = as reported; applied with pitch.setDelayMs at app start
   headphoneSheetSeen: boolean
   installHintSeen: boolean
   roles: RoleId[]                 // last selection
@@ -78,7 +78,7 @@ Feature: Updates
 Opened from the gear button on songs and practice screens. Items, top to bottom:
 
 1. `Toleranz`: segmented `Leicht (75 Cent)` / `Normal (50 Cent)` / `Streng (30 Cent)`.
-2. `Verzögerung Mikrofon`: slider −300…+300 ms, step 10, value shown as `{n} ms`. Help text: `Gleicht die Verzögerung von Kopfhörer und Mikrofon für die Bewertung aus. Am besten messen lassen.` Read-only below: `Gemessen: Wiedergabe {a} ms · Mikrofon {b} ms` (`engine.latency()`, `pitch.inputLatency()`, rounded; the mic value is 0 until the mic ran).
+2. `Verzögerung`: slider 0…600 ms, step 10, value shown as `{n} ms`; while `delayMs` is null it shows the reported sum (round10 of a + b) as `{n} ms (automatisch)`. Moving it sets `delayMs` and `pitch.setDelayMs`. Help text: `Zeit vom Klang im Kopfhörer bis zum Mikrofon, für die Bewertung. Am besten messen lassen.` Read-only below: `Vom Browser gemeldet: Wiedergabe {a} ms · Mikrofon {b} ms` (`engine.latency()`, `pitch.inputLatency()`, rounded; the mic value is 0 until the mic ran).
 3. `Verzögerung messen`: button under the measured line, opens the calibration panel (see Latency calibration).
 4. `Mikrofon`: select, `Automatisch (eingebautes Mikrofon)` (`micDeviceId` '') plus every audio input by label (`Mikrofon {n}` while labels are hidden before permission). Saves `micDeviceId`; `pitch.setDevice` restarts a running mic on it.
 5. `Mikrofon testen`: button starts pitch engine, shows level bar and detected note name, stops on sheet close.
@@ -105,7 +105,7 @@ Feature: Settings
 
 ## Latency calibration
 
-Measures the delay from a sound in the headphones to its pitch frame, instead of guessing `Verzögerung Mikrofon`. Module `src/core/calibration.ts`: pure detection and statistics plus a small runner; the settings sheet shows the panel.
+Measures the delay from a sound in the headphones to its pitch frame, instead of guessing `Verzögerung`. Module `src/core/calibration.ts`: pure detection and statistics plus a small runner; the settings sheet shows the panel.
 
 | id | text |
 |---|---|
@@ -116,11 +116,11 @@ Measures the delay from a sound in the headphones to its pitch frame, instead of
 | calResult | `Gemessen: {n} ms (±{s} ms)` |
 | calFailed | `Nicht eindeutig – bitte nochmal.` |
 
-- Runner: pauses playback, starts the pitch engine with `songTime` = playback AudioContext time (`engine.ctxTime()`), so frame `at` is on the click clock. After a 1 s count-in, 8 clicks (1 kHz, 20 ms) every 600 ms via `engine.click(at)` on the playback context (real output path). Collects frames until 0.5 s after the last click. Cancel or closing the sheet stops pending clicks and the mic; a mic the practice screen had running is restarted with its own clocks.
+- Runner: pauses playback, starts the pitch engine with `songTime` = playback AudioContext time (`engine.ctxTime()`), so frame `at` is on the click clock. After a 1 s count-in, 8 clicks (1 kHz, 20 ms) every 1 s via `engine.click(at)` on the playback context (real output path). Collects frames until 0.5 s after the last click. Cancel or closing the sheet stops pending clicks and the mic; a mic the practice screen had running is restarted with its own clocks.
 - Onsets: a frame is an onset when its `rms` exceeds max(4 × quiet floor, 0.01) after at least 80 ms below that threshold. Quiet floor = running average of the frames below the threshold. Resolution = one hop.
-- Matching: each click takes the nearest onset within ±300 ms; delay = onset `at` − click time.
+- Matching: each click takes its first onset from 100 ms before to 800 ms after it (Bluetooth delays fit); delay = onset `at` − click time.
 - Result: median of the delays, spread = median absolute deviation. Fewer than 5 matched clicks or spread over 25 ms: `calFailed`.
-- Offset: `micOffsetMs = round10(median − engine.latency()·1000 − pitch.inputLatency()·1000)`, clamped to −300…300 (the pitch engine already subtracts both latencies). Saved, applied with `pitch.setOffsetMs`; the slider shows it.
+- Delay: `delayMs = round10(median)`, clamped to 0…600. It replaces the reported latencies (they can be far off). Saved, applied with `pitch.setDelayMs`; the slider shows it.
   `[@test] ../tests/steps/calibration.steps.ts`
 
 ```gherkin
@@ -135,10 +135,10 @@ Feature: Latency calibration
     When I detect onsets
     Then there are no onsets
 
-  Scenario: clicks matched to the nearest onset
-    Given clicks at 1.0, 1.6, 2.2 and onsets at 1.12, 1.75, 2.9
+  Scenario: clicks matched to their first onset
+    Given clicks at 1.0, 2.0, 3.0, 4.0 and onsets at 0.95, 1.2, 2.45, 2.6, 4.75
     When I match them
-    Then the delays are 0.12 and 0.15
+    Then the delays are -0.05, 0.45 and 0.75
 
   Scenario: median and spread
     Given delays of 100, 110, 120, 130, 140, 500 ms
@@ -152,12 +152,11 @@ Feature: Latency calibration
     Given delays of 100, 140, 180, 220, 260 ms
     Then the result is not clear
 
-  Scenario: offset from the measurement
-    Then a measured 180 ms with playback 0.050 s and mic 0.010 s gives offset 120
-    And a measured 123 ms with playback 0 s and mic 0 s gives offset 120
-    And a measured 126 ms with playback 0 s and mic 0 s gives offset 130
-    And a measured 500 ms with playback 0 s and mic 0 s gives offset 300
-    And a measured -400 ms with playback 0 s and mic 0 s gives offset -300
+  Scenario: delay from the measurement
+    Then a measured 156 ms gives delay 160
+    And a measured 123 ms gives delay 120
+    And a measured -40 ms gives delay 0
+    And a measured 750 ms gives delay 600
 ```
 
 ## Headphone sheet

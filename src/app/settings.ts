@@ -6,7 +6,8 @@ export type Route = '#/start' | '#/songs' | `#/practice/${string}` | `#/results/
 
 export interface Settings {
   tolerance: Tolerance
-  micOffsetMs: number
+  /** Total delay for scoring, ms, 0..600; null = as the browser reports it. */
+  delayMs: number | null
   headphoneSheetSeen: boolean
   installHintSeen: boolean
   roles: RoleId[]
@@ -16,7 +17,7 @@ export interface Settings {
 }
 
 const KEY = 'gu.settings'
-const DEFAULTS: Settings = { tolerance: 50, micOffsetMs: 0, headphoneSheetSeen: false, installHintSeen: false, roles: [], mode: 'all', micDeviceId: '' }
+const DEFAULTS: Settings = { tolerance: 50, delayMs: null, headphoneSheetSeen: false, installHintSeen: false, roles: [], mode: 'all', micDeviceId: '' }
 
 export const settings = {
   get(): Settings {

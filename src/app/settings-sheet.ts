@@ -1,5 +1,5 @@
 import { css, html, LitElement } from 'lit'
-import { type Calibration, type CalibrationRun, offsetFor, runCalibration } from '../core/calibration'
+import { type Calibration, type CalibrationRun, delayFor, runCalibration } from '../core/calibration'
 import { noteName, type Tolerance } from '../core/scorer'
 import { getContext } from './context'
 import { sheetStyles } from './sheet'
@@ -94,9 +94,9 @@ export class GuSettingsSheet extends LitElement {
     if (this.run?.run !== run) return // cancelled
     this.run = null
     if (result && result !== 'no-mic') {
-      const ms = offsetFor(result.ms, engine.latency(), pitch.inputLatency())
-      settings.set({ micOffsetMs: ms })
-      pitch.setOffsetMs(ms)
+      const ms = delayFor(result.ms)
+      settings.set({ delayMs: ms })
+      pitch.setDelayMs(ms)
     }
     restore()
     this.cal = result ?? 'unclear'
@@ -152,12 +152,13 @@ export class GuSettingsSheet extends LitElement {
     const { settings, pitch, engine } = getContext()
     const s = settings.get()
     const ms = (sec: number) => Math.round(sec * 1000)
-    const offset = (e: Event) => {
+    const delay = (e: Event) => {
       const ms = +(e.target as HTMLInputElement).value
-      settings.set({ micOffsetMs: ms })
-      pitch.setOffsetMs(ms)
+      settings.set({ delayMs: ms })
+      pitch.setDelayMs(ms)
       this.requestUpdate()
     }
+    const delayMs = s.delayMs ?? delayFor(ms(engine.latency() + pitch.inputLatency()))
     return html`<div class="backdrop" @click=${(e: Event) => e.target === e.currentTarget && this.close()}>
       <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="t">
         <div class="head"><h2 id="t">Einstellungen</h2><button aria-label="Schließen" @click=${this.close}>✕</button></div>
@@ -173,11 +174,11 @@ export class GuSettingsSheet extends LitElement {
           )}
         </div>
 
-        <h3><label for="offset">Verzögerung Mikrofon</label></h3>
-        <input id="offset" type="range" min="-300" max="300" step="10" .value=${String(s.micOffsetMs)} @input=${offset} />
-        <p>${s.micOffsetMs} ms</p>
-        <p>Gleicht die Verzögerung von Kopfhörer und Mikrofon für die Bewertung aus. Am besten messen lassen.</p>
-        <p>Gemessen: Wiedergabe ${ms(engine.latency())} ms · Mikrofon ${ms(pitch.inputLatency())} ms</p>
+        <h3><label for="delay">Verzögerung</label></h3>
+        <input id="delay" type="range" min="0" max="600" step="10" .value=${String(delayMs)} @input=${delay} />
+        <p>${delayMs} ms${s.delayMs === null ? ' (automatisch)' : ''}</p>
+        <p>Zeit vom Klang im Kopfhörer bis zum Mikrofon, für die Bewertung. Am besten messen lassen.</p>
+        <p>Vom Browser gemeldet: Wiedergabe ${ms(engine.latency())} ms · Mikrofon ${ms(pitch.inputLatency())} ms</p>
         <button ?disabled=${this.cal === 'running'} @click=${this.measure}>Verzögerung messen</button>
         <p>Sag „ta“ genau mit jedem Klick – oder halte den Kopfhörer ans Mikrofon.</p>
         ${
