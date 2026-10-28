@@ -14,6 +14,23 @@ export interface DrawState {
   /** Pitch frames of the last 1.5 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
   tolerance: Tolerance
+  /** Active repeat: everything outside start…end is dimmed; flags [time, label] mark it. Drawing only. */
+  repeat?: Marks | null
+}
+
+export interface Marks {
+  start: number
+  end: number
+  flags: [number, string][]
+}
+
+/** Dims x < from and x > to (canvas `h` high) by painting the card colour over them. */
+export function dimOutside(ctx: CanvasRenderingContext2D, left: number, from: number, to: number, right: number, h: number): void {
+  ctx.fillStyle = COLORS.surface
+  ctx.globalAlpha = 0.6
+  if (from > left) ctx.fillRect(left, 0, from - left, h)
+  if (to < right) ctx.fillRect(to, 0, right - to, h)
+  ctx.globalAlpha = 1
 }
 
 /** tokens.css values (a canvas cannot use custom properties directly). */
@@ -455,14 +472,12 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   const nb = song.bars.length
   const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
   const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
-  const px = playheadX(
-    [
-      [barStart(first), startX + L.barX[0]],
-      ...onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), startX + L.xs[k]]),
-      [barStart(first + per), startX + L.barX[per - 1] + L.barW[per - 1]],
-    ],
-    t,
-  )
+  const points: [number, number][] = [
+    [barStart(first), startX + L.barX[0]],
+    ...onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), startX + L.xs[k]]),
+    [barStart(first + per), startX + L.barX[per - 1] + L.barW[per - 1]],
+  ]
+  const px = playheadX(points, t)
   ctx.strokeStyle = COLORS.text
   ctx.lineWidth = 1.5
   ctx.setLineDash([3, 4])
@@ -574,5 +589,20 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
     ctx.fillStyle = colour(n)
     ctx.fillText(n.syllable, startX + L.xs[k], 100 * s)
   })
+
+  // Repeat: the page outside the range dimmed, a line at the range start when it is on this page
+  if (state.repeat) {
+    const { start, end } = state.repeat
+    const [left, right] = [points[0], points.at(-1)!]
+    dimOutside(ctx, left[1], playheadX(points, start), playheadX(points, end), right[1], h) // playheadX clamps to the page
+    if (start >= left[0] && start < right[0]) {
+      ctx.strokeStyle = COLORS.accent
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(playheadX(points, start), 22 * s)
+      ctx.lineTo(playheadX(points, start), 78 * s)
+      ctx.stroke()
+    }
+  }
   return shown
 }

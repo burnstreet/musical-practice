@@ -1,14 +1,14 @@
 import { css, html, LitElement, svg } from 'lit'
-import type { Mode, Range, Tempo } from '../../core/audio-engine'
-import type { Phrase, RoleId, Song } from '../../core/content'
+import { LEAD_IN_SEC, leadInStart, type Mode, type Range, type Tempo } from '../../core/audio-engine'
+import type { Phrase, RoleId, Section, Song, Span } from '../../core/content'
 import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
-import { barsPerPage, type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
+import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
 import { features } from '../features'
-import { abRange, einsatzRange, phraseRange, sectionAt, snapToBar } from '../repeat'
+import { abRange, einsatzRange, ownSpans, phraseRange, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -37,6 +37,8 @@ const CHEVRON = icon(svg`<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor
 const TO_START = icon(
   svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
 )
+const SKIP_PREV = icon(svg`<g fill="currentColor"><path d="M18 5v14l-9-7z"/><rect x="6" y="5" width="2.5" height="14" rx="1"/></g>`, 20)
+const SKIP_NEXT = icon(svg`<g fill="currentColor"><path d="M6 5v14l9-7z"/><rect x="15.5" y="5" width="2.5" height="14" rx="1"/></g>`, 20)
 const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></g>`, 28)
 const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 28)
 const MIC = icon(
@@ -153,8 +155,21 @@ export class GuPractice extends LitElement {
     .chip { height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
     .chip[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
     .status { margin: 0; font-size: 13px; color: var(--muted); }
+    .skip { display: flex; align-items: center; gap: 8px; }
+    .skip .round { width: 44px; height: 44px; }
+    .skip .intro { margin-left: auto; height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
-    .progress input { flex: 1; margin: 0; height: 24px; accent-color: var(--text); }
+    .progress .track { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .progress .segs { position: relative; height: 22px; }
+    .progress .seg { position: absolute; top: 0; bottom: 0; padding: 0 4px; margin: 0 1px; border-radius: 6px; font-size: 11px; color: var(--muted);
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .progress .seg[aria-pressed='true'] { color: var(--accent); }
+    .progress .bar { position: relative; }
+    .progress .bar div { position: absolute; top: 4px; bottom: 4px; pointer-events: none; }
+    .progress .dim { background: var(--bg); opacity: 0.6; z-index: 1; }
+    .progress .range { border: 2px solid var(--accent); border-radius: 6px; }
+    .progress .leadin { background: var(--accent); opacity: 0.25; border-radius: 6px 0 0 6px; }
+    .progress input { display: block; width: 100%; margin: 0; height: 24px; accent-color: var(--text); }
     .buttons { display: flex; align-items: center; justify-content: space-between; }
     .buttons button.round { font-size: 13px; font-weight: 700; }
     .round[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
@@ -222,7 +237,15 @@ export class GuPractice extends LitElement {
     const { settings, library } = getContext()
     const s = settings.get()
     const names = Object.fromEntries(library.roles().map((r) => [r.id, r.name]))
-    const state: DrawState = { song: this.loaded.song, roles: s.roles, names, t: this.heard(), frames: this.frames, tolerance: s.tolerance }
+    const state: DrawState = {
+      song: this.loaded.song,
+      roles: s.roles,
+      names,
+      t: this.heard(),
+      frames: this.frames,
+      tolerance: s.tolerance,
+      repeat: this.marks(),
+    }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
     const page = drawStaff(ctx2d('.staff canvas'), state)
     if (page && String(page) !== String(this.page)) {
@@ -360,10 +383,7 @@ export class GuPractice extends LitElement {
     if (kind === 'einsatz') range = einsatzRange(song, roles, now)
     if (kind === 'section') {
       const s = sectionAt(song, now)
-      if (s) {
-        this.sectionName = s.name
-        range = { start: s.start, end: s.end, leadIn: true }
-      }
+      if (s) return this.pickSection(s)
     }
     if (kind !== 'off' && !range) return // nothing to repeat: stay as is
     this.a = null
@@ -372,6 +392,38 @@ export class GuPractice extends LitElement {
       engine.seekLeadIn(range.start)
       this.t = engine.time()
     }
+  }
+
+  /** Abschnitt repeat for `s` (chip or a tap on its progress bar segment), from its lead-in. */
+  private pickSection(s: Section) {
+    const { engine } = getContext()
+    this.sectionName = s.name
+    this.a = null
+    this.setRange('section', { start: s.start, end: s.end, leadIn: true })
+    engine.seekLeadIn(s.start)
+    this.t = engine.time()
+  }
+
+  /** What staff, roll and progress bar draw for the active repeat: its range (A without B: A to the song end) and flags. */
+  private marks(): Marks | null {
+    if (this.kind === 'ab' && !this.loop) return this.a === null ? null : { start: this.a, end: this.loaded!.meta.durationSec, flags: [[this.a, 'A']] }
+    if (!this.loop) return null
+    const { start, end } = this.loop
+    return {
+      start,
+      end,
+      flags:
+        this.kind === 'ab'
+          ? [
+              [start, 'A'],
+              [end, 'B'],
+            ]
+          : [[start, this.repeatName()]],
+    }
+  }
+
+  private repeatName(): string {
+    return { off: '', phrase: `Phrase ${(this.loop?.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
   }
 
   /** One chip: set A, set B (starts the repeat), clear. */
@@ -388,12 +440,34 @@ export class GuPractice extends LitElement {
     } else this.setRange('ab', abRange(bars, this.a, p, this.loaded!.meta.durationSec))
   }
 
+  /** Skip targets from the heard time: previous = latest own span starting more than the lead-in before now, next = first whose lead-in landing lies after now. */
+  private skipTargets(): { prev?: Span; next?: Span } {
+    const { song } = this.loaded!
+    const now = this.heard()
+    const spans = ownSpans(song, getContext().settings.get().roles)
+    return { prev: spans.filter((s) => s.start < now - LEAD_IN_SEC).at(-1), next: spans.find((s) => leadInStart(s.start, song.bars) > now) }
+  }
+
+  /** Seek to the lead-in before `start`; an Einsatz repeat moves along to `span`. */
+  private skipTo(start: number, span?: Span) {
+    const { engine } = getContext()
+    if (span && this.kind === 'einsatz' && this.loop?.start !== span.start) this.setRange('einsatz', { start: span.start, end: span.end, leadIn: true })
+    engine.seekLeadIn(start)
+    this.t = engine.time()
+  }
+
+  /** First sung note of any role, while the heard time is before it and its lead-in lands after 0; else null. */
+  private introEnd(): number | null {
+    const { song } = this.loaded!
+    const first = Math.min(...song.notes.map((n) => n.start))
+    return first < Infinity && this.heard() < first && leadInStart(first, song.bars) > 0 ? first : null
+  }
+
   /** `{name} · {m:ss}–{m:ss}`; A–B with A only: `A {m:ss} · B noch nicht gesetzt`; '' without a repeat. */
   private status(): string {
     if (this.kind === 'ab' && !this.loop) return this.a === null ? '' : `A ${clock(this.a)} · B noch nicht gesetzt`
     if (!this.loop) return ''
-    const name = { off: '', phrase: `Phrase ${(this.loop.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
-    return `${name} · ${clock(this.loop.start)}–${clock(this.loop.end)}`
+    return `${this.repeatName()} · ${clock(this.loop.start)}–${clock(this.loop.end)}`
   }
   /** Big note, target label, cents text and meter position. */
   private readout() {
@@ -430,6 +504,10 @@ export class GuPractice extends LitElement {
     const dur = loaded.meta.durationSec
     const status = this.status()
     const sections = !!loaded.song.sections?.length
+    const marks = this.marks()
+    const pct = (sec: number) => `${(sec / dur) * 100}%`
+    const skip = this.skipTargets()
+    const intro = this.introEnd()
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
@@ -471,9 +549,34 @@ export class GuPractice extends LitElement {
         </div>
         ${status ? html`<p class="status" role="status">${status}</p>` : ''}
       </div>
+      <div class="skip">
+        <button class="round" aria-label="Zum vorigen Einsatz" ?disabled=${!skip.prev} @click=${() => skip.prev && this.skipTo(skip.prev.start, skip.prev)}>${SKIP_PREV}</button>
+        <button class="round" aria-label="Zum nächsten Einsatz" ?disabled=${!skip.next} @click=${() => skip.next && this.skipTo(skip.next.start, skip.next)}>${SKIP_NEXT}</button>
+        ${intro === null ? '' : html`<button class="intro" @click=${() => this.skipTo(intro)}>Intro überspringen</button>`}
+      </div>
       <div class="progress">
         <span>${clock(this.t)}</span>
-        <input type="range" aria-label="Position" min="0" max=${dur} step="0.1" .value=${String(this.t)} @input=${(e: Event) => this.seek(+(e.target as HTMLInputElement).value)} />
+        <div class="track">
+          ${
+            sections
+              ? html`<div class="segs">${loaded.song.sections!.map(
+                  (x) =>
+                    html`<button class="seg" aria-pressed=${this.kind === 'section' && this.sectionName === x.name} style="left:${pct(x.start)};right:${pct(dur - x.end)}" @click=${() => this.pickSection(x)}>${x.name}</button>`,
+                )}</div>`
+              : ''
+          }
+          <div class="bar">
+            ${
+              marks
+                ? html`<div class="dim" style="left:0;right:${pct(dur - marks.start)}"></div>
+                    <div class="dim" style="left:${pct(marks.end)};right:0"></div>
+                    ${this.loop?.leadIn ? html`<div class="leadin" style="left:${pct(leadInStart(marks.start, bars))};right:${pct(dur - marks.start)}"></div>` : ''}
+                    <div class="range" style="left:${pct(marks.start)};right:${pct(dur - marks.end)}"></div>`
+                : ''
+            }
+            <input type="range" aria-label="Position" min="0" max=${dur} step="0.1" .value=${String(this.t)} @input=${(e: Event) => this.seek(+(e.target as HTMLInputElement).value)} />
+          </div>
+        </div>
         <span>${clock(dur)}</span>
       </div>
       <div class="buttons">
