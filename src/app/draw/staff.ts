@@ -77,8 +77,8 @@ export function staffPos(midi: number, fifths: number): { step: number; acc: '' 
   return { step: (oct - 4) * 7 + i - 2, acc }
 }
 
-/** Bars per staff page for the canvas CSS width: 2 on a phone, else 4. Canvas and the practice header both use it. */
-export const barsPerPage = (cssWidth: number): 2 | 4 => (cssWidth < 560 ? 2 : 4)
+/** Most bars per staff page for the canvas CSS width: one per 150 px, 2…4 (phone 2, sideways 3, wide 4). */
+export const barsPerPage = (cssWidth: number): number => Math.max(2, Math.min(4, Math.floor(cssWidth / 150)))
 
 /** Staff page (`per` bars) for the playhead; flips when the playhead enters bar per·k. */
 export const pageOf = (bars: number[], t: number, per: number) => Math.floor(Math.max(0, bars.filter((b) => b <= t).length - 1) / per)
@@ -181,18 +181,16 @@ export interface PageLayout {
   xs: number[]
   /** Lyric font factor. */
   scale: number
-  /** Odd onsets' labels on a second row. */
-  stagger: boolean
+  /** Every head and label fits without squeezing. */
+  fits: boolean
 }
 
 /** Minimum segments per bar ([lead, …segments], [] for an empty bar) so heads and labels of `L` (label widths) fit. */
-function pageMins(bars: number[], onsets: PageOnset[], L: number[], stagger: boolean, o: PageOptions): number[][] {
+function pageMins(bars: number[], onsets: PageOnset[], L: number[], o: PageOptions): number[][] {
   const n = onsets.length
-  // staggered: a label only has to clear the one after next (same row); both gaps between them share that
-  const pair = (j: number) => (j >= 0 && j + 2 < n ? (L[j] + L[j + 2]) / 2 + o.sep : 0)
-  const need = (k: number) => Math.max(o.head + (onsets[k + 1].acc ? o.acc : 0), stagger ? Math.max(pair(k - 1), pair(k)) / 2 : (L[k] + L[k + 1]) / 2 + o.sep)
-  const left = n ? Math.max(L[0] / 2, stagger && n > 1 ? L[1] / 2 - need(0) : 0) + o.sep / 2 - o.leftRoom : 0
-  const right = n ? Math.max(L[n - 1] / 2, stagger && n > 1 ? L[n - 2] / 2 - need(n - 2) : 0) + o.sep / 2 : 0
+  const need = (k: number) => Math.max(o.head + (onsets[k + 1].acc ? o.acc : 0), (L[k] + L[k + 1]) / 2 + o.sep)
+  const left = n ? L[0] / 2 + o.sep / 2 - o.leftRoom : 0
+  const right = n ? L[n - 1] / 2 + o.sep / 2 : 0
   const out: number[][] = []
   let k = 0
   let lead = Math.max(o.pad, left)
@@ -217,18 +215,17 @@ function pageMins(bars: number[], onsets: PageOnset[], L: number[], stagger: boo
 }
 
 /**
- * Lays out one staff page so every syllable is drawn and none overlaps another: minimum distances cover heads and half
- * of each neighbour's label, bar widths follow their minimum widths. Too dense: shrink the lyric font down to
- * `minScale`, then put every other label on a second row. Still too dense: squeezed, never dropped.
+ * Lays out one staff page so every syllable is drawn on one row and none overlaps another: minimum distances cover
+ * heads and half of each neighbour's label, bar widths follow their minimum widths. Too dense: shrink the lyric font
+ * down to `minScale`. Still too dense: squeezed (`fits` false; the page split gives such a page fewer bars).
  */
 export function layoutPage(bars: number[], onsets: PageOnset[], o: PageOptions): PageLayout {
   const sum = (xs: number[]) => xs.reduce((a, v) => a + v, 0)
-  const build = (stagger: boolean, scale: number): PageLayout & { fits: boolean } => {
+  const build = (scale: number): PageLayout => {
     const mins = pageMins(
       bars,
       onsets,
       onsets.map((p) => p.label * scale),
-      stagger,
       o,
     )
     const need = mins.map((m) => (m.length ? sum(m) : o.empty))
@@ -242,17 +239,34 @@ export function layoutPage(bars: number[], onsets: PageOnset[], o: PageOptions):
         mins[i],
       ).map((x) => barX[i] + x),
     )
-    return { barX, barW, xs, scale, stagger, fits: sum(need) <= o.width }
+    return { barX, barW, xs, scale, fits: sum(need) <= o.width + 1e-6 }
   }
-  const scales = [0, 0.25, 0.5, 0.75, 1].map((i) => 1 - i * (1 - o.minScale))
-  let last = build(false, 1)
-  for (const stagger of [false, true])
-    for (const scale of scales) {
-      last = build(stagger, scale)
-      if (last.fits) return last
-    }
+  let last = build(1)
+  for (const scale of [0, 0.25, 0.5, 0.75, 1].map((i) => 1 - i * (1 - o.minScale))) {
+    last = build(scale)
+    if (last.fits) return last
+  }
   return last
-} /** Sizes the backing store to the element times devicePixelRatio and clears; returns the CSS size. */
+}
+
+/** Pages as [first bar, bar count]: each takes up to `max` bars, fewer while its layout does not `fit`, at least 1. */
+export function splitPages(barCount: number, max: number, fits: (first: number, count: number) => boolean): [number, number][] {
+  const pages: [number, number][] = []
+  for (let first = 0; first < barCount; ) {
+    let count = Math.min(max, barCount - first)
+    while (count > 1 && !fits(first, count)) count--
+    pages.push([first, count])
+    first += count
+  }
+  return pages
+}
+
+/** The page holding the bar of song time `t`. */
+export function pageAt(pages: [number, number][], bars: number[], t: number): [number, number] {
+  const bar = Math.max(0, bars.filter((b) => b <= t).length - 1)
+  return pages.find(([first, count]) => bar < first + count) ?? pages[pages.length - 1]
+}
+
 /** x of song time `t` between (time, x) points sorted by time: linear between neighbours, clamped to the ends; a later point at the same time wins. */
 export function playheadX(points: [number, number][], t: number): number {
   const i = points.findIndex(([pt]) => pt > t)
@@ -262,6 +276,7 @@ export function playheadX(points: [number, number][], t: number): number {
   return x0 + ((t - t0) / (t1 - t0)) * (x1 - x0)
 }
 
+/** Sizes the backing store to the element times devicePixelRatio and clears; returns the CSS size. */
 export function fit(ctx: CanvasRenderingContext2D): { w: number; h: number } {
   const c = ctx.canvas
   const dpr = globalThis.devicePixelRatio || 1
@@ -286,25 +301,16 @@ const RESTS: Record<number, { glyph: string; anchor: 'top' | 'bottom' | 'centre'
   0.5: { glyph: '\u{1D13E}', anchor: 'centre', step: 4 },
   0.25: { glyph: '\u{1D13F}', anchor: 'centre', step: 3 },
 }
+/** Artboard height: the drawing scales with the canvas height. */
 const BASE = 112
-const TALL = 126
 
-/** Treble staff, `barsPerPage` bars per page, lyric-aware spacing. No-op without a context (happy-dom). */
-export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): void {
-  if (!ctx) return
-  const { song, roles, names, t } = state
-  const canvas = ctx.canvas
-  const fifths = keyFifths(song.key)
+/** Onsets of bars first…first+count−1, sorted: notes sharing a beat, and rests (no syllable) in the gaps of each bar. */
+function pageContent(song: Song, roles: RoleId[], first: number, count: number) {
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const mine = (n: Note) => roles.includes(n.role)
-  let { w, h } = fit(ctx)
-  const per = barsPerPage(w)
-  const page = pageOf(song.bars, t, per)
-  const first = page * per
-  const bars = Array.from({ length: per }, (_, i) => first + i)
-  const notes = visibleNotes(song.notes, roles).filter((n) => n.bar >= first && n.bar < first + per)
+  const bars = Array.from({ length: count }, (_, i) => first + i)
+  const notes = visibleNotes(song.notes, roles).filter((n) => n.bar >= first && n.bar < first + count)
   const written = (n: Note) => noteValue(n.dur).base * (noteValue(n.dur).dot ? 1.5 : 1)
-  // Onsets of the page, sorted: notes sharing a beat, and rests (no syllable) in the gaps of each bar
   const keys = [...new Set(notes.map((n) => `${n.bar}:${n.beat}`))]
   const onsets: { bar: number; beat: number; here: Note[]; rest?: { len: number; voice: Note | undefined } }[] = [
     ...keys.map((k) => {
@@ -326,42 +332,70 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
       })
     }),
   ].sort((a, b) => a.bar - b.bar || a.beat - b.beat)
-  const index = new Map(onsets.map((o, k) => [`${o.bar}:${o.beat}`, k]))
-  const at = (n: Note) => index.get(`${n.bar}:${n.beat}`)!
   /** The note whose syllable an onset shows: mine first; none for a rest. */
   const lyric = onsets.map(({ here }) => here.find(mine) ?? here[0])
-  const layout = (s: number) => {
-    ctx.font = `700 ${12 * s}px ${FONT}` // measured bold: the current note's syllable is drawn bold
-    const startX = 46 * s + Math.abs(fifths) * 8 * s
-    const page = layoutPage(
-      bars,
-      onsets.map(({ bar, beat, here }, k) => ({
-        bar,
-        beat,
-        label: lyric[k]?.syllable ? ctx.measureText(lyric[k].syllable).width : 0,
-        acc: here.some((n) => staffPos(n.midi, fifths).acc !== ''),
-      })),
-      {
-        barQ,
-        width: w - 4 - startX,
-        leftRoom: startX - 4,
-        head: 20 * s, // a flag reaches 11 px right of its head, a rest or head 6 px left of its x
-        acc: 12 * s,
-        pad: 18 * s,
-        tail: 10 * s,
-        sep: 4 * s,
-        empty: 40 * s,
-        minScale: 10 / 12,
-      },
-    )
-    return { s, startX, ...page }
+  return { bars, notes, onsets, lyric }
+}
+
+/** Page layout of `content` on a canvas `w` wide at drawing scale `s`; measures the syllables in the bold lyric font. */
+function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number) {
+  const fifths = keyFifths(song.key)
+  ctx.font = `700 ${12 * s}px ${FONT}` // measured bold: the current note's syllable is drawn bold
+  const startX = 46 * s + Math.abs(fifths) * 8 * s
+  const page = layoutPage(
+    content.bars,
+    content.onsets.map(({ bar, beat, here }, k) => ({
+      bar,
+      beat,
+      label: content.lyric[k]?.syllable ? ctx.measureText(content.lyric[k].syllable).width : 0,
+      acc: here.some((n) => staffPos(n.midi, fifths).acc !== ''),
+    })),
+    {
+      barQ: (song.timeSig[0] * 4) / song.timeSig[1],
+      width: w - 4 - startX,
+      leftRoom: startX - 4,
+      head: 20 * s, // a flag reaches 11 px right of its head, a rest or head 6 px left of its x
+      acc: 12 * s,
+      pad: 18 * s,
+      tail: 10 * s,
+      sep: 4 * s,
+      empty: 40 * s,
+      minScale: 10 / 12,
+    },
+  )
+  return { s, startX, ...page }
+}
+
+/** Page split per song, canvas size, roles and font state; measuring every page each frame would be too slow. */
+const pageCache = new WeakMap<Song, Map<string, [number, number][]>>()
+/** Pages of up to `barsPerPage` bars whose syllables fit on one row (fewer bars where they do not). */
+export function staffPages(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number): [number, number][] {
+  const key = `${w}|${h}|${roles.join()}|${globalThis.document?.fonts?.status}`
+  const bySize = pageCache.get(song) ?? new Map<string, [number, number][]>()
+  pageCache.set(song, bySize)
+  let pages = bySize.get(key)
+  if (!pages) {
+    pages = splitPages(song.bars.length, barsPerPage(w), (first, count) => measurePage(ctx, song, pageContent(song, roles, first, count), w, h / BASE).fits)
+    bySize.set(key, pages)
   }
-  let L = layout(h / (canvas.classList.contains('tall') ? TALL : BASE))
-  if (L.stagger !== canvas.classList.contains('tall')) {
-    canvas.classList.toggle('tall', L.stagger) // the practice CSS grows the canvas for the second lyric row
-    ;({ w, h } = fit(ctx))
-    L = layout(h / (L.stagger ? TALL : BASE))
-  }
+  return pages
+}
+
+/** Treble staff, pages of `staffPages`, lyric-aware spacing on one row. Returns the page drawn; no-op without a context (happy-dom). */
+export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [number, number] | null {
+  if (!ctx) return null
+  const { song, roles, names, t } = state
+  const fifths = keyFifths(song.key)
+  const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
+  const mine = (n: Note) => roles.includes(n.role)
+  const { w, h } = fit(ctx)
+  const shown = pageAt(staffPages(ctx, song, roles, w, h), song.bars, t)
+  const [first, per] = shown
+  const content = pageContent(song, roles, first, per)
+  const { bars, notes, onsets, lyric } = content
+  const index = new Map(onsets.map((o, k) => [`${o.bar}:${o.beat}`, k]))
+  const at = (n: Note) => index.get(`${n.bar}:${n.beat}`)!
+  const L = measurePage(ctx, song, content, w, h / BASE)
   const { s, startX } = L
   const gap = 10 * s
   const y = (step: number) => 70 * s - (step * gap) / 2
@@ -533,11 +567,12 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   })
   ctx.globalAlpha = 1
 
-  // Syllables: one per onset, all of them; staggered pages put every other one on a second row
+  // Syllables: one per onset, all of them, on one row
   lyric.forEach((n, k) => {
     if (!n?.syllable) return
     ctx.font = `${n === current && mine(n) ? 700 : 400} ${12 * s * L.scale}px ${FONT}`
     ctx.fillStyle = colour(n)
-    ctx.fillText(n.syllable, startX + L.xs[k], (L.stagger && k % 2 ? 114 : 100) * s)
+    ctx.fillText(n.syllable, startX + L.xs[k], 100 * s)
   })
+  return shown
 }

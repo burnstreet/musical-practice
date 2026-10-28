@@ -105,7 +105,7 @@ Feature: Library
 }
 ```
 
-- `bars[i]` = start second of bar i. `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
+- `bars[i]` = start second of bar i. The intro before the first sung bar gets whole bars counted back from it (as many as fit after 0 s), so the staff shows its rests; `bar` of the notes counts them. `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
 - Notes sorted by `start`. `end > start`. `midi` integer 36–96. `role` in library roles. `phrase` indexes `phrases`.
 - `phrases[i].start` = first note start, `.end` = last note end of that phrase. Contiguous, non-overlapping, sorted.
 - `parseSong` rejects unsorted notes, a note whose `phrase` is out of range, a phrase without notes.

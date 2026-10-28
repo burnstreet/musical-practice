@@ -82,7 +82,7 @@ Opened from the gear button on songs and practice screens. Items, top to bottom:
 3. `Verzögerung messen`: button under the measured line, opens the calibration panel (see Latency calibration).
 4. `Mikrofon`: select, `Automatisch (eingebautes Mikrofon)` (`micDeviceId` '') plus every audio input by label (`Mikrofon {n}` while labels are hidden before permission). Saves `micDeviceId`; `pitch.setDevice` restarts a running mic on it.
 5. `Mikrofon testen`: button starts pitch engine, shows level bar and detected note name, stops on sheet close.
-6. `Kopfhörer`: text `Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.`
+6. `Kopfhörer`: text `Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.` and tip `Tipp: Miss für jeden Kopfhörer einmal die Verzögerung (Einstellungen, „Verzögerung messen“). Dann passen Noten und Bewertung zu dem, was du hörst.`
 7. `Sperren und Daten löschen`: red button, confirm dialog `Alle Lieder und Ergebnisse werden von diesem Gerät gelöscht. Fortfahren?` with `Löschen` / `Abbrechen`. Confirm calls vault.lock, then route start.
 
 `[@test] ../tests/steps/shell.steps.ts`
@@ -166,7 +166,7 @@ Feature: Latency calibration
 
 ## Headphone sheet
 
-- Before the first `play` on a device: sheet with title `Kopfhörer aufsetzen`, text as in settings item 6, checkbox `Nicht mehr anzeigen`, button `Weiter`. Checkbox sets `headphoneSheetSeen`.
+- Before the first `play` on a device: sheet with title `Kopfhörer aufsetzen`, text and tip as in settings item 6, checkbox `Nicht mehr anzeigen`, button `Weiter`. Checkbox sets `headphoneSheetSeen`.
   `[@test] ../tests/steps/shell.steps.ts`
 
 ```gherkin

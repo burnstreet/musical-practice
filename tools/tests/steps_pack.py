@@ -240,6 +240,14 @@ def test_song_file_follows_content_format(ctx):
     assert song["bars"][0] == 1.0 and song["bars"][1] == 5.0
 
 
+def test_intro_gets_bars_before_the_first_sung_bar():
+    # 60 bpm: 4 s bars; singing starts in bar 0 of the score at 9.0 s, beat 1 → that bar starts at 8.0 s
+    n = [{"start": 9.0, "end": 10.0, "midi": 60, "lyric": "a", "role": "maria", "phrase": 0, "bar": 0, "beat": 1.0, "dur": 1.0}]
+    song = pack.build_song({"id": "08", "bpm": 60, "key": "F"}, n, 16.0)
+    assert song["bars"][:3] == [0.0, 4.0, 8.0]
+    assert song["notes"][0]["bar"] == 2
+
+
 def test_repeat_gets_later_bar_and_bars_increase():
     n = [
         {"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "maria", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}
