@@ -58,7 +58,8 @@ Strings:
 - Bar lines: solid, text colour, 1.5 px, full staff height, at every bar start on the page and at the page end. Bar number (muted, 10 px) over each bar's start, matching `sub`.
 - Notes drawn = `visibleNotes(song.notes, roles)`: one line where I sing (same for the piano roll).
 - Mine: accent colour. Others: `--other`. Syllable under each onset (mine first), mine bold at the current note. Role name above each run of same-role notes, left out where it would overprint the previous one.
-- Current note highlighted with a translucent box. Page = `barsPerPage` bars, flips when the playhead enters the next page.
+- Current note highlighted with a translucent box.
+- Playhead: dashed vertical line as in the piano roll (text colour, 1.5 px, dash 3/4) over the staff at the heard time, moving linearly from onset to onset (notes and rests; bar line at the page start, page end at the last), so the next entry can be anticipated. Page = `barsPerPage` bars, flips when the playhead enters the next page.
 
 ## Piano roll (canvas)
 
