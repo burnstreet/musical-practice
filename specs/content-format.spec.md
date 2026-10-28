@@ -30,7 +30,7 @@ Plaintext. Fields:
 
 | field | type | meaning |
 |---|---|---|
-| `format` | 1 | format version |
+| `format` | 1 or 2 | format version. 2 = song files may carry `sections`. A reader accepts both; the builder writes 2 |
 | `build` | string | ISO timestamp of the build |
 | `keyId` | string | see Crypto |
 | `salt` | string | base64, 16 bytes |
@@ -42,7 +42,7 @@ Plaintext. Fields:
 
 Reveals nothing but sizes and opaque ids.
 
-- `parseManifest` rejects missing fields, `format` other than 1, non-base64 salt, ids not matching `^[0-9a-f]{16}$`.
+- `parseManifest` rejects missing fields, `format` other than 1 or 2, non-base64 salt, ids not matching `^[0-9a-f]{16}$`.
   `[@test] ../tests/steps/content-format.steps.ts`
 
 ```gherkin
@@ -51,11 +51,6 @@ Feature: Public manifest
     Given a manifest JSON with format 1, keyId "0123456789abcdef", a 16-byte base64 salt, iterations 600000, library "fedcba9876543210", songCount 2, totalBytes 300, files {"fedcba9876543210": 100, "00000000000000aa": 200}
     When I parse it as a manifest
     Then I get songCount 2 and totalBytes 300
-
-  Scenario: wrong format version rejected
-    Given a manifest JSON with format 2
-    When I parse it as a manifest
-    Then parsing fails with ContentError "format"
 
   Scenario: bad file id rejected
     Given a valid manifest JSON whose files contain the id "not-hex"
@@ -101,14 +96,16 @@ Feature: Library
   "id": "08", "bpm": 93, "key": "F", "timeSig": [4, 4],
   "bars": [0.0, 2.58, 5.16],
   "notes": [ { "start": 1.21, "end": 1.62, "midi": 67, "syllable": "Sin", "role": "maria", "phrase": 0, "bar": 0, "beat": 1.5, "dur": 0.5 } ],
-  "phrases": [ { "index": 0, "label": "Phrase 1", "start": 1.21, "end": 7.9 } ]
+  "phrases": [ { "index": 0, "label": "Phrase 1", "start": 1.21, "end": 7.9 } ],
+  "sections": [ { "name": "Strophe 1", "start": 0.0, "end": 20.64 }, { "name": "Refrain", "start": 20.64, "end": 41.28 } ]
 }
 ```
 
 - `bars[i]` = start second of bar i. The intro before the first sung bar gets whole bars counted back from it (as many as fit after 0 s), so the staff shows its rests; `bar` of the notes counts them. `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
 - Notes sorted by `start`. `end > start`. `midi` integer 36–96. `role` in library roles. `phrase` indexes `phrases`.
 - `phrases[i].start` = first note start, `.end` = last note end of that phrase. Contiguous, non-overlapping, sorted.
-- `parseSong` rejects unsorted notes, a note whose `phrase` is out of range, a phrase without notes.
+- `sections` is optional (bundles without it stay valid; format 1 files never have it). Entries: `name` non-empty string, `start`/`end` seconds with `end > start`, snapped to bar lines by the builder and editor. Sorted by `start`, non-overlapping. Empty array allowed. The singer UI hides section features when the field is missing or empty.
+- `parseSong` rejects unsorted notes, a note whose `phrase` is out of range, a phrase without notes, and `sections` that is not an array, has an entry with an empty name or `end <= start`, or is unsorted or overlapping.
   `[@test] ../tests/steps/content-format.steps.ts`
 
 ```gherkin
@@ -175,3 +172,50 @@ Feature: Visible notes
 
 - MP3, mono, 128 kbps, 44.1 kHz. Voices = full mix. Backing = aligned playback or Demucs accompaniment.
 - Both stems of a song equal in length within 20 ms. Sample 0 of both = same musical instant.
+
+Pending scenarios for repeat and skip (ticket 03, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/content-format.steps.ts`.
+  `[@test] ../tests/steps/pending/content-format.steps.ts`
+
+```gherkin
+Feature: Format version
+  Scenario: format 2 manifest parses
+    Given a manifest JSON with format 2 and otherwise valid fields
+    When I parse it as a manifest
+    Then I get the manifest
+
+  Scenario: unknown format version rejected
+    Given a manifest JSON with format 3
+    When I parse it as a manifest
+    Then parsing fails with ContentError "format"
+
+Feature: Song sections
+  Scenario: song with sections parses
+    Given a song JSON with sections "Strophe 1" [0.0,20.0] and "Refrain" [20.0,40.0]
+    When I parse it as a song
+    Then song.sections has two entries named "Strophe 1" and "Refrain"
+
+  Scenario: song without sections parses
+    Given a song JSON without a sections field
+    When I parse it as a song
+    Then parsing succeeds and song.sections is empty
+
+  Scenario: section ending before it starts rejected
+    Given a song JSON with a section [20.0,20.0]
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+
+  Scenario: overlapping sections rejected
+    Given a song JSON with sections [0.0,20.0] and [10.0,30.0]
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+
+  Scenario: unsorted sections rejected
+    Given a song JSON with sections [20.0,30.0] then [0.0,10.0]
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+
+  Scenario: unnamed section rejected
+    Given a song JSON with a section named ""
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+```
