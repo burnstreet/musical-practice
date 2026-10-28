@@ -79,7 +79,7 @@ Pure function `detect_sections(notes, bars)` plus a script that writes the resul
 - Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid. Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Not unit-tested (drawing).
 - Phrases stay editable only through `Phrasenanfang`.
 - Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the existing save path (`sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
-- Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which calls `detect_sections` and answers with the sections; the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
+- Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
   `[@test] ../tests/steps/editor.steps.ts`
 
 ```gherkin
@@ -95,6 +95,57 @@ Feature: Editor role painting
     Then note 3 has phraseStart true
     When I press "Phrasenanfang" again
     Then note 3 has no phraseStart
+
+Feature: Editor sections
+  Scenario: add a section by bar numbers
+    Given a song with bars every 2 s over 20 bars and no sections
+    When I add the section "Strophe 1" from bar 3 to bar 5
+    Then the sections are "Strophe 1" [4.0,10.0]
+
+  Scenario: last bar ends at the song end
+    Given bars every 2 s over 20 bars with the song ending at 40.0
+    When I add the section "Outro" from bar 19 to bar 20
+    Then the section is [36.0,40.0]
+
+  Scenario: sections stay sorted
+    Given a section "B" from bar 9 to bar 12
+    When I add the section "A" from bar 1 to bar 4
+    Then the sections are "A" then "B"
+
+  Scenario: rename
+    Given a section "Strophe 1"
+    When I rename it to "Bridge"
+    Then it is named "Bridge" and its times are unchanged
+
+  Scenario: re-bar snaps to bar lines
+    Given a section "Strophe 1" [4.0,10.0]
+    When I set it from bar 2 to bar 6
+    Then it is [2.0,12.0]
+
+  Scenario: delete
+    Given sections "A" and "B"
+    When I delete "A"
+    Then only "B" is left
+
+  Scenario: overlap refused
+    Given a section "A" [4.0,10.0]
+    When I add "B" from bar 4 to bar 6
+    Then the sections are unchanged and the editor shows an error
+
+  Scenario: bar range backwards refused
+    Given a song with 20 bars
+    When I add a section from bar 6 to bar 3
+    Then the sections are unchanged and the editor shows an error
+
+  Scenario: re-detect replaces the list
+    Given sections "A" and "B" and detected sections "Refrain" and "Strophe 1" from the builder
+    When I confirm "Abschnitte neu erkennen"
+    Then the sections are "Refrain" and "Strophe 1"
+
+  Scenario: re-detect cancelled
+    Given sections "A" and "B"
+    When I cancel the confirmation of "Abschnitte neu erkennen"
+    Then the sections are "A" and "B"
 ```
 
 ## Completeness check (`pack.py`)
@@ -224,60 +275,4 @@ Feature: Stored sections
     Given a complete song whose JSON has no sections key
     When I run pack
     Then the decrypted song file has no sections field
-```
-
-Pending scenarios for repeat and skip (ticket 08, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the real block and points the link at `../tests/steps/editor.steps.ts`.
-  `[@test] ../tests/steps/pending/editor.steps.ts`
-
-```gherkin
-Feature: Editor sections
-  Scenario: add a section by bar numbers
-    Given a song with bars every 2 s over 20 bars and no sections
-    When I add the section "Strophe 1" from bar 3 to bar 5
-    Then the sections are "Strophe 1" [4.0,10.0]
-
-  Scenario: last bar ends at the song end
-    Given bars every 2 s over 20 bars with the song ending at 40.0
-    When I add the section "Outro" from bar 19 to bar 20
-    Then the section is [36.0,40.0]
-
-  Scenario: sections stay sorted
-    Given a section "B" from bar 9 to bar 12
-    When I add the section "A" from bar 1 to bar 4
-    Then the sections are "A" then "B"
-
-  Scenario: rename
-    Given a section "Strophe 1"
-    When I rename it to "Bridge"
-    Then it is named "Bridge" and its times are unchanged
-
-  Scenario: re-bar snaps to bar lines
-    Given a section "Strophe 1" [4.0,10.0]
-    When I set it from bar 2 to bar 6
-    Then it is [2.0,12.0]
-
-  Scenario: delete
-    Given sections "A" and "B"
-    When I delete "A"
-    Then only "B" is left
-
-  Scenario: overlap refused
-    Given a section "A" [4.0,10.0]
-    When I add "B" from bar 4 to bar 6
-    Then the sections are unchanged and the editor shows an error
-
-  Scenario: bar range backwards refused
-    Given a song with 20 bars
-    When I add a section from bar 6 to bar 3
-    Then the sections are unchanged and the editor shows an error
-
-  Scenario: re-detect replaces the list
-    Given sections "A" and "B" and detected sections "Refrain" and "Strophe 1" from the builder
-    When I confirm "Abschnitte neu erkennen"
-    Then the sections are "Refrain" and "Strophe 1"
-
-  Scenario: re-detect cancelled
-    Given sections "A" and "B"
-    When I cancel the confirmation of "Abschnitte neu erkennen"
-    Then the sections are "A" and "B"
 ```
