@@ -79,11 +79,11 @@ export default steps(({ Given, When, Then }) => {
   })
 
   Given(
-    /^songTime returns ([\d.]+), (?:playback latency ([\d.]+), )?mic baseLatency ([\d.]+), mic outputLatency ([\d.]+) and offset (-?\d+) ms$/,
-    async (ctx, t, play, base, out, off) => {
+    /^songTime returns ([\d.]+), (?:playback latency ([\d.]+), )?mic baseLatency ([\d.]+), mic outputLatency ([\d.]+) and delay (auto|\d+ ms)$/,
+    async (ctx, t, play, base, out, delay) => {
       Object.assign(ctx, { base: +base, out: +out })
       fakes(ctx, stream(ctx))
-      ctx.engine.setOffsetMs(+off)
+      ctx.engine.setDelayMs(delay === 'auto' ? null : Number.parseInt(delay, 10))
       expect(await ctx.engine.start(() => +t, play ? () => +play : undefined)).toBe('ok')
     },
   )

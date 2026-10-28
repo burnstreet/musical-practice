@@ -120,7 +120,7 @@ function world(ctx: any) {
         return ctx.startResult
       },
       stop: () => log('pitch.stop'),
-      setOffsetMs: () => {},
+      setDelayMs: () => {},
       on: (ev: string, fn: (x: any) => void) => {
         on(ctx.pitchL)(ev, fn)
         return () => {}
