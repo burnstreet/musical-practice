@@ -79,6 +79,11 @@ def song_bpm(root, nid):
     return next(s["bpm"] for s in cfg["songs"] if s["id"] == nid)
 
 
+def song_beats(root, nid):
+    cfg = json.loads((Path(root) / "sources" / "config.json").read_text(encoding="utf-8"))
+    return next(s.get("beats", 4) for s in cfg["songs"] if s["id"] == nid)
+
+
 def main(argv, root=ROOT):
     nn = argv[0]
     path = Path(root) / "web" / "data" / f"{nn}.json"
@@ -89,7 +94,7 @@ def main(argv, root=ROOT):
     if any(n.get("phrase") is None for n in notes):
         print("notes without phrase: run phrases.py first")
         sys.exit(1)
-    song["sections"] = detect_for(notes, song_bpm(root, nn))
+    song["sections"] = detect_for(notes, song_bpm(root, nn), song_beats(root, nn))
     path.write_text(json.dumps(song, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
