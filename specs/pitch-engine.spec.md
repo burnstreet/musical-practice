@@ -20,7 +20,7 @@ export interface PitchEngine {
   clocks(): [songTime: () => number, playbackLatency: () => number]  // of the last start, to restore after calibration
   devices(): Promise<{ deviceId: string; label: string }[]> // audio inputs, labels only after permission
   stop(): void
-  setOffsetMs(ms: number): void                           // user setting, -300..300
+  setDelayMs(ms: number | null): void                     // settings.delayMs: total scoring delay, null = reported latencies
   on(ev: 'frame', fn: (f: PitchFrame) => void): void
   level(): number                                         // last rms 0..1, for mic test
   inputLatency(): number                                  // mic context baseLatency in s, 0 when unknown or stopped
@@ -32,7 +32,7 @@ Constants (one file `pitch-constants.ts`): window 1024, hop 256, clarity thresho
 - Detector: McLeod pitch method (pitchy). Frame every hop. `midi = 69 + 12·log2(hz/440)` as float. `midi = null` when clarity below threshold or hz outside range.
 - Detection delay `d = WINDOW / 2 / ctx.sampleRate`: the window's centre is what the frame measures.
 - Live stamp (drawing, readout): `at = songTime() − d`, read when the frame arrives. The newest point sits at the playhead whatever latency the device reports.
-- Scoring stamp: song position the singer reacted to. `t = songTime() − d − playbackLatency() − micCtx.baseLatency − offsetMs/1000`, read when the frame arrives. `playbackLatency` = `engine.latency()` (the playback context, see audio engine). The mic context's `outputLatency` is not on the path (the mic is not played out). Missing values count as 0.
+- Scoring stamp: song position the singer reacted to. `t = songTime() − d − delay`, read when the frame arrives. `delay` = `delayMs/1000` when set (measured by the calibration or set on the slider), else `playbackLatency() + micCtx.baseLatency` as reported. `playbackLatency` = `engine.latency()` (the playback context, see audio engine). The mic context's `outputLatency` is not on the path (the mic is not played out). Missing values count as 0. A set delay replaces the reported values because some browsers report far more than the real latency (Android Chrome: 393 ms reported, 156 ms measured).
 - Both AudioContexts (mic here, playback in the audio engine) are created with `latencyHint: 'interactive'`.
 - `start` returns `denied` on permission error, `unsupported` when AudioWorklet or getUserMedia missing. Mic constraints: `echoCancellation false, noiseSuppression false, autoGainControl false`.
 - `stop` releases the track.
@@ -68,14 +68,19 @@ Feature: Detection
 
 Feature: Time stamps
   Scenario: latency subtracted for scoring, not for drawing
-    Given songTime returns 10.000, playback latency 0.300, mic baseLatency 0.010, mic outputLatency 0.030 and offset 50 ms
+    Given songTime returns 10.000, playback latency 0.300, mic baseLatency 0.010, mic outputLatency 0.030 and delay auto
     When a frame arrives
-    Then its at is 9.989 and its t is 9.629
+    Then its at is 9.989 and its t is 9.679
     And inputLatency() is 0.010
     And clocks() gives back song time 10.000 and playback latency 0.300
 
+  Scenario: a set delay replaces the reported latencies
+    Given songTime returns 10.000, playback latency 0.300, mic baseLatency 0.010, mic outputLatency 0.030 and delay 150 ms
+    When a frame arrives
+    Then its at is 9.989 and its t is 9.839
+
   Scenario: no playback latency given
-    Given songTime returns 10.000, mic baseLatency 0.010, mic outputLatency 0.030 and offset 0 ms
+    Given songTime returns 10.000, mic baseLatency 0.010, mic outputLatency 0.030 and delay auto
     When a frame arrives
     Then its at is 9.989 and its t is 9.979
 

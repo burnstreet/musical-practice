@@ -24,7 +24,7 @@ function world(delay: number) {
     },
   }
   const sleep = async () => {
-    for (let at = 0; at < 6.5; at = Math.round((at + 0.005) * 1000) / 1000) {
+    for (let at = 0; at < 9.5; at = Math.round((at + 0.005) * 1000) / 1000) {
       const loud = clicks.some((c) => at >= c + delay && at < c + delay + 0.03)
       listener({ at, t: at, midi: null, clarity: 0, rms: loud ? 0.2 : 0.001 })
     }
@@ -32,11 +32,16 @@ function world(delay: number) {
   return { engine, pitch, sleep, clicks, stopped }
 }
 
-it('plays 8 clicks after the count-in and measures the delay on their clock', async () => {
+it('plays 8 clicks a second apart after the count-in and measures the delay on their clock', async () => {
   const w = world(0.15)
   const result = await runCalibration(w.engine, w.pitch, '', w.sleep).done
-  expect(w.clicks.map((c) => +c.toFixed(3))).toEqual([1, 1.6, 2.2, 2.8, 3.4, 4, 4.6, 5.2])
+  expect(w.clicks.map((c) => +c.toFixed(3))).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
   expect(result).toEqual({ ms: 150, spreadMs: 0 })
+})
+
+it('measures a Bluetooth-sized delay', async () => {
+  const w = world(0.45)
+  expect(await runCalibration(w.engine, w.pitch, '', w.sleep).done).toEqual({ ms: 450, spreadMs: 0 })
 })
 
 it('cancel stops the clicks and gives no result', async () => {

@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { detectOnsets, matchClicks, offsetFor, summarize } from '../../src/core/calibration'
+import { delayFor, detectOnsets, matchClicks, summarize } from '../../src/core/calibration'
 import { steps } from '../gherkin'
 
 const nums = (s: string) => [...s.matchAll(/-?[\d.]+/g)].map((m) => +m[0])
@@ -48,7 +48,7 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^the result is not clear$/, (ctx) => expect(ctx.result).toBeNull())
 
-  Then(/^a measured (-?\d+) ms with playback ([\d.]+) s and mic ([\d.]+) s gives offset (-?\d+)$/, (_ctx, ms, play, mic, offset) => {
-    expect(offsetFor(+ms, +play, +mic)).toBe(+offset)
+  Then(/^a measured (-?\d+) ms gives delay (\d+)$/, (_ctx, ms, delay) => {
+    expect(delayFor(+ms)).toBe(+delay)
   })
 })

@@ -33,7 +33,7 @@ const world = (active: boolean) => {
         return () => void listeners--
       },
       level: () => 0,
-      setOffsetMs: (ms: number) => calls.push(`offset ${ms}`),
+      setDelayMs: (ms: number) => calls.push(`delay ${ms}`),
       clocks: () => [() => 7, () => 0],
     },
   } as unknown as AppContext)
@@ -74,10 +74,11 @@ it('mic test without practice starts and stops the mic', async () => {
   expect(listeners).toBe(0)
 })
 
-it('shows the measured latencies', async () => {
+it('shows the reported latencies and their sum as the automatic delay', async () => {
   world(false)
   const el = await open()
-  expect(el.shadowRoot!.textContent).toContain('Gemessen: Wiedergabe 42 ms · Mikrofon 8 ms')
+  expect(el.shadowRoot!.textContent).toContain('Vom Browser gemeldet: Wiedergabe 42 ms · Mikrofon 8 ms')
+  expect(el.shadowRoot!.textContent).toContain('50 ms (automatisch)')
 })
 
 it('lists the microphones and switches the running mic', async () => {
@@ -103,23 +104,23 @@ async function calibrate(result: Calibration | null) {
   return { el, button }
 }
 
-it('measures the delay and sets the offset the pitch engine still needs', async () => {
+it('measures the delay and uses it instead of the reported latencies', async () => {
   world(false)
-  const { el } = await calibrate({ ms: 180, spreadMs: 5 })
-  expect(el.shadowRoot!.textContent).toContain('Gemessen: 180 ms (±5 ms)')
-  // 180 − 42.4 playback − 8 mic = 129.6 → 130
-  expect(settings.get().micOffsetMs).toBe(130)
-  expect(calls).toContain('offset 130')
-  expect(el.shadowRoot!.querySelector('#offset').value).toBe('130')
+  const { el } = await calibrate({ ms: 156, spreadMs: 23 })
+  expect(el.shadowRoot!.textContent).toContain('Gemessen: 156 ms (±23 ms)')
+  expect(settings.get().delayMs).toBe(160)
+  expect(calls).toContain('delay 160')
+  expect(el.shadowRoot!.querySelector('#delay').value).toBe('160')
+  expect(el.shadowRoot!.textContent).not.toContain('automatisch')
   expect(calls.at(-1)).toBe('stop') // the mic is off again
 })
 
-it('asks to repeat an unclear measurement and keeps the offset', async () => {
+it('asks to repeat an unclear measurement and keeps the delay', async () => {
   world(false)
-  settings.set({ micOffsetMs: 40 })
+  settings.set({ delayMs: 40 })
   const { el } = await calibrate(null)
   expect(el.shadowRoot!.textContent).toContain('Nicht eindeutig – bitte nochmal.')
-  expect(settings.get().micOffsetMs).toBe(40)
+  expect(settings.get().delayMs).toBe(40)
 })
 
 it('restarts the practice mic with its own clocks after measuring', async () => {
