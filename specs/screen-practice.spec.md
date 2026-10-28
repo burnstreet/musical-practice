@@ -228,12 +228,7 @@ Feature: Practice screen
     Given two completed passes
     When I navigate back
     Then history.record was called with two passes and engine.unload ran
-```
 
-Pending scenarios for repeat and skip (ticket 05, 06 and 07, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
-  `[@test] ../tests/steps/pending/screen-practice.steps.ts`
-
-```gherkin
 Feature: Repeat selector
   Scenario: Phrase repeat takes the current phrase
     Given the heard time is inside phrase 2 spanning [10.0,14.0]
@@ -308,7 +303,13 @@ Feature: A–B repeat
     Given A is set at 6.0 and bars every 2 s
     When I set B at 6.4
     Then the range is [6.0,8.0]
+```
 
+Pending scenarios for repeat and skip (ticket 06 and 07, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
+  `[@test] ../tests/steps/pending/screen-practice.steps.ts`
+
+```gherkin
+Feature: A-B dimming
   Scenario: A without B dims everything before A
     Given A is set at 6.0
     Then the staff, the roll and the progress bar are drawn with a dim range from 6.0 to the song end
