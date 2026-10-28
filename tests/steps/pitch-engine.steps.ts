@@ -98,6 +98,7 @@ export default steps(({ Given, When, Then }) => {
     expect(songTime()).toBeCloseTo(+t, 6)
     expect(latency()).toBeCloseTo(+play, 6)
   })
+  Then(/^delay\(\) is ([\d.]+)$/, (ctx, s) => expect(ctx.engine.delay()).toBeCloseTo(+s, 6))
   Then(/^inputLatency\(\) is ([\d.]+)$/, (ctx, s) => expect(ctx.engine.inputLatency()).toBeCloseTo(+s, 6))
 
   const labels = (s: string) => [...s.matchAll(/"([^"]+)"/g)].map((m) => m[1])

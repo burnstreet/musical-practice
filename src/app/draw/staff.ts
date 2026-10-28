@@ -11,7 +11,7 @@ export interface DrawState {
   names: Partial<Record<RoleId, string>>
   /** Song time of the playhead in seconds. */
   t: number
-  /** Pitch frames of the last 1.5 s (by live stamp `at`), oldest first; `midi: null` breaks the sung line. */
+  /** Pitch frames of the last 1.5 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
   tolerance: Tolerance
 }
@@ -253,6 +253,15 @@ export function layoutPage(bars: number[], onsets: PageOnset[], o: PageOptions):
     }
   return last
 } /** Sizes the backing store to the element times devicePixelRatio and clears; returns the CSS size. */
+/** x of song time `t` between (time, x) points sorted by time: linear between neighbours, clamped to the ends; a later point at the same time wins. */
+export function playheadX(points: [number, number][], t: number): number {
+  const i = points.findIndex(([pt]) => pt > t)
+  if (i === -1) return points[points.length - 1][1]
+  if (i === 0) return points[0][1]
+  const [[t0, x0], [t1, x1]] = [points[i - 1], points[i]]
+  return x0 + ((t - t0) / (t1 - t0)) * (x1 - x0)
+}
+
 export function fit(ctx: CanvasRenderingContext2D): { w: number; h: number } {
   const c = ctx.canvas
   const dpr = globalThis.devicePixelRatio || 1
@@ -406,6 +415,28 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     ctx.fill()
     ctx.globalAlpha = 1
   }
+
+  // Playhead, dashed as in the piano roll: moves from onset to onset, so the singer sees the next entry coming
+  // bars past the song's end (last page) continue at the last bar's length
+  const nb = song.bars.length
+  const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
+  const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
+  const px = playheadX(
+    [
+      [barStart(first), startX + L.barX[0]],
+      ...onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), startX + L.xs[k]]),
+      [barStart(first + per), startX + L.barX[per - 1] + L.barW[per - 1]],
+    ],
+    t,
+  )
+  ctx.strokeStyle = COLORS.text
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([3, 4])
+  ctx.beginPath()
+  ctx.moveTo(px, 22 * s)
+  ctx.lineTo(px, 78 * s)
+  ctx.stroke()
+  ctx.setLineDash([])
 
   // Role name above each run of same-role notes; one that would overprint the previous is left out
   ctx.textAlign = 'center'
