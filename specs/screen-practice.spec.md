@@ -303,16 +303,6 @@ Feature: A–B repeat
     Given A is set at 6.0 and bars every 2 s
     When I set B at 6.4
     Then the range is [6.0,8.0]
-```
-
-Pending scenarios for repeat and skip (ticket 06 and 07, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
-  `[@test] ../tests/steps/pending/screen-practice.steps.ts`
-
-```gherkin
-Feature: A-B dimming
-  Scenario: A without B dims everything before A
-    Given A is set at 6.0
-    Then the staff, the roll and the progress bar are drawn with a dim range from 6.0 to the song end
 
 Feature: Skip
   Scenario: next own entry lands a lead-in before
@@ -369,6 +359,16 @@ Feature: Intro skip
   Scenario: hidden when the lead-in would land at 0
     Given the first sung note of any role starts at 2.0
     Then the button "Intro überspringen" is not shown
+```
+
+Pending scenarios for repeat and skip (ticket 07, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
+  `[@test] ../tests/steps/pending/screen-practice.steps.ts`
+
+```gherkin
+Feature: A-B dimming
+  Scenario: A without B dims everything before A
+    Given A is set at 6.0
+    Then the staff, the roll and the progress bar are drawn with a dim range from 6.0 to the song end
 
 Feature: Dimming and sections
   Scenario: everything outside the range is dimmed
