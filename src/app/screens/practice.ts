@@ -1,6 +1,6 @@
 import { css, html, LitElement, svg } from 'lit'
-import type { Mode, Range, Tempo } from '../../core/audio-engine'
-import type { Phrase, RoleId, Song } from '../../core/content'
+import { LEAD_IN_SEC, leadInStart, type Mode, type Range, type Tempo } from '../../core/audio-engine'
+import type { Phrase, RoleId, Song, Span } from '../../core/content'
 import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
@@ -8,7 +8,7 @@ import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
 import { barsPerPage, type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
 import { features } from '../features'
-import { abRange, einsatzRange, phraseRange, sectionAt, snapToBar } from '../repeat'
+import { abRange, einsatzRange, ownSpans, phraseRange, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -37,6 +37,8 @@ const CHEVRON = icon(svg`<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor
 const TO_START = icon(
   svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
 )
+const SKIP_PREV = icon(svg`<g fill="currentColor"><path d="M18 5v14l-9-7z"/><rect x="6" y="5" width="2.5" height="14" rx="1"/></g>`, 20)
+const SKIP_NEXT = icon(svg`<g fill="currentColor"><path d="M6 5v14l9-7z"/><rect x="15.5" y="5" width="2.5" height="14" rx="1"/></g>`, 20)
 const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></g>`, 28)
 const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 28)
 const MIC = icon(
@@ -153,6 +155,9 @@ export class GuPractice extends LitElement {
     .chip { height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
     .chip[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
     .status { margin: 0; font-size: 13px; color: var(--muted); }
+    .skip { display: flex; align-items: center; gap: 8px; }
+    .skip .round { width: 44px; height: 44px; }
+    .skip .intro { margin-left: auto; height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
     .progress input { flex: 1; margin: 0; height: 24px; accent-color: var(--text); }
     .buttons { display: flex; align-items: center; justify-content: space-between; }
@@ -388,6 +393,29 @@ export class GuPractice extends LitElement {
     } else this.setRange('ab', abRange(bars, this.a, p, this.loaded!.meta.durationSec))
   }
 
+  /** Skip targets from the heard time: previous = latest own span starting more than the lead-in before now, next = first whose lead-in landing lies after now. */
+  private skipTargets(): { prev?: Span; next?: Span } {
+    const { song } = this.loaded!
+    const now = this.heard()
+    const spans = ownSpans(song, getContext().settings.get().roles)
+    return { prev: spans.filter((s) => s.start < now - LEAD_IN_SEC).at(-1), next: spans.find((s) => leadInStart(s.start, song.bars) > now) }
+  }
+
+  /** Seek to the lead-in before `start`; an Einsatz repeat moves along to `span`. */
+  private skipTo(start: number, span?: Span) {
+    const { engine } = getContext()
+    if (span && this.kind === 'einsatz' && this.loop?.start !== span.start) this.setRange('einsatz', { start: span.start, end: span.end, leadIn: true })
+    engine.seekLeadIn(start)
+    this.t = engine.time()
+  }
+
+  /** First sung note of any role, while the heard time is before it and its lead-in lands after 0; else null. */
+  private introEnd(): number | null {
+    const { song } = this.loaded!
+    const first = Math.min(...song.notes.map((n) => n.start))
+    return first < Infinity && this.heard() < first && leadInStart(first, song.bars) > 0 ? first : null
+  }
+
   /** `{name} · {m:ss}–{m:ss}`; A–B with A only: `A {m:ss} · B noch nicht gesetzt`; '' without a repeat. */
   private status(): string {
     if (this.kind === 'ab' && !this.loop) return this.a === null ? '' : `A ${clock(this.a)} · B noch nicht gesetzt`
@@ -430,6 +458,8 @@ export class GuPractice extends LitElement {
     const dur = loaded.meta.durationSec
     const status = this.status()
     const sections = !!loaded.song.sections?.length
+    const skip = this.skipTargets()
+    const intro = this.introEnd()
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
@@ -470,6 +500,11 @@ export class GuPractice extends LitElement {
           )}
         </div>
         ${status ? html`<p class="status" role="status">${status}</p>` : ''}
+      </div>
+      <div class="skip">
+        <button class="round" aria-label="Zum vorigen Einsatz" ?disabled=${!skip.prev} @click=${() => skip.prev && this.skipTo(skip.prev.start, skip.prev)}>${SKIP_PREV}</button>
+        <button class="round" aria-label="Zum nächsten Einsatz" ?disabled=${!skip.next} @click=${() => skip.next && this.skipTo(skip.next.start, skip.next)}>${SKIP_NEXT}</button>
+        ${intro === null ? '' : html`<button class="intro" @click=${() => this.skipTo(intro)}>Intro überspringen</button>`}
       </div>
       <div class="progress">
         <span>${clock(this.t)}</span>
