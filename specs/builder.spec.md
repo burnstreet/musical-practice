@@ -277,6 +277,11 @@ Feature: Section detection
     Given the detected sections of the first scenario
     Then every section start and end is a bar start and each end equals the next start
 
+  Scenario: no empty section
+    Given bars every 2 s and phrases a, b, x, a, b, then a short phrase y at [19.6,19.9]
+    When I detect sections
+    Then I get "Refrain" [0,8], "Strophe 1" [8,12] and "Refrain 2" [12,20]
+
 Feature: Stored sections
   Scenario: pack keeps stored sections
     Given a complete song whose JSON has sections "Refrain" [4,12]

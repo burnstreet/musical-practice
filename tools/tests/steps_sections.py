@@ -69,6 +69,12 @@ def _(ctx, a, b):
     ctx["notes"], ctx["bars"] = phrase_notes(t, evenly(t)), BARS
 
 
+@given("bars every 2 s and phrases a, b, x, a, b, then a short phrase y at [19.6,19.9]")
+def _(ctx):
+    t = list("abxaby")
+    ctx["notes"], ctx["bars"] = phrase_notes(t, evenly(t)[:5] + [(19.6, 19.9)]), BARS
+
+
 @when("I detect sections")
 def _(ctx):
     ctx["result"] = sections.detect_sections(ctx["notes"], ctx["bars"])
@@ -86,6 +92,15 @@ def _(ctx):
         {"name": "Strophe 1", "start": 12.0, "end": 20.0},
         {"name": "Refrain 2", "start": 20.0, "end": 28.0},
         {"name": "Strophe 2", "start": 28.0, "end": 32.0},
+    ]
+
+
+@then(parsers.parse('I get "Refrain" [0,8], "Strophe 1" [8,12] and "Refrain 2" [12,20]'))
+def _(ctx):
+    assert ctx["result"] == [
+        {"name": "Refrain", "start": 0.0, "end": 8.0},
+        {"name": "Strophe 1", "start": 8.0, "end": 12.0},
+        {"name": "Refrain 2", "start": 12.0, "end": 20.0},
     ]
 
 
