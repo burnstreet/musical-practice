@@ -18,6 +18,16 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   // phone layout: the practice screen must not be wider than the viewport
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(0)
+  // ... and fit the visible height, play row included, on common phone sizes
+  for (const [width, height] of [
+    [390, 844],
+    [412, 915],
+  ]) {
+    await page.setViewportSize({ width, height })
+    const over = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)
+    expect(over, `${width}x${height}`).toBeLessThanOrEqual(0)
+  }
+  await page.setViewportSize({ width: 430, height: 900 })
 
   await page.getByRole('button', { name: 'Abspielen' }).click()
   await page.getByRole('button', { name: 'Weiter' }).click() // headphone sheet

@@ -8,7 +8,7 @@ import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
 import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
 import { features } from '../features'
-import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, sectionAt, snapToBar } from '../repeat'
+import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -16,7 +16,7 @@ const MODES: Record<Mode, [label: string, next: Mode]> = {
   backing: ['nur Playback', 'all'],
 }
 const NEXT_TEMPO: Record<Tempo, Tempo> = { 100: 90, 90: 80, 80: 70, 70: 100 }
-type Kind = 'off' | 'phrase' | 'section' | 'einsatz' | 'ab'
+type Kind = RepeatKind
 const CHIPS: [Kind, string][] = [
   ['off', 'Aus'],
   ['phrase', 'Phrase'],
@@ -150,14 +150,13 @@ export class GuPractice extends LitElement {
     .transport { grid-area: transport; align-self: end; display: flex; flex-direction: column; gap: 10px; }
     @media (min-width: 960px) { .transport { align-self: start; background: var(--surface); border-radius: 24px; padding: 20px 24px; } .transport .round { background: var(--bg); } }
     .repeat { display: flex; flex-direction: column; gap: 6px; }
-    .repeat .label { font-size: 12px; color: var(--muted); }
+    .repeat .line { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+    .repeat .label { flex: none; font-size: 12px; color: var(--muted); }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip { height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
     .chip[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
-    .status { margin: 0; font-size: 13px; color: var(--muted); }
-    .skip { display: flex; align-items: center; gap: 8px; }
-    .skip .round { width: 44px; height: 44px; }
-    .skip .intro { margin-left: auto; height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
+    .status { flex: 1; min-width: 0; margin: 0; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .intro { flex: none; margin-left: auto; height: 32px; padding: 0 12px; border-radius: 16px; font-size: 13px; }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
     .progress .track { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .progress .segs { position: relative; height: 22px; }
@@ -177,6 +176,18 @@ export class GuPractice extends LitElement {
     .mic { display: flex; align-items: center; flex: none; }
     .mic.on { color: var(--accent); }
     .mic:not(.on) { color: var(--muted); }
+    /* phone upright: everything on one screen (dvh = the visible height), the roll takes what the other rows leave */
+    @media (max-width: 959px) and (orientation: portrait) {
+      :host { min-height: 100dvh; padding: 12px 16px 16px; gap: 8px; grid-template-rows: auto auto auto auto minmax(96px, 1fr) auto auto; }
+      .mode { height: 40px; }
+      .roll { position: relative; }
+      .roll canvas { position: absolute; inset: 12px 10px 8px; width: calc(100% - 20px); height: calc(100% - 20px); } /* not in the row's size */
+      .transport { gap: 8px; }
+      .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      .chip { flex: none; height: 32px; padding: 0 12px; font-size: 13px; }
+      .round { width: 46px; height: 46px; }
+      .main { width: 60px; height: 60px; }
+    }
   `
 
   declare songId: string
@@ -193,7 +204,8 @@ export class GuPractice extends LitElement {
   declare kind: Kind
   /** A–B point A, a bar line. */
   declare pointA: number | null
-  private sectionName = ''
+  /** The section of the Abschnitt repeat. */
+  private section: Section | null = null
   /** The role set has notes in this song; otherwise listen only (`noPart` hint). */
   singsHere = false
   session!: Session
@@ -228,6 +240,8 @@ export class GuPractice extends LitElement {
     super.disconnectedCallback()
     this.resize?.disconnect()
     if (current === this) current = null
+    const live = getContext().live
+    if (live?.songId === this.songId) live.repeat = { kind: this.kind, section: this.section, pointA: this.pointA }
     if (this.mic) getContext().pitch.stop()
   }
 
@@ -269,7 +283,10 @@ export class GuPractice extends LitElement {
     // Results may have set a drill repeat and tempo on the engine.
     this.tempo = engine.tempo()
     this.repeat = engine.loop()
-    this.kind = this.repeat?.phrase ? 'phrase' : 'off'
+    const kept = back?.repeat // the engine holds the range only; results sets Phrase ranges or clears it
+    this.kind = this.repeat?.phrase ? 'phrase' : this.repeat ? (kept?.kind ?? 'off') : kept?.kind === 'ab' ? 'ab' : 'off'
+    this.section = this.kind === 'section' ? (kept?.section ?? null) : null
+    this.pointA = this.kind === 'ab' ? (kept?.pointA ?? null) : null
     if (!wired.has(engine)) {
       wired.add(engine)
       engine.on('tick', (t) => {
@@ -392,7 +409,7 @@ export class GuPractice extends LitElement {
 
   /** Abschnitt repeat for `s` (chip or a tap on its progress bar segment), from its lead-in. */
   private pickSection(s: Section) {
-    this.sectionName = s.name
+    this.section = s
     this.pointA = null
     this.setRange('section', leadInRange(s))
     this.leadInTo(s.start)
@@ -425,7 +442,7 @@ export class GuPractice extends LitElement {
   }
 
   private repeatName(): string {
-    return { off: '', phrase: `Phrase ${(this.repeat?.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
+    return { off: '', phrase: `Phrase ${(this.repeat?.phrase?.index ?? 0) + 1}`, section: this.section?.name ?? '', einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
   }
 
   /** One chip: set A, set B (starts the repeat), clear. */
@@ -540,19 +557,17 @@ export class GuPractice extends LitElement {
     </section>
     <div class="transport">
       <div class="repeat" role="group" aria-label="Wiederholen">
-        <span class="label">Wiederholen</span>
+        <div class="line">
+          <span class="label">Wiederholen</span>
+          ${status ? html`<p class="status" role="status">${status}</p>` : ''}
+          ${intro === null ? '' : html`<button class="intro" @click=${() => this.skipTo(intro)}>Intro überspringen</button>`}
+        </div>
         <div class="chips">
           ${CHIPS.filter(([k]) => k !== 'section' || sections).map(
             ([k, label]) =>
               html`<button class="chip" data-kind=${k} aria-pressed=${k === 'off' ? this.kind === 'off' : this.kind === k} @click=${() => this.pick(k)}>${k === 'ab' && this.kind === 'ab' && !this.repeat ? 'B setzen' : label}</button>`,
           )}
         </div>
-        ${status ? html`<p class="status" role="status">${status}</p>` : ''}
-      </div>
-      <div class="skip">
-        <button class="round" aria-label="Zum vorigen Einsatz" ?disabled=${!skip.prev} @click=${() => skip.prev && this.skipTo(skip.prev.start, skip.prev)}>${SKIP_PREV}</button>
-        <button class="round" aria-label="Zum nächsten Einsatz" ?disabled=${!skip.next} @click=${() => skip.next && this.skipTo(skip.next.start, skip.next)}>${SKIP_NEXT}</button>
-        ${intro === null ? '' : html`<button class="intro" @click=${() => this.skipTo(intro)}>Intro überspringen</button>`}
       </div>
       <div class="progress">
         <span>${clock(this.t)}</span>
@@ -561,7 +576,7 @@ export class GuPractice extends LitElement {
             sections
               ? html`<div class="segs">${loaded.song.sections.map(
                   (x) =>
-                    html`<button class="seg" aria-pressed=${this.kind === 'section' && this.sectionName === x.name} style="left:${pct(x.start)};right:${pct(dur - x.end)}" @click=${() => this.pickSection(x)}>${x.name}</button>`,
+                    html`<button class="seg" aria-pressed=${this.kind === 'section' && this.section?.start === x.start} style="left:${pct(x.start)};right:${pct(dur - x.end)}" @click=${() => this.pickSection(x)}>${x.name}</button>`,
                 )}</div>`
               : ''
           }
@@ -581,11 +596,13 @@ export class GuPractice extends LitElement {
       </div>
       <div class="buttons">
         <button class="round" aria-label="Zurück zum Anfang der Phrase" @click=${() => this.seek(this.phrase().start)}>${TO_START}</button>
+        <button class="round" aria-label="Zum vorigen Einsatz" ?disabled=${!skip.prev} @click=${() => skip.prev && this.skipTo(skip.prev.start, skip.prev)}>${SKIP_PREV}</button>
         ${
           this.playing
             ? html`<button class="round main" aria-label=${features.results ? 'Pause und Auswertung' : 'Pause'} @click=${this.pause}>${PAUSE}</button>`
             : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`
         }
+        <button class="round" aria-label="Zum nächsten Einsatz" ?disabled=${!skip.next} @click=${() => skip.next && this.skipTo(skip.next.start, skip.next)}>${SKIP_NEXT}</button>
         <button class="round" aria-label="Tempo ${this.tempo} Prozent" @click=${() => this.setTempo(NEXT_TEMPO[this.tempo])}>${this.tempo}%</button>
         ${this.singsHere ? html`<span class="mic ${this.mic ? 'on' : ''}" role="img" aria-label=${this.mic ? 'Mikrofon aktiv' : 'Mikrofon aus'}>${this.mic ? MIC : MIC_OFF}</span>` : ''}
       </div>

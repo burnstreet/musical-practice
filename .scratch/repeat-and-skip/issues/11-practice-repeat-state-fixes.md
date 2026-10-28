@@ -1,6 +1,6 @@
 # Practice screen: restore the repeat state and small repeat fixes
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 Spec: ../spec.md
 
@@ -18,3 +18,7 @@ Deviations found in the review of tickets 04-07.
 3. **Section segments light up by name** (practice.ts:564). Two sections with the same name both look active. Compare by index or by start time instead.
 
 Tests: tests/steps/screen-practice.steps.ts, tests/specs/audio-engine.test.ts.
+
+## Comments
+
+Resolved. (1) The practice screen stores kind, section and A point in `ctx.live.repeat` when it is removed and restores them on the next enter for the same session; the range itself still comes from the engine (results may have set a Phrase range or cleared it, which wins). Scenarios "the repeat survives showing the screen again" and "a pending A survives showing the screen again". (2) Rule: the engine wraps only when playback crosses `range.end` from before it (`prev < end <= t`); a seek past the end plays on. Scenario "manual seek past the range end plays on" in specs/audio-engine.spec.md. (3) Segments compare by section start; the screen keeps the picked `Section` instead of its name. Scenario "sections of the same name are told apart".
