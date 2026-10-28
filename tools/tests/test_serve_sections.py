@@ -27,3 +27,5 @@ def test_detect_sections_route_answers_with_the_builders_sections(tmp_path, monk
     finally:
         srv.shutdown()
     assert [s["name"] for s in got["sections"]] == ["Refrain", "Strophe 1", "Refrain 2", "Strophe 2"]
+    # the editor's bar grid for section ops: the same bar lines the sections snap to
+    assert {got["sections"][0]["start"], got["sections"][-1]["end"]} <= set(got["bars"])
