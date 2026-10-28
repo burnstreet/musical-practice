@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build --mode editor",
     "test": "vitest run",
     "e2e": "playwright test",
     "lint": "biome check && ruff check . && ruff format --check .",

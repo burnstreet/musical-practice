@@ -2,6 +2,8 @@
 endpoint for note edits made in the viewer.
 
 GET  /config.json       -> sources/config.json (404 when absent)
+POST /detect-sections   -> body {"id", "notes"}: {sections, bars}: the sections the builder
+                           detects for those notes and the bar grid (bar start seconds)
 POST /save/<name>.json  -> writes web/data/<name>.json and keeps a timestamped
                            copy in work/edits/.
 
@@ -16,6 +18,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from RangeHTTPServer import RangeRequestHandler
+from sections import bar_grid, detect_sections, song_bpm
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -39,6 +42,9 @@ class Handler(RangeRequestHandler):
         super().do_GET()
 
     def do_POST(self):
+        if self.path == "/detect-sections":
+            self.detect_sections()
+            return
         name = Path(self.path).name
         if not self.path.startswith("/save/") or not name.endswith(".json") or name != self.path[len("/save/") :]:
             self.send_error(404)
@@ -62,6 +68,21 @@ class Handler(RangeRequestHandler):
         self.end_headers()
         self.wfile.write(out)
         print(f"saved {dst.name} ({len(data['notes'])} notes) -> {backup.name}")
+
+    def detect_sections(self):
+        body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        try:
+            req = json.loads(body)
+            bars = bar_grid(req["notes"], song_bpm(ROOT, req["id"]))
+            out = json.dumps({"sections": detect_sections(req["notes"], bars), "bars": bars}).encode()
+        except Exception as e:  # noqa: BLE001
+            self.send_error(400, f"cannot detect: {e}")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(out)))
+        self.end_headers()
+        self.wfile.write(out)
 
 
 def main():

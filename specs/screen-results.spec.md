@@ -32,8 +32,8 @@ Strings:
 - Chart: one signed bar per phrase, zero line, tolerance band shaded. Unsung phrase: empty slot. Bar beyond ±tol in white, inside in accent.
 - Tip card: `result.tip`.
 - Trend: from pass 2, polyline of `session.trend()` with dots, label `Verlauf`. Hidden on pass 1.
-- `drill`: hidden when `worstPhrase` null. Sets loop to that phrase, tempo 80, seeks phrase start, route practice, playback paused until user presses play.
-- `again`: clears loop, tempo 100, seek 0, route practice.
+- `drill`: hidden when `worstPhrase` null. Turns on the Phrase repeat for that phrase (range = phrase start/end with `phrase`, no lead-in; the practice screen shows the chip `Phrase` active), tempo 80, seeks phrase start, route practice, playback paused until user presses play.
+- `again`: clears the repeat, tempo 100, seek 0, route practice.
 - `close`: route songs.
   `[@test] ../tests/steps/screen-results.steps.ts`
 
@@ -54,15 +54,18 @@ Feature: Results screen
     Given three passes
     Then "Verlauf" shows three points
 
-  Scenario: drill action
-    Given worstPhrase 2
-    When I press "Phrase 3 bei 80 % üben"
-    Then engine loop is phrase 2, tempo 80, time is the phrase start, route is practice, playing is false
-
   Scenario: again
     When I press "Nochmal ganz"
-    Then engine loop is null, tempo 100, time 0, route is practice
+    Then no repeat range is set, tempo 100, time 0, route is practice
 
   Scenario: no recording button
     Then no element with text "Aufnahme anhören" exists
+
+Feature: Results screen drill
+  Scenario: drill action
+    Given worstPhrase 2
+    When I press "Phrase 3 bei 80 % üben"
+    Then the repeat range is the range of phrase 2 with phrase 2 and no lead-in
+    And tempo is 80, time is the phrase start, route is practice, playing is false
+    And the practice screen shows the chip "Phrase" active
 ```

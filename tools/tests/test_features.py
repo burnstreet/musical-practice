@@ -4,12 +4,19 @@ from pytest_bdd.parser import FeatureParser
 
 def test_pytest_bdd_parses_every_feature():
     counts = {p.stem: len(FeatureParser(str(FEATURES_DIR), p.name).parse().scenarios) for p in FEATURES_DIR.glob("*.feature")}
-    assert counts == {"completeness": 2, "packing": 3, "phrase-derivation": 3, "stem-preparation": 1}
+    assert counts == {
+        "completeness": 2,
+        "packing": 3,
+        "phrase-derivation": 3,
+        "section-detection": 6,
+        "stem-preparation": 1,
+        "stored-sections": 5,
+    }
 
 
 def test_only_py_linked_features_are_generated():
     names = sorted(p.stem for p in FEATURES_DIR.glob("*.feature"))
-    assert names == ["completeness", "packing", "phrase-derivation", "stem-preparation"]
+    assert names == ["completeness", "packing", "phrase-derivation", "section-detection", "stem-preparation", "stored-sections"]
 
 
 def test_feature_file_keeps_scenarios_and_german_text():
