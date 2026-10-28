@@ -105,6 +105,7 @@ function world(ctx: any) {
         ctx.loop = p
       },
       tempo: () => ctx.tempo ?? 100,
+      seekLeadIn: (s: number) => log(`seek ${s}`),
       loop: () => ctx.loop ?? null,
       time: () => ctx.time,
       playing: () => ctx.playing,
