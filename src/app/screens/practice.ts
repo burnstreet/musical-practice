@@ -1,6 +1,6 @@
 import { css, html, LitElement, svg } from 'lit'
 import type { Mode, Tempo } from '../../core/audio-engine'
-import type { Phrase } from '../../core/content'
+import type { Phrase, RoleId, Song } from '../../core/content'
 import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
@@ -53,6 +53,20 @@ export function leaveSession(ctx: AppContext): void {
   ctx.history.record(live.songId, ctx.settings.get().roles, live.session.passes()).catch(console.error)
 }
 
+/**
+ * Until my next entry, while none of my notes sounds at heard time `t`: `Einsatz in {n} Takten · {s} s` (bar lines
+ * before it; seconds at the tempo, rounded up), `Einsatz in {s} s` within the bar, '' under 1 s or when nothing comes.
+ */
+export function entryCountdown(song: Song, roles: RoleId[], t: number, tempo: number): string {
+  const mine = song.notes.filter((n) => roles.includes(n.role))
+  if (mine.some((n) => n.start <= t && t < n.end)) return ''
+  const next = mine.find((n) => n.start > t)
+  if (!next || next.start - t < 1) return ''
+  const bars = song.bars.filter((b) => b > t && b <= next.start).length
+  const secs = Math.ceil(((next.start - t) * 100) / tempo)
+  return `Einsatz in ${bars ? `${bars} ${bars === 1 ? 'Takt' : 'Takten'} · ` : ''}${secs} s`
+}
+
 /** The mounted screen. The engine has no `off`, so engine and pitch engine are wired once and forward here. */
 let current: GuPractice | null = null
 const wired = new WeakSet<object>()
@@ -98,10 +112,20 @@ export class GuPractice extends LitElement {
     .legend i.other { background: var(--other); }
     canvas { display: block; width: 100%; }
     .staff canvas { height: 112px; }
-    .staff canvas.tall { height: 126px; } /* second lyric row, set by the staff drawing */
     .roll { grid-area: roll; }
-    .roll canvas { height: 168px; }
-    @media (min-width: 960px) { .staff canvas { height: 136px; } .staff canvas.tall { height: 153px; } .roll canvas { height: 216px; } }
+    .roll canvas { height: 188px; } /* rows plus the lyric strip at the bottom */
+    @media (min-width: 960px) { .staff canvas { height: 136px; } .roll canvas { height: 236px; } }
+    /* phone turned sideways: staff and roll on the left, the controls beside them, all on one screen */
+    @media (orientation: landscape) and (max-height: 560px) {
+      :host { max-width: none; min-height: 100dvh; padding: 8px 16px; gap: 8px; column-gap: 12px; grid-template-columns: minmax(0, 1fr) 280px;
+        grid-template-areas: 'head head' 'note note' 'staff mode' 'staff readout' 'roll transport'; grid-template-rows: auto auto auto auto 1fr; }
+      header .round { width: 36px; height: 36px; }
+      .card { padding: 8px 10px 6px; }
+      .roll canvas { height: max(110px, calc(100dvh - 252px)); }
+      .transport { align-self: end; gap: 6px; }
+      .round { width: 44px; height: 44px; }
+      .main { width: 56px; height: 56px; }
+    }
     .readout { grid-area: readout; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .readout .line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .readout big { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; margin-right: 8px; }
@@ -141,6 +165,8 @@ export class GuPractice extends LitElement {
   session!: Session
   /** Pitch frames of the last 1.5 s, oldest first. */
   frames: PitchFrame[] = []
+  /** [first bar, count] of the staff page last drawn; null before the first draw. */
+  private page: [number, number] | null = null
   /** Redraws the canvases when the layout changes size; happy-dom may not have it. */
   private resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.requestUpdate())
 
@@ -177,7 +203,11 @@ export class GuPractice extends LitElement {
     const names = Object.fromEntries(library.roles().map((r) => [r.id, r.name]))
     const state: DrawState = { song: this.loaded.song, roles: s.roles, names, t: this.heard(), frames: this.frames, tolerance: s.tolerance }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
-    drawStaff(ctx2d('.staff canvas'), state)
+    const page = drawStaff(ctx2d('.staff canvas'), state)
+    if (page && String(page) !== String(this.page)) {
+      this.page = page // the header shows the bars the staff drew
+      this.requestUpdate()
+    }
     drawRoll(ctx2d('.roll canvas'), state)
   }
 
@@ -299,7 +329,7 @@ export class GuPractice extends LitElement {
   private readout() {
     const s = getContext().settings.get()
     const d = liveDeviation(this.loaded!.song, s.roles, this.heard(), this.frames, s.tolerance)
-    if (!d) return { big: '–', label: '', text: '', cents: null }
+    if (!d) return { big: '–', label: '', text: entryCountdown(this.loaded!.song, s.roles, this.heard(), this.tempo), cents: null }
     const dir = d.cents > 0 ? 'zu hoch' : 'zu tief'
     const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
     return {
@@ -316,9 +346,11 @@ export class GuPractice extends LitElement {
     const { library, settings, openSettings } = getContext()
     const s = settings.get()
     const { bars, key, bpm } = loaded.song
-    // the staff page the canvas draws; before the first layout the canvas is missing and counts as narrow
+    // the staff page the canvas drew; before that (and without a canvas context) the regular page of the canvas width
     const per = barsPerPage(this.renderRoot.querySelector<HTMLElement>('.staff canvas')?.clientWidth ?? 0)
-    const firstBar = pageOf(bars, this.heard(), per) * per + 1
+    const [first, count] = this.page ?? [pageOf(bars, this.heard(), per) * per, per]
+    const firstBar = first + 1
+    const lastBar = first + count
     const readout = this.readout()
     const mine = library
       .roles()
@@ -330,7 +362,7 @@ export class GuPractice extends LitElement {
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
         <h1>Lied ${loaded.meta.number} · ${loaded.meta.title}</h1>
-        <p>Takt ${firstBar}–${firstBar + per - 1} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
+        <p>Takt ${firstBar === lastBar ? firstBar : `${firstBar}–${lastBar}`} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
       </div>
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>

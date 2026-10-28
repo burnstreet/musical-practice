@@ -19,6 +19,7 @@ export default defineConfig({
         short_name: 'LKG Musical 2026',
         lang: 'de',
         display: 'standalone',
+        orientation: 'any', // turned sideways the practice screen shows more bars and seconds ahead
         start_url: './',
         theme_color: '#1F5FAB',
         background_color: '#1F5FAB',
