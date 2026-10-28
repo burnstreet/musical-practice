@@ -334,6 +334,20 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       ctx.stroke()
       ctx.fillText(`${Math.round(gg * 100) / 100}s`, x + 2, 2)
     }
+    // bar lines of the view's bar grid, numbered as on the staff, so roll, staff and bands share one bar grid
+    if (bars) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)'
+      ctx.textBaseline = 'bottom'
+      bars.forEach((b, i) => {
+        if (b < t0 || b >= t1) return
+        const x = Math.round(xOf(b)) + 0.5
+        ctx.beginPath()
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, H)
+        ctx.stroke()
+        ctx.fillText(`Takt ${i + 1}`, x + 2, H - 2)
+      })
+    }
 
     ctx.save()
     ctx.beginPath()

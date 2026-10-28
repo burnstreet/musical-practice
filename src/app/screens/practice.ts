@@ -8,7 +8,7 @@ import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
 import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
 import { features } from '../features'
-import { abRange, einsatzRange, ownSpans, phraseRange, sectionAt, snapToBar } from '../repeat'
+import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -89,9 +89,9 @@ export class GuPractice extends LitElement {
     playing: { state: true },
     mic: { state: true },
     tempo: { state: true },
-    loop: { state: true },
+    repeat: { state: true },
     kind: { state: true },
-    a: { state: true },
+    pointA: { state: true },
   }
   static styles = css`
     :host { display: grid; gap: 12px; box-sizing: border-box; min-height: 100vh; padding: 28px 20px 24px; max-width: 560px; margin: 0 auto;
@@ -188,11 +188,11 @@ export class GuPractice extends LitElement {
   /** pitch.start said ok; false = denied or unsupported, or no part. */
   declare mic: boolean
   declare tempo: Tempo
-  declare loop: Range | null
-  /** Active repeat kind; A–B with  set and no loop waits for B. */
+  declare repeat: Range | null
+  /** Active repeat kind; A–B with A set and no repeat range waits for B. */
   declare kind: Kind
   /** A–B point A, a bar line. */
-  declare a: number | null
+  declare pointA: number | null
   private sectionName = ''
   /** The role set has notes in this song; otherwise listen only (`noPart` hint). */
   singsHere = false
@@ -213,9 +213,9 @@ export class GuPractice extends LitElement {
     this.playing = false
     this.mic = false
     this.tempo = 100
-    this.loop = null
+    this.repeat = null
     this.kind = 'off'
-    this.a = null
+    this.pointA = null
   }
 
   connectedCallback() {
@@ -259,17 +259,17 @@ export class GuPractice extends LitElement {
     const ctx = getContext()
     const { library, engine, pitch, settings } = ctx
     const s = settings.get()
-    // Back from results: same session, engine still loaded (results may have set loop/tempo/seek).
+    // Back from results: same session, engine still loaded (results may have set repeat/tempo/seek).
     const back = ctx.live?.songId === this.songId ? ctx.live : null
     const loaded = back?.song ?? (await library.getSong(this.songId))
     if (!back) await engine.load(loaded, s.roles)
     this.session = back?.session ?? new Session(loaded.song, s.roles, s.tolerance)
     this.singsHere = this.session.myNotes().length > 0
     this.setMode(this.singsHere ? s.mode : 'all', false)
-    // Results may have set a drill loop and tempo on the engine.
+    // Results may have set a drill repeat and tempo on the engine.
     this.tempo = engine.tempo()
-    this.loop = engine.loop()
-    this.kind = this.loop?.phrase ? 'phrase' : 'off'
+    this.repeat = engine.loop()
+    this.kind = this.repeat?.phrase ? 'phrase' : 'off'
     if (!wired.has(engine)) {
       wired.add(engine)
       engine.on('tick', (t) => {
@@ -367,13 +367,12 @@ export class GuPractice extends LitElement {
 
   private setRange(kind: Kind, range: Range | null) {
     getContext().engine.setLoop(range)
-    this.loop = range
+    this.repeat = range
     this.kind = kind
   }
 
   /** Switch the repeat selector. The range is fixed now; Abschnitt and Einsatz also jump to their lead-in. */
   private pick(kind: Kind) {
-    const { engine } = getContext()
     const { song } = this.loaded!
     const now = this.heard()
     const roles = getContext().settings.get().roles
@@ -386,29 +385,32 @@ export class GuPractice extends LitElement {
       if (s) return this.pickSection(s)
     }
     if (kind !== 'off' && !range) return // nothing to repeat: stay as is
-    this.a = null
+    this.pointA = null
     this.setRange(kind, range)
-    if (range?.leadIn) {
-      engine.seekLeadIn(range.start)
-      this.t = engine.time()
-    }
+    if (range?.leadIn) this.leadInTo(range.start)
   }
 
   /** Abschnitt repeat for `s` (chip or a tap on its progress bar segment), from its lead-in. */
   private pickSection(s: Section) {
-    const { engine } = getContext()
     this.sectionName = s.name
-    this.a = null
-    this.setRange('section', { start: s.start, end: s.end, leadIn: true })
-    engine.seekLeadIn(s.start)
+    this.pointA = null
+    this.setRange('section', leadInRange(s))
+    this.leadInTo(s.start)
+  }
+
+  /** Seek to the lead-in landing before `start`. */
+  private leadInTo(start: number) {
+    const { engine } = getContext()
+    engine.seekLeadIn(start)
     this.t = engine.time()
   }
 
   /** What staff, roll and progress bar draw for the active repeat: its range (A without B: A to the song end) and flags. */
   private marks(): Marks | null {
-    if (this.kind === 'ab' && !this.loop) return this.a === null ? null : { start: this.a, end: this.loaded!.meta.durationSec, flags: [[this.a, 'A']] }
-    if (!this.loop) return null
-    const { start, end } = this.loop
+    if (this.kind === 'ab' && !this.repeat)
+      return this.pointA === null ? null : { start: this.pointA, end: this.loaded!.meta.durationSec, flags: [[this.pointA, 'A']] }
+    if (!this.repeat) return null
+    const { start, end } = this.repeat
     return {
       start,
       end,
@@ -423,21 +425,21 @@ export class GuPractice extends LitElement {
   }
 
   private repeatName(): string {
-    return { off: '', phrase: `Phrase ${(this.loop?.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
+    return { off: '', phrase: `Phrase ${(this.repeat?.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
   }
 
   /** One chip: set A, set B (starts the repeat), clear. */
   private cycleAB(now: number) {
     const { bars } = this.loaded!.song
-    if (this.kind === 'ab' && this.loop) {
-      this.a = null
+    if (this.kind === 'ab' && this.repeat) {
+      this.pointA = null
       return this.setRange('off', null)
     }
     const p = snapToBar(bars, now)
-    if (this.kind !== 'ab' || this.a === null) {
+    if (this.kind !== 'ab' || this.pointA === null) {
       this.setRange('ab', null)
-      this.a = p
-    } else this.setRange('ab', abRange(bars, this.a, p, this.loaded!.meta.durationSec))
+      this.pointA = p
+    } else this.setRange('ab', abRange(bars, this.pointA, p, this.loaded!.meta.durationSec))
   }
 
   /** Skip targets from the heard time: previous = latest own span starting more than the lead-in before now, next = first whose lead-in landing lies after now. */
@@ -450,10 +452,8 @@ export class GuPractice extends LitElement {
 
   /** Seek to the lead-in before `start`; an Einsatz repeat moves along to `span`. */
   private skipTo(start: number, span?: Span) {
-    const { engine } = getContext()
-    if (span && this.kind === 'einsatz' && this.loop?.start !== span.start) this.setRange('einsatz', { start: span.start, end: span.end, leadIn: true })
-    engine.seekLeadIn(start)
-    this.t = engine.time()
+    if (span && this.kind === 'einsatz' && this.repeat?.start !== span.start) this.setRange('einsatz', leadInRange(span))
+    this.leadInTo(start)
   }
 
   /** First sung note of any role, while the heard time is before it and its lead-in lands after 0; else null. */
@@ -465,9 +465,9 @@ export class GuPractice extends LitElement {
 
   /** `{name} · {m:ss}–{m:ss}`; A–B with A only: `A {m:ss} · B noch nicht gesetzt`; '' without a repeat. */
   private status(): string {
-    if (this.kind === 'ab' && !this.loop) return this.a === null ? '' : `A ${clock(this.a)} · B noch nicht gesetzt`
-    if (!this.loop) return ''
-    return `${this.repeatName()} · ${clock(this.loop.start)}–${clock(this.loop.end)}`
+    if (this.kind === 'ab' && !this.repeat) return this.pointA === null ? '' : `A ${clock(this.pointA)} · B noch nicht gesetzt`
+    if (!this.repeat) return ''
+    return `${this.repeatName()} · ${clock(this.repeat.start)}–${clock(this.repeat.end)}`
   }
   /** Big note, target label, cents text and meter position. */
   private readout() {
@@ -503,7 +503,7 @@ export class GuPractice extends LitElement {
       .join(', ')
     const dur = loaded.meta.durationSec
     const status = this.status()
-    const sections = !!loaded.song.sections?.length
+    const sections = loaded.song.sections.length > 0
     const marks = this.marks()
     const pct = (sec: number) => `${(sec / dur) * 100}%`
     const skip = this.skipTargets()
@@ -544,7 +544,7 @@ export class GuPractice extends LitElement {
         <div class="chips">
           ${CHIPS.filter(([k]) => k !== 'section' || sections).map(
             ([k, label]) =>
-              html`<button class="chip" data-kind=${k} aria-pressed=${k === 'off' ? this.kind === 'off' : this.kind === k} @click=${() => this.pick(k)}>${k === 'ab' && this.kind === 'ab' && !this.loop ? 'B setzen' : label}</button>`,
+              html`<button class="chip" data-kind=${k} aria-pressed=${k === 'off' ? this.kind === 'off' : this.kind === k} @click=${() => this.pick(k)}>${k === 'ab' && this.kind === 'ab' && !this.repeat ? 'B setzen' : label}</button>`,
           )}
         </div>
         ${status ? html`<p class="status" role="status">${status}</p>` : ''}
@@ -559,7 +559,7 @@ export class GuPractice extends LitElement {
         <div class="track">
           ${
             sections
-              ? html`<div class="segs">${loaded.song.sections!.map(
+              ? html`<div class="segs">${loaded.song.sections.map(
                   (x) =>
                     html`<button class="seg" aria-pressed=${this.kind === 'section' && this.sectionName === x.name} style="left:${pct(x.start)};right:${pct(dur - x.end)}" @click=${() => this.pickSection(x)}>${x.name}</button>`,
                 )}</div>`
@@ -570,7 +570,7 @@ export class GuPractice extends LitElement {
               marks
                 ? html`<div class="dim" style="left:0;right:${pct(dur - marks.start)}"></div>
                     <div class="dim" style="left:${pct(marks.end)};right:0"></div>
-                    ${this.loop?.leadIn ? html`<div class="leadin" style="left:${pct(leadInStart(marks.start, bars))};right:${pct(dur - marks.start)}"></div>` : ''}
+                    ${this.repeat?.leadIn ? html`<div class="leadin" style="left:${pct(leadInStart(marks.start, bars))};right:${pct(dur - marks.start)}"></div>` : ''}
                     <div class="range" style="left:${pct(marks.start)};right:${pct(dur - marks.end)}"></div>`
                 : ''
             }
