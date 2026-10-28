@@ -6,6 +6,8 @@ targets:
   - ../src/app/settings.ts
   - ../src/app/sw.ts
   - ../src/app/tokens.css
+  - ../src/app/settings-sheet.ts
+  - ../src/core/calibration.ts
 ---
 
 # Shell
@@ -76,11 +78,12 @@ Feature: Updates
 Opened from the gear button on songs and practice screens. Items, top to bottom:
 
 1. `Toleranz`: segmented `Leicht (75 Cent)` / `Normal (50 Cent)` / `Streng (30 Cent)`.
-2. `Verzögerung Mikrofon`: slider −300…+300 ms, step 10, value shown as `{n} ms`. Help text: `Wenn dein Ton zu früh oder zu spät angezeigt wird.` Read-only below: `Gemessen: Wiedergabe {a} ms · Mikrofon {b} ms` (`engine.latency()`, `pitch.inputLatency()`, rounded; the mic value is 0 until the mic ran).
-3. `Mikrofon`: select, `Automatisch (eingebautes Mikrofon)` (`micDeviceId` '') plus every audio input by label (`Mikrofon {n}` while labels are hidden before permission). Saves `micDeviceId`; `pitch.setDevice` restarts a running mic on it.
-4. `Mikrofon testen`: button starts pitch engine, shows level bar and detected note name, stops on sheet close.
-5. `Kopfhörer`: text `Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.`
-6. `Sperren und Daten löschen`: red button, confirm dialog `Alle Lieder und Ergebnisse werden von diesem Gerät gelöscht. Fortfahren?` with `Löschen` / `Abbrechen`. Confirm calls vault.lock, then route start.
+2. `Verzögerung Mikrofon`: slider −300…+300 ms, step 10, value shown as `{n} ms`. Help text: `Gleicht die Verzögerung von Kopfhörer und Mikrofon für die Bewertung aus. Am besten messen lassen.` Read-only below: `Gemessen: Wiedergabe {a} ms · Mikrofon {b} ms` (`engine.latency()`, `pitch.inputLatency()`, rounded; the mic value is 0 until the mic ran).
+3. `Verzögerung messen`: button under the measured line, opens the calibration panel (see Latency calibration).
+4. `Mikrofon`: select, `Automatisch (eingebautes Mikrofon)` (`micDeviceId` '') plus every audio input by label (`Mikrofon {n}` while labels are hidden before permission). Saves `micDeviceId`; `pitch.setDevice` restarts a running mic on it.
+5. `Mikrofon testen`: button starts pitch engine, shows level bar and detected note name, stops on sheet close.
+6. `Kopfhörer`: text `Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.`
+7. `Sperren und Daten löschen`: red button, confirm dialog `Alle Lieder und Ergebnisse werden von diesem Gerät gelöscht. Fortfahren?` with `Löschen` / `Abbrechen`. Confirm calls vault.lock, then route start.
 
 `[@test] ../tests/steps/shell.steps.ts`
 
@@ -100,9 +103,66 @@ Feature: Settings
     Then nothing changes
 ```
 
+## Latency calibration
+
+Measures the delay from a sound in the headphones to its pitch frame, instead of guessing `Verzögerung Mikrofon`. Module `src/core/calibration.ts`: pure detection and statistics plus a small runner; the settings sheet shows the panel.
+
+| id | text |
+|---|---|
+| calButton | `Verzögerung messen` |
+| calHelp | `Sag „ta“ genau mit jedem Klick – oder halte den Kopfhörer ans Mikrofon.` |
+| calRunning | `Messung läuft …` |
+| calCancel | `Abbrechen` |
+| calResult | `Gemessen: {n} ms (±{s} ms)` |
+| calFailed | `Nicht eindeutig – bitte nochmal.` |
+
+- Runner: pauses playback, starts the pitch engine with `songTime` = playback AudioContext time (`engine.ctxTime()`), so frame `at` is on the click clock. After a 1 s count-in, 8 clicks (1 kHz, 20 ms) every 600 ms via `engine.click(at)` on the playback context (real output path). Collects frames until 0.5 s after the last click. Cancel or closing the sheet stops pending clicks and the mic; a mic the practice screen had running is restarted with its own clocks.
+- Onsets: a frame is an onset when its `rms` exceeds max(4 × quiet floor, 0.01) after at least 80 ms below that threshold. Quiet floor = running average of the frames below the threshold. Resolution = one hop.
+- Matching: each click takes the nearest onset within ±300 ms; delay = onset `at` − click time.
+- Result: median of the delays, spread = median absolute deviation. Fewer than 5 matched clicks or spread over 25 ms: `calFailed`.
+- Offset: `micOffsetMs = round10(median − engine.latency()·1000 − pitch.inputLatency()·1000)`, clamped to −300…300 (the pitch engine already subtracts both latencies). Saved, applied with `pitch.setOffsetMs`; the slider shows it.
+  `[@test] ../tests/steps/calibration.steps.ts`
+
+```gherkin
+Feature: Latency calibration
+  Scenario: onset after quiet
+    Given quiet frames at rms 0.002 until 1.000, loud frames at rms 0.1 until 1.100, quiet until 1.150, loud until 1.200, quiet until 1.300, loud until 1.350
+    When I detect onsets
+    Then the onsets are 1.000 and 1.300
+
+  Scenario: too faint to count
+    Given quiet frames at rms 0.0001 until 1.000, loud frames at rms 0.003 until 1.100
+    When I detect onsets
+    Then there are no onsets
+
+  Scenario: clicks matched to the nearest onset
+    Given clicks at 1.0, 1.6, 2.2 and onsets at 1.12, 1.75, 2.9
+    When I match them
+    Then the delays are 0.12 and 0.15
+
+  Scenario: median and spread
+    Given delays of 100, 110, 120, 130, 140, 500 ms
+    Then the result is 125 ms with spread 15 ms
+
+  Scenario: too few clicks
+    Given delays of 100, 110, 120, 130 ms
+    Then the result is not clear
+
+  Scenario: too noisy
+    Given delays of 100, 140, 180, 220, 260 ms
+    Then the result is not clear
+
+  Scenario: offset from the measurement
+    Then a measured 180 ms with playback 0.050 s and mic 0.010 s gives offset 120
+    And a measured 123 ms with playback 0 s and mic 0 s gives offset 120
+    And a measured 126 ms with playback 0 s and mic 0 s gives offset 130
+    And a measured 500 ms with playback 0 s and mic 0 s gives offset 300
+    And a measured -400 ms with playback 0 s and mic 0 s gives offset -300
+```
+
 ## Headphone sheet
 
-- Before the first `play` on a device: sheet with title `Kopfhörer aufsetzen`, text as in settings item 5, checkbox `Nicht mehr anzeigen`, button `Weiter`. Checkbox sets `headphoneSheetSeen`.
+- Before the first `play` on a device: sheet with title `Kopfhörer aufsetzen`, text as in settings item 6, checkbox `Nicht mehr anzeigen`, button `Weiter`. Checkbox sets `headphoneSheetSeen`.
   `[@test] ../tests/steps/shell.steps.ts`
 
 ```gherkin

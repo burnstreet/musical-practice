@@ -130,6 +130,7 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
     enters: [] as Note[],
     loops: [] as Phrase[],
     ended: 0,
+    pauses: 0,
     voices: el('voices'),
     backing: el('backing'),
     voicesGain: () => gains.find((g) => g.el === ctx.voices)!.gain,
@@ -147,6 +148,7 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
   engine.on('enter', (n) => ctx.enters.push(n))
   engine.on('loop', (p) => ctx.loops.push(p))
   engine.on('ended', () => ctx.ended++)
+  engine.on('pause', () => ctx.pauses++)
 }
 
 const mutingSong = (ctx: any, roles: RoleId[], mode: string, m = [1, 2], j = [3, 4]) =>
@@ -248,9 +250,68 @@ export default steps(({ Given, When, Then }) => {
   When(/^I seek to ([\d.]+)$/, (ctx, t) => ctx.engine.seek(+t))
   Then(/^enter fires once for that note$/, (ctx) => expect(ctx.enters.map((n: Note) => n.start)).toEqual([5.0]))
 
+  Given(/^an engine without a song$/, (ctx) => {
+    ctx.oscillators = []
+    const destination = {}
+    ctx.destination = destination
+    ctx.engine = createAudioEngine({
+      createElement: () => new FakeMedia({ t: 0 }) as any,
+      createContext: () =>
+        ({
+          currentTime: 0,
+          destination,
+          resume: async () => {},
+          createGain: () => ({
+            gain: new FakeParam({ t: 0 }, 0),
+            connect: (to: unknown) => {
+              ctx.gainTo = to
+            },
+          }),
+          createOscillator: () => {
+            const o: any = {
+              frequency: { value: 440 },
+              connect: () => {},
+              stops: [] as number[],
+              start: (t: number) => {
+                o.startAt = t
+              },
+              stop: (t: number) => {
+                o.stops.push(t)
+              },
+            }
+            ctx.oscillators.push(o)
+            return o
+          },
+        }) as any,
+      requestFrame: () => {},
+      createObjectURL: () => '',
+      revokeObjectURL: () => {},
+    })
+  })
+  When(/^I schedule a click at context time ([\d.]+)$/, (ctx, at) => {
+    ctx.stop = ctx.engine.click(+at)
+  })
+  Then(/^a (\d+) Hz tone starts at ([\d.]+) and stops at ([\d.]+) into the destination$/, (ctx, hz, start, end) => {
+    const [o] = ctx.oscillators
+    expect(o.frequency.value).toBe(+hz)
+    expect(o.startAt).toBeCloseTo(+start, 6)
+    expect(o.stops).toHaveLength(1)
+    expect(o.stops[0]).toBeCloseTo(+end, 6)
+    expect(ctx.gainTo).toBe(ctx.destination)
+  })
+  Then(/^calling its stop cancels it$/, (ctx) => {
+    ctx.stop()
+    expect(ctx.oscillators[0].stops.at(-1)).toBe(0) // stopped now, before it would start
+  })
+
   Given(/^no loop set$/, async (ctx) => {
     await setup(ctx)
     await ctx.engine.play()
+  })
+  When(/^I pause the engine$/, (ctx) => ctx.engine.pause())
+  Then(/^a pause event fires and playing\(\) is false$/, (ctx) => {
+    expect(ctx.pauses).toBe(1)
+    expect(ctx.engine.playing()).toBe(false)
   })
   When(/^the voices element ends$/, (ctx) => ctx.voices.dispatchEvent(new Event('ended')))
   Then(/^ended fires and playing\(\) is false$/, (ctx) => {

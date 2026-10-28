@@ -202,6 +202,8 @@ export class GuPractice extends LitElement {
       })
       engine.on('enter', (n) => current?.mic && current.session.enter(current.loaded!.song.notes.indexOf(n)))
       engine.on('ended', () => current?.pause())
+      // paused elsewhere (settings calibration): the transport and the pass follow
+      engine.on('pause', () => current?.playing && current.pause())
     }
     if (!wired.has(pitch)) {
       wired.add(pitch)
@@ -229,8 +231,8 @@ export class GuPractice extends LitElement {
 
   private pause() {
     const { engine, route } = getContext()
+    this.playing = false // before engine.pause: its 'pause' event comes back here
     engine.pause()
-    this.playing = false
     const passed = this.mic && this.session.endPass() // history still gets the pass
     if (!features.results) return
     if (!this.singsHere) route('#/songs')
