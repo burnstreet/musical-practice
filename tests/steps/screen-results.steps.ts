@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { setContext } from '../../src/app/context'
+import { getContext, setContext } from '../../src/app/context'
 import { settings } from '../../src/app/settings'
 import { steps } from '../gherkin'
 
@@ -63,8 +63,11 @@ function given(ctx: any, p: any = {}, count = 3) {
     route: (to: string) => ctx.routed.push(to),
     live: {
       songId: 's',
-      song: { meta: { number: 8, title: '[Titel]' }, song: { phrases } },
-      session: { passes: () => passes, trend: () => passes.map((x) => x.hitPct) },
+      song: {
+        meta: { number: 8, title: '[Titel]', durationSec: 20 },
+        song: { phrases, notes: [], bars: [0, 4, 8, 12, 16], key: 'F', bpm: 100, timeSig: [4, 4] },
+      },
+      session: { myNotes: () => [], passes: () => passes, trend: () => passes.map((x) => x.hitPct) },
     },
   } as any)
 }
@@ -118,12 +121,35 @@ export default steps(({ Given, When, Then }) => {
     expect(await text(ctx)).toContain('Verlauf')
     expect(el.shadowRoot!.querySelectorAll('.trend circle').length).toBe(3)
   })
-  Then(/^engine loop is phrase 2, tempo 80, time is the phrase start, route is practice, playing is false$/, (ctx) => {
-    expect(ctx.engine.loop).toEqual({ start: phrases[2].start, end: phrases[2].end, phrase: phrases[2] })
+  Then(/^engine loop is the range of phrase (\d+) with phrase (\d+) and no lead-in$/, (ctx, i, j) => {
+    expect(ctx.engine.loop).toEqual({ start: phrases[+i].start, end: phrases[+i].end, phrase: phrases[+j] })
+  })
+  Then(/^tempo is 80, time is the phrase start, route is practice, playing is false$/, (ctx) => {
     expect(ctx.engine.tempo).toBe(80)
     expect(ctx.engine.t).toBe(phrases[2].start)
     expect(ctx.routed).toEqual(['#/practice/s'])
     expect(ctx.engine.on).toBe(false)
+  })
+  Then(/^the practice screen shows the chip "(\w+)" active$/, async (ctx, label) => {
+    const { engine } = ctx
+    const live = (getContext() as any).live
+    setContext({
+      settings,
+      live,
+      route: () => {},
+      openSettings: () => {},
+      library: { roles: () => [{ id: 'maria', name: 'Maria', sings: true }], getSong: async () => live.song },
+      engine: { ...engine, load: async () => {}, setMode: () => {}, on: () => {}, tempo: () => engine.tempo, loop: () => engine.loop },
+      pitch: { start: async () => 'ok', on: () => () => {}, stop: () => {}, delay: () => 0 },
+    } as any)
+    await import('../../src/app/screens/practice')
+    const el: any = document.createElement('gu-practice')
+    el.songId = 's'
+    document.body.append(el)
+    for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0))
+    await el.updateComplete
+    const on = [...el.shadowRoot!.querySelectorAll('.chip[aria-pressed="true"]')].map((c: Element) => c.textContent!.trim())
+    expect(on).toEqual([label])
   })
   Then(/^engine loop is null, tempo 100, time 0, route is practice$/, (ctx) => {
     expect(ctx.engine.loop).toBeNull()
