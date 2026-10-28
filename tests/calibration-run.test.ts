@@ -2,8 +2,8 @@ import { expect, it } from 'vitest'
 import { runCalibration } from '../src/core/calibration'
 import type { PitchFrame } from '../src/core/types'
 
-/** Fake playback clock at 0, a mic that hears every click `delay` s late; sleep plays the whole run at once. */
-function world(delay: number) {
+/** Fake playback clock at 0, a mic that hears every `heard` click `delay` s late; sleep plays the whole run at once. */
+function world(delay: number, heard = (_click: number) => true) {
   const clicks: number[] = []
   const stopped: number[] = []
   let listener: (f: PitchFrame) => void = () => {}
@@ -24,19 +24,24 @@ function world(delay: number) {
     },
   }
   const sleep = async () => {
-    for (let at = 0; at < 9.5; at = Math.round((at + 0.005) * 1000) / 1000) {
-      const loud = clicks.some((c) => at >= c + delay && at < c + delay + 0.03)
+    for (let at = 0; at < 13.5; at = Math.round((at + 0.005) * 1000) / 1000) {
+      const loud = clicks.some((c) => heard(c) && at >= c + delay && at < c + delay + 0.03)
       listener({ at, t: at, midi: null, clarity: 0, rms: loud ? 0.2 : 0.001 })
     }
   }
   return { engine, pitch, sleep, clicks, stopped }
 }
 
-it('plays 8 clicks a second apart after the count-in and measures the delay on their clock', async () => {
+it('plays 12 clicks a second apart after the count-in and measures the delay on their clock', async () => {
   const w = world(0.15)
   const result = await runCalibration(w.engine, w.pitch, '', w.sleep).done
-  expect(w.clicks.map((c) => +c.toFixed(3))).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+  expect(w.clicks.map((c) => +c.toFixed(3))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   expect(result).toEqual({ ms: 150, spreadMs: 0 })
+})
+
+it('does not measure the first 4 clicks while the singer finds the rhythm', async () => {
+  const w = world(0.15, (c) => c <= 6) // sings with the first six only: two measured clicks
+  expect(await runCalibration(w.engine, w.pitch, '', w.sleep).done).toBeNull()
 })
 
 it('measures a Bluetooth-sized delay', async () => {
@@ -52,5 +57,5 @@ it('cancel stops the clicks and gives no result', async () => {
   run.cancel()
   release()
   expect(await run.done).toBeNull()
-  expect(w.stopped).toHaveLength(8)
+  expect(w.stopped).toHaveLength(12)
 })
