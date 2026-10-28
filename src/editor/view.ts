@@ -2,6 +2,9 @@
 // Built as a second vite entry (`vite build --mode editor` -> web/lib/editor-view.js) for the vanilla editor in web/.
 
 import { BASE, COLORS, draw, FONT, measurePage, pageContent, pagePoints, playheadX, staffPages } from '../app/draw/staff'
+
+export { playheadX }
+
 import { nearestBar } from '../app/repeat'
 import type { Note, RoleId, Section, Song } from '../core/content'
 
@@ -53,9 +56,9 @@ export function phrasesOf(notes: RawNote[]): BandPhrase[] {
   return out
 }
 
-/** The raw song in the player's shape, notes in raw order (index i = raw note i); each note in the grid bar nearest its start minus its beat. */
-export function staffSong(raw: RawSong, bars: number[], key = 'C'): Song {
-  const quarter = (bars.length > 1 ? bars[1] - bars[0] : 2) / 4
+/** The raw song in the player's shape, notes in raw order (index i = raw note i); each note in the grid bar nearest its start minus its beat. `beats` per bar, quarter beats. */
+export function staffSong(raw: RawSong, bars: number[], key = 'C', beats = 4): Song {
+  const quarter = (bars.length > 1 ? bars[1] - bars[0] : 2) / beats
   const notes: Note[] = raw.notes.map((n) => ({
     start: n.start,
     end: n.end,
@@ -67,7 +70,23 @@ export function staffSong(raw: RawSong, bars: number[], key = 'C'): Song {
     beat: n.beat ?? 0,
     dur: n.dur ?? 1,
   }))
-  return { id: raw.id, bpm: 60 / quarter, key, timeSig: [4, 4], bars, notes, phrases: [], sections: [] }
+  return { id: raw.id, bpm: 60 / quarter, key, timeSig: [beats, 4], bars, notes, phrases: [], sections: [] }
+}
+
+/** Song time at `x` between (time, x) points sorted by x: the inverse of `playheadX`, clamped to the ends. */
+export function timeAt(points: [number, number][], x: number): number {
+  const i = points.findIndex(([, px]) => px > x)
+  if (i === -1) return points[points.length - 1][0]
+  if (i === 0) return points[0][0]
+  const [[t0, x0], [t1, x1]] = [points[i - 1], points[i]]
+  return t0 + ((x - x0) / (x1 - x0)) * (t1 - t0)
+}
+
+/** Where a selection turns the view: the start of its first bar when no selected note is on the page, else null (stay). */
+export function turnFor(song: Song, page: { first: number; count: number }, selected: Set<number>): number | null {
+  const bars = [...selected].map((i) => song.notes[i]?.bar).filter((b) => b != null)
+  if (!bars.length || bars.some((b) => b >= page.first && b < page.first + page.count)) return null
+  return song.bars[Math.min(...bars)]
 }
 
 export interface View {
@@ -88,8 +107,10 @@ export interface Page {
   /** Song start of the previous and next page, null at the ends. */
   prev: number | null
   next: number | null
-  /** x on both canvases of song time t. */
+  /** x on the staff and band canvases of song time t (note onsets at their sung start). */
   xOf: (t: number) => number
+  /** The roll's axis: (time, x) of the page's bar lines and its end; time runs linear inside each bar (`playheadX`, `timeAt`). */
+  grid: [number, number][]
   /** Staff heads: x and the raw note indices sounding there. */
   heads: { x: number; notes: number[] }[]
 }
@@ -110,6 +131,11 @@ export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRe
   const L = measurePage(staff, song, content, w, h / BASE)
   const points = pagePoints(song, content, L)
   const xOf = (t: number) => playheadX(points, t)
+  const grid: [number, number][] = [
+    points[0],
+    ...content.bars.slice(1).map((b, i): [number, number] => [song.bars[b], L.startX + L.barX[i + 1]]),
+    points.at(-1)!,
+  ]
   const heads = content.onsets.map((o, k) => ({ x: L.startX + L.xs[k], notes: o.here.map((n) => song.notes.indexOf(n)) })).filter((hd) => hd.notes.length)
 
   // selected notes on the staff: an outline around their heads
@@ -129,7 +155,7 @@ export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRe
   const at = pages.findIndex(([f]) => f === first)
   const prev = at > 0 ? song.bars[pages[at - 1][0]] : null
   const next = at >= 0 && at < pages.length - 1 ? song.bars[pages[at + 1][0]] : null
-  return { first, count, prev, next, xOf, heads }
+  return { first, count, prev, next, xOf, grid, heads }
 }
 
 function drawBands(ctx: CanvasRenderingContext2D, v: View, xOf: (t: number) => number, t0: number, t1: number, w: number) {
