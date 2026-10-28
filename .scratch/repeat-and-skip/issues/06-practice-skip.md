@@ -1,6 +1,6 @@
 # Practice screen: skip buttons and intro skip
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 05
 Spec: ../spec.md
 
