@@ -16,11 +16,12 @@ export interface Calibration {
 const FACTOR = 4
 const MIN_RMS = 0.01
 const QUIET = 0.08
-const MATCH = 0.3
+const EARLY = 0.1
+const LATE = 0.8
 const MIN_CLICKS = 5
 const MAX_SPREAD = 0.025
 const COUNT_IN = 1
-const EVERY = 0.6
+const EVERY = 1
 const CLICKS = 8
 const TAIL = 0.5
 
@@ -41,11 +42,11 @@ export function detectOnsets(frames: Level[]): number[] {
   return onsets
 }
 
-/** Delay (onset − click) of each click that has an onset within ±300 ms, the nearest one. */
+/** Delay (onset − click) of each click: its first onset from 100 ms before to 800 ms after (a Bluetooth delay fits). */
 export const matchClicks = (onsets: number[], clicks: number[]): number[] =>
   clicks.flatMap((c) => {
-    const near = onsets.reduce<number | null>((a, o) => (a === null || Math.abs(o - c) < Math.abs(a - c) ? o : a), null)
-    return near !== null && Math.abs(near - c) <= MATCH ? [near - c] : []
+    const first = onsets.find((o) => o - c >= -EARLY - 1e-9 && o - c <= LATE + 1e-9)
+    return first === undefined ? [] : [first - c]
   })
 
 const median = (xs: number[]) => {
@@ -62,9 +63,8 @@ export function summarize(delays: number[]): Calibration | null {
   return spread > MAX_SPREAD + 1e-9 ? null : { ms: Math.round(mid * 1000), spreadMs: Math.round(spread * 1000) }
 }
 
-/** The user offset that remains after the pitch engine subtracted playback and mic latency: steps of 10, −300…300. */
-export const offsetFor = (measuredMs: number, playbackS: number, micS: number): number =>
-  Math.max(-300, Math.min(300, Math.round((measuredMs - playbackS * 1000 - micS * 1000) / 10) * 10))
+/** The measured delay as the scoring delay: steps of 10, 0…600 (the slider's range). */
+export const delayFor = (measuredMs: number): number => Math.max(0, Math.min(600, Math.round(measuredMs / 10) * 10))
 
 export interface CalibrationRun {
   /** Result, null when unclear or cancelled, 'no-mic' when the mic did not start. */
@@ -73,7 +73,7 @@ export interface CalibrationRun {
 }
 
 /**
- * Starts the mic on the playback context's clock, plays 8 clicks after a 1 s count-in and measures click → onset.
+ * Starts the mic on the playback context's clock, plays 8 clicks a second apart after a 1 s count-in and measures click → onset.
  * The caller stops or restores the mic afterwards.
  */
 export function runCalibration(
