@@ -18,7 +18,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from RangeHTTPServer import RangeRequestHandler
-from sections import bar_grid, detect_sections
+from sections import bar_grid, detect_sections, song_bpm
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -73,9 +73,7 @@ class Handler(RangeRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         try:
             req = json.loads(body)
-            cfg = json.loads((ROOT / "sources" / "config.json").read_text(encoding="utf-8"))
-            bpm = next(s["bpm"] for s in cfg["songs"] if s["id"] == req["id"])
-            bars = bar_grid(req["notes"], bpm)
+            bars = bar_grid(req["notes"], song_bpm(ROOT, req["id"]))
             out = json.dumps({"sections": detect_sections(req["notes"], bars), "bars": bars}).encode()
         except Exception as e:  # noqa: BLE001
             self.send_error(400, f"cannot detect: {e}")

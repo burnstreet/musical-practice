@@ -69,14 +69,14 @@ Pure function `detect_sections(notes, bars)` plus a script that writes the resul
 - Snapping: the first section starts on the bar line at or before its first note, the last ends on the bar line at or after its last note, every other boundary lies on the bar line nearest to the first note of the following section and is shared by both neighbours. Sections are contiguous inside the sung stretch.
 - Output entry: `{name, start, end}` in seconds, sorted.
 - Stored sections win: when the song JSON already has a `sections` key (also `[]`), `sections.py` and `pack.py` leave it untouched. Only the editor's re-detect replaces it, when the Admin asks.
-- `pack.py` writes the song file with its `sections` as stored; a song without the key is packed without it. The manifest `format` is 2.
+- `pack.py` writes the song file with its `sections` as stored; a song without the key gets the sections detected at pack time, as `sections.py` would write them (`[]` when no refrain recurs). The song JSON itself is not changed. The manifest `format` is 2.
 
 ## Editor additions (`web/app.js`)
 
 - Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved via existing save path.
 - Phrase flag: button "Phrasenanfang" toggles `phraseStart` on the selected note. Piano roll draws a vertical marker at flagged notes.
 - Song JSON `roles` list stays derived: builder recomputes from notes.
-- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid. Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined by spaces. Each note sits in the grid bar nearest its start minus its beat. The view needs the bar grid from `/detect-sections` and the shared build (`./at.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
+- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: the roll draws the same bar lines, numbered as on the staff (the roll stays linear in time, the staff is spaced by onsets). Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined by spaces. Each note sits in the grid bar nearest its start minus its beat. The view needs the bar grid from `/detect-sections` and the shared build (`./at.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
 - Phrases stay editable only through `Phrasenanfang`.
 - Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the existing save path (`sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
 - Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
@@ -293,8 +293,13 @@ Feature: Stored sections
     When I run sections.py for it
     Then the JSON has the detected sections
 
-  Scenario: pack without sections key packs none
-    Given a complete song whose JSON has no sections key
+  Scenario: pack detects sections when the key is missing
+    Given a complete song with repeated lines and no sections key
     When I run pack
-    Then the decrypted song file has no sections field
+    Then the decrypted song file has the detected sections
+
+  Scenario: pack keeps a stored empty list
+    Given a complete song with repeated lines whose JSON has sections []
+    When I run pack
+    Then the decrypted song file has sections []
 ```

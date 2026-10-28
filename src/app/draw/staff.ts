@@ -33,8 +33,17 @@ export function dimOutside(ctx: CanvasRenderingContext2D, left: number, from: nu
   ctx.globalAlpha = 1
 }
 
-/** tokens.css values (a canvas cannot use custom properties directly). */
-export const COLORS = { accent: '#C8E05A', other: '#A9D3F7', muted: '#CFE0F5', line: '#3F78BF', surface: '#17498C', text: '#FFFFFF' }
+/** tokens.css values (a canvas cannot use custom properties directly); `select` = the editor's selection orange, as in its roll. */
+export const COLORS = {
+  bg: '#1F5FAB',
+  select: '#F08C14',
+  accent: '#C8E05A',
+  other: '#A9D3F7',
+  muted: '#CFE0F5',
+  line: '#3F78BF',
+  surface: '#17498C',
+  text: '#FFFFFF',
+}
 export const FONT = "'DM Sans', system-ui, sans-serif"
 const MUSIC = "'Noto Music', 'Segoe UI Symbol', 'Apple Symbols', serif"
 
@@ -383,6 +392,20 @@ export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: 
   return { s, startX, ...page }
 }
 
+/** (song time, x) of a page's start, each onset and its end, for `playheadX`; bars past the song's end (last page) continue at the last bar's length. */
+export function pagePoints(song: Song, content: ReturnType<typeof pageContent>, L: ReturnType<typeof measurePage>): [number, number][] {
+  const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
+  const nb = song.bars.length
+  const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
+  const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
+  const [first, count] = [content.bars[0], content.bars.length]
+  return [
+    [barStart(first), L.startX + L.barX[0]],
+    ...content.onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), L.startX + L.xs[k]]),
+    [barStart(first + count), L.startX + L.barX[count - 1] + L.barW[count - 1]],
+  ]
+}
+
 /** Page split per song, canvas size, roles and font state; measuring every page each frame would be too slow. */
 const pageCache = new WeakMap<Song, Map<string, [number, number][]>>()
 /** Pages of up to `barsPerPage` bars whose syllables fit on one row (fewer bars where they do not). */
@@ -468,15 +491,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   }
 
   // Playhead, dashed as in the piano roll: moves from onset to onset, so the singer sees the next entry coming
-  // bars past the song's end (last page) continue at the last bar's length
-  const nb = song.bars.length
-  const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
-  const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
-  const points: [number, number][] = [
-    [barStart(first), startX + L.barX[0]],
-    ...onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), startX + L.xs[k]]),
-    [barStart(first + per), startX + L.barX[per - 1] + L.barW[per - 1]],
-  ]
+  const points = pagePoints(song, content, L)
   const px = playheadX(points, t)
   ctx.strokeStyle = COLORS.text
   ctx.lineWidth = 1.5

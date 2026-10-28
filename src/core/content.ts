@@ -78,8 +78,8 @@ export interface Song {
   bars: number[]
   notes: Note[]
   phrases: Phrase[]
-  /** Always an array after parsing; empty when the file has none. */
-  sections?: Section[]
+  /** Empty when the file has none. */
+  sections: Section[]
 }
 export interface Span {
   start: number
