@@ -56,7 +56,7 @@ Strings:
 
 ## Staff (canvas, 1 to 4 bars per page)
 
-- Treble clef, key signature from `song.key`, 5 lines. No beams, no ties. Accidentals only on pitches outside the key.
+- Treble clef, key signature from `song.key`, 5 lines. No beams, no ties. Accidentals only on pitches outside the key. A song whose median note lies below B3 is written an octave (or more) above its sound, with a small `8` under the clef (`octaveShift`), so low voices stay on the lines.
 - Rests: in each bar every span no visible note covers (bar start to first note, a note's written end to the next note, last end to bar end) gets rests. Gap ends snap to the sixteenth grid (gaps under 1/8 beat vanish), then split into half, quarter, eighth, sixteenth rests, each starting on a multiple of its own length from the bar start; no dotted rests. Empty bar: one whole-bar rest, centred (also in 3/4). Music font glyphs U+1D13B–U+1D13F placed by measured ink (whole hangs from the fourth line, half sits on the middle line). Faint colour of the voice that just stopped (mine first), else the one about to start; muted in an empty bar. Rests are onsets of the spacing without a syllable.
 - Note value from `dur` (quarters), quantised to the nearest written value: whole (hollow, no stem), half (hollow, stem), quarter (filled, stem), eighth / sixteenth (filled, stem, 1 / 2 flags); augmentation dot for dotted values (dotted sixteenth to dotted half).
 - Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room. Minimum distance between onsets = head (more before an accidental) and half of each neighbour's syllable + 4 px; short notes take it from long ones.
