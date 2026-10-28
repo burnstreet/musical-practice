@@ -1,6 +1,6 @@
 # Content format: sections field
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 Spec: ../spec.md
 
