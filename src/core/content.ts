@@ -21,7 +21,7 @@ export const ROLE_IDS = [
 export type RoleId = (typeof ROLE_IDS)[number]
 
 export interface Manifest {
-  format: 1
+  format: 1 | 2
   build: string
   keyId: string
   salt: string
@@ -65,6 +65,11 @@ export interface Phrase {
   start: number
   end: number
 }
+export interface Section {
+  name: string
+  start: number
+  end: number
+}
 export interface Song {
   id: string
   bpm: number
@@ -73,6 +78,8 @@ export interface Song {
   bars: number[]
   notes: Note[]
   phrases: Phrase[]
+  /** Empty when the file has none. */
+  sections: Section[]
 }
 export interface Span {
   start: number
@@ -99,7 +106,7 @@ function need(ok: boolean, field: string): void {
 export function parseManifest(json: unknown): Manifest {
   need(isObj(json), 'manifest')
   const m = json as Record<string, any>
-  need(m.format === 1, 'format')
+  need(m.format === 1 || m.format === 2, 'format')
   need(isStr(m.build), 'build')
   need(isStr(m.keyId) && ID.test(m.keyId), 'keyId')
   need(isStr(m.salt) && /^[A-Za-z0-9+/]{22}==$/.test(m.salt), 'salt') // 16 bytes = 22 chars + ==
@@ -144,7 +151,13 @@ export function parseSong(input: unknown): Song {
     need(isObj(p) && isStr(p.label) && isNum(p.start) && isNum(p.end), 'phrases')
     need(used.has(i), 'phrase')
   })
-  return json as Song
+  const sections = json.sections ?? []
+  need(Array.isArray(sections), 'sections')
+  sections.forEach((s: any, i: number) => {
+    need(isObj(s) && isStr(s.name) && s.name !== '' && isNum(s.start) && isNum(s.end) && s.end > s.start, 'sections')
+    need(i === 0 || s.start >= sections[i - 1].end, 'sections')
+  })
+  return { ...json, sections } as Song
 }
 
 /** Notes staff, roll and session use: my unison duplicates once, other roles hidden while I sing. Order kept. */

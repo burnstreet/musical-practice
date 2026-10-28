@@ -4,6 +4,22 @@ import type { LoadedSong } from './types'
 export type Mode = 'all' | 'others' | 'backing'
 export type Tempo = 100 | 90 | 80 | 70
 
+export const LEAD_IN_SEC = 3
+
+/** Repeat range in song seconds. phrase only for the Phrase repeat; leadIn wraps to leadInStart(start). */
+export interface Range {
+  start: number
+  end: number
+  phrase?: Phrase
+  leadIn?: boolean
+}
+
+/** sec minus the lead-in, snapped back to the previous bar line, never below 0. */
+export function leadInStart(sec: number, bars: number[]): number {
+  const t = sec - LEAD_IN_SEC
+  return Math.max(0, bars.filter((b) => b <= t).at(-1) ?? 0)
+}
+
 export interface AudioEngine {
   load(song: LoadedSong, roles: RoleId[]): Promise<void>
   unload(): void
@@ -12,9 +28,10 @@ export interface AudioEngine {
   seek(sec: number): void
   setMode(m: Mode): void
   setTempo(t: Tempo): void
-  setLoop(phrase: Phrase | null): void
+  setLoop(range: Range | null): void
+  seekLeadIn(sec: number): void
   tempo(): Tempo
-  loop(): Phrase | null
+  loop(): Range | null
   time(): number
   playing(): boolean
   /** Playback context clock in seconds; creates the context when no song was loaded yet. */
@@ -60,7 +77,8 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
   let notes: Note[] = []
   let spans: Span[] = []
   let mode: Mode = 'all'
-  let loop: Phrase | null = null
+  let loop: Range | null = null
+  let bars: number[] = []
   let isPlaying = false
   let prev = -1 // song time of the last tick; enter fires for notes starting in (prev, now]
   const listeners: Record<string, ((x?: any) => void)[]> = {}
@@ -95,13 +113,18 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     }
   }
 
+  function wrap(r: Range) {
+    const to = r.leadIn ? leadInStart(r.start, bars) : r.start
+    engine.seek(to)
+    if (r.phrase) emit('loop', r.phrase)
+    return to
+  }
+
   function frame() {
     if (!isPlaying) return
     let t = voices.currentTime
     if (loop && t >= loop.end) {
-      engine.seek(loop.start)
-      emit('loop', loop)
-      t = loop.start
+      t = wrap(loop)
     } else {
       for (const n of notes) if (n.start > prev && n.start <= t) emit('enter', n)
       prev = t
@@ -130,16 +153,16 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       ;[backing] = wire(song.backing)
       voices.addEventListener('ended', () => {
         if (loop) {
-          engine.seek(loop.start)
+          wrap(loop)
           void voices.play()
           void backing.play()
-          emit('loop', loop)
         } else {
           engine.pause()
           emit('ended')
         }
       })
       notes = song.song.notes
+      bars = song.song.bars
       spans = roleSpans(notes, roles)
       prev = -1
       loop = null // new song: a loop of the previous one would not fit
@@ -180,9 +203,10 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       voices.playbackRate = backing.playbackRate = t / 100
       if (isPlaying) schedule()
     },
-    setLoop(p) {
-      loop = p
+    setLoop(r) {
+      loop = r
     },
+    seekLeadIn: (sec) => engine.seek(leadInStart(sec, bars)),
     tempo: () => (voices ? Math.round(voices.playbackRate * 100) : 100) as Tempo,
     loop: () => loop,
     time: () => voices.currentTime,

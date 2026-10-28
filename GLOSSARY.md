@@ -47,8 +47,12 @@ The part of the lyrics sung on one note.
 _Avoid_: Lyric, word
 
 **Phrase**:
-A run of consecutive notes forming one lyric line. The unit for looping, per-phrase results and the Tip.
-_Avoid_: Line, section, bar group, verse
+A run of consecutive notes forming one lyric line. The unit for the Phrase repeat, per-phrase results and the Tip.
+_Avoid_: Line, bar group
+
+**Section**:
+A named stretch of a song made of whole phrases and bars: a *Strophe* (numbered) or a *Refrain* (each recurrence is its own section). Detected from repeated lyric lines when the content is built, then adjusted by the Admin. Optional per song; shown as segments on the progress bar. Stored as name, start and end second.
+_Avoid_: Part, verse, chorus (use the German names Strophe and Refrain for the two kinds)
 
 **Role**:
 A character or group of the musical that sings, taken from the global cast list. Each note belongs to exactly one role. Only roles with notes in some song can be selected.
@@ -60,6 +64,10 @@ _Avoid_: Selection, profile
 
 **Role span**:
 A time range of a song in which any role of the role set sings.
+
+**Own span**:
+A role span after merging spans separated by a gap shorter than one bar. The unit of the *Einsatz* repeat and of skipping to my previous or next entry. Shown in German as *Einsatz*.
+_Avoid_: Solo, voice (the instrumental intro is skipped with *Intro überspringen*, not with an own-span skip)
 
 **Library**:
 The set of songs published in one bundle, with their roles and titles.
@@ -89,9 +97,13 @@ _Avoid_: Stem mode, mute mode, karaoke mode
 Playback speed as a percentage of the original, pitch unchanged. 100, 90, 80 or 70.
 _Avoid_: Speed, rate
 
-**Loop**:
-Repeating one phrase until switched off.
-_Avoid_: Repeat, A-B
+**Repeat**:
+Playing one range of the song again and again until switched off, one kind at a time: *Phrase*, *Abschnitt* (a Section), *Einsatz* (an Own span) or *A–B* (two bar-snapped points the singer sets). The range is fixed when the repeat is switched on; everything outside it is dimmed on screen. The UI heading is *Wiederholen*; "Loop" is kept only as the engine event and method name.
+_Avoid_: Loop (as a domain noun)
+
+**Lead-in**:
+The run-up before a skip or a Section or Own-span repeat: 3 s before the target, snapped back to the previous bar line, never before 0. Phrase and A–B repeats start exactly at their start.
+_Avoid_: Pre-roll, count-in
 
 **Ready song**:
 A song whose files are stored on the device and can be opened offline.
@@ -108,7 +120,7 @@ One stretch of playback from play to pause inside a session, scored as a unit. S
 _Avoid_: Run, take, round, attempt
 
 **Entered note**:
-A note of the role set that the playhead has crossed during the current pass. Only entered notes are scored. Re-entering a note (loop, seek back) discards what was sung before.
+A note of the role set that the playhead has crossed during the current pass. Only entered notes are scored. Re-entering a note (repeat, seek back) discards what was sung before.
 
 **Deviation**:
 Distance between sung pitch and target pitch in cents, after octave folding. Signed: positive = sharp (*zu hoch*), negative = flat (*zu tief*).

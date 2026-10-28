@@ -11,6 +11,7 @@ const song: Song = {
   bars: [0],
   notes: [note(1, 'maria'), note(3, 'josef')],
   phrases: [{ index: 0, label: 'P1', start: 0, end: 4 }],
+  sections: [],
 }
 const f = (t: number) => ({ t, at: t, midi: 67, clarity: 0.9, rms: 0.1 })
 
