@@ -8,7 +8,8 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "lint": "biome check && ruff check . && ruff format --check .",
-    "format": "biome check --write && ruff check --fix . && ruff format ."
+    "format": "biome check --write && ruff check --fix . && ruff format .",
+    "prepare": "husky"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",
@@ -22,11 +23,16 @@
     "@types/node": "^26.6.5",
     "fake-indexeddb": "^6.2.6",
     "happy-dom": "^21.0.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.0.5",
     "workbox-precaching": "^7.4.1",
     "workbox-window": "^7.4.1"
+  },
+  "lint-staged": {
+    "*.{ts,js,json}": "biome check --write --no-errors-on-unmatched"
   }
 }

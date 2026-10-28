@@ -1,0 +1,1 @@
+pwsh -NoProfile -File ./mp.ps1 precommit -Staged
