@@ -1,5 +1,5 @@
 import { css, html, LitElement, svg } from 'lit'
-import type { Mode, Tempo } from '../../core/audio-engine'
+import type { Mode, Range, Tempo } from '../../core/audio-engine'
 import type { Phrase, RoleId, Song } from '../../core/content'
 import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
@@ -159,7 +159,7 @@ export class GuPractice extends LitElement {
   /** pitch.start said ok; false = denied or unsupported, or no part. */
   declare mic: boolean
   declare tempo: Tempo
-  declare loop: Phrase | null
+  declare loop: Range | null
   /** The role set has notes in this song; otherwise listen only (`noPart` hint). */
   singsHere = false
   session!: Session
@@ -321,7 +321,8 @@ export class GuPractice extends LitElement {
   }
 
   private toggleLoop() {
-    this.loop = this.loop ? null : this.phrase()
+    const p = this.phrase()
+    this.loop = this.loop ? null : { start: p.start, end: p.end, phrase: p }
     getContext().engine.setLoop(this.loop)
   }
 
