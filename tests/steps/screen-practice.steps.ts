@@ -1,7 +1,7 @@
 import { expect } from 'vitest'
 import { type AppContext, setContext } from '../../src/app/context'
 import { features } from '../../src/app/features'
-import type { GuPractice } from '../../src/app/screens/practice'
+import { entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
 import type { Note, Song, SongMeta } from '../../src/core/content'
 import type { PitchFrame } from '../../src/core/types'
@@ -182,6 +182,14 @@ async function frame(ctx: any, f: Partial<PitchFrame>) {
 }
 
 export default steps(({ Given, When, Then }) => {
+  Given(/^my next note starts at ([\d.]+) in bars of 2 s$/, (ctx, start) => {
+    ctx.song = fixture().song // Maria D5 from 8.0, bars every 2 s
+    expect(ctx.song.notes.find((n: Note) => n.role === 'maria').start).toBe(+start)
+  })
+  Then(/^at ([\d.]+)(?: at tempo (\d+))? the readout shows (?:"([^"]+)"|no countdown)$/, (ctx, t, tempo, text) => {
+    expect(entryCountdown(ctx.song, ['maria'], +t, +(tempo ?? 100))).toBe(text ?? '')
+  })
+
   Given(/^song "(\w+)" loaded with key "(\w+)", bpm (\d+), title placeholder$/, (ctx, _id, key, bpm) => {
     world(ctx)
     Object.assign(ctx.data.song, { key, bpm: +bpm })
