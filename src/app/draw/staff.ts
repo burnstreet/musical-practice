@@ -302,10 +302,10 @@ const RESTS: Record<number, { glyph: string; anchor: 'top' | 'bottom' | 'centre'
   0.25: { glyph: '\u{1D13F}', anchor: 'centre', step: 3 },
 }
 /** Artboard height: the drawing scales with the canvas height. */
-const BASE = 112
+export const BASE = 112
 
 /** Onsets of bars first…first+count−1, sorted: notes sharing a beat, and rests (no syllable) in the gaps of each bar. */
-function pageContent(song: Song, roles: RoleId[], first: number, count: number) {
+export function pageContent(song: Song, roles: RoleId[], first: number, count: number) {
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const mine = (n: Note) => roles.includes(n.role)
   const bars = Array.from({ length: count }, (_, i) => first + i)
@@ -338,7 +338,7 @@ function pageContent(song: Song, roles: RoleId[], first: number, count: number) 
 }
 
 /** Page layout of `content` on a canvas `w` wide at drawing scale `s`; measures the syllables in the bold lyric font. */
-function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number) {
+export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number) {
   const fifths = keyFifths(song.key)
   ctx.font = `700 ${12 * s}px ${FONT}` // measured bold: the current note's syllable is drawn bold
   const startX = 46 * s + Math.abs(fifths) * 8 * s
