@@ -166,7 +166,34 @@ async function screen(ctx: any): Promise<GuPractice> {
   ctx.el.requestFrame = (cb: () => void) => setTimeout(cb, 0) // happy-dom: no real animation frames
   document.body.append(ctx.el)
   await settle(ctx.el)
+  ctx.draws = { staff: [], roll: [] }
+  for (const name of ['staff', 'roll']) {
+    const canvas = ctx.el.shadowRoot!.querySelector(`.${name} canvas`) as HTMLCanvasElement
+    Object.defineProperty(canvas, 'clientWidth', { value: 600, configurable: true }) // happy-dom has no layout
+    Object.defineProperty(canvas, 'clientHeight', { value: 188, configurable: true })
+    canvas.getContext = (() => recorder(canvas, ctx.draws[name])) as any
+  }
+  await tick(ctx, ctx.time)
   return ctx.el
+}
+
+/** Fake 2D context: logs [method, ...args] of the last draw (cleared by `clearRect`, which starts every draw). */
+function recorder(canvas: HTMLCanvasElement, log: unknown[][]) {
+  const props: Record<string, unknown> = { canvas }
+  return new Proxy(props, {
+    get: (o, k: string) =>
+      k in o
+        ? o[k]
+        : (...args: unknown[]) => {
+            if (k === 'clearRect') log.length = 0
+            log.push([k, ...args, o.textBaseline])
+            return { width: 10, actualBoundingBoxAscent: 5, actualBoundingBoxDescent: 5 }
+          },
+    set: (o, k: string, v) => {
+      o[k] = v
+      return true
+    },
+  })
 }
 
 const text = (el: Element) => el.shadowRoot!.textContent!.replace(/\s+/g, ' ')
@@ -576,4 +603,88 @@ export default steps(({ Given, When, Then }) => {
     await tap(ctx, chip(ctx, 'A–B'))
   })
   When(/^I tap the chip a third time$/, (ctx) => tap(ctx, chip(ctx, 'A–B')))
+
+  // Dimming and sections
+  const sections = (ctx: any) => {
+    ctx.data.song.sections = [
+      { name: 'Strophe 1', start: 8, end: 24 },
+      { name: 'Refrain', start: 24, end: 40 },
+    ]
+  }
+  const progress = (ctx: any) => ctx.el.shadowRoot!.querySelector('.progress') as HTMLElement
+  const pct = (ctx: any, t: number) => `${(t / ctx.data.meta.durationSec) * 100}%`
+  /** Flag labels: the only texts hung from the top (row labels sit on the middle, syllables on the baseline). */
+  const flags = (ctx: any, canvas: string) => ctx.draws[canvas].filter((c: unknown[]) => c[0] === 'fillText' && c.at(-1) === 'top').map(([, s]: unknown[]) => s)
+  const dimmed = (ctx: any, start: number, end: number) => {
+    for (const canvas of ['staff', 'roll'])
+      expect(
+        ctx.draws[canvas].some(([k]: unknown[]) => k === 'fillRect'),
+        canvas,
+      ).toBe(true)
+    const range = progress(ctx).querySelector<HTMLElement>('.range')!
+    expect(range.style.left).toBe(pct(ctx, start))
+    expect(range.style.right).toBe(pct(ctx, ctx.data.meta.durationSec - end))
+    expect(progress(ctx).querySelectorAll('.dim').length).toBeGreaterThan(0)
+  }
+  Given(/^the "Abschnitt" repeat is on for \[24\.0,40\.0\]$/, async (ctx) => {
+    world(ctx)
+    sections(ctx)
+    await at(ctx, 30)
+    await tap(ctx, chip(ctx, 'Abschnitt'))
+    expect(ctx.loop).toMatchObject({ start: 24, end: 40 })
+    ctx.calls.length = 0
+  })
+  Then(/^staff, roll and progress bar are drawn with a dim range \[([\d.]+),([\d.]+)\] and a flag "([^"]+)" at ([\d.]+)$/, (ctx, a, b, name) => {
+    dimmed(ctx, +a, +b)
+    expect(flags(ctx, 'roll')).toEqual([name])
+    expect(progress(ctx).querySelector('.leadin')).not.toBeNull()
+  })
+  Then(/^the heard audio, the mic and the scorer are untouched$/, (ctx) => {
+    expect(ctx.calls).toEqual([])
+    expect(byLabel(ctx.el, 'Mikrofon aktiv')).not.toBeNull()
+  })
+  Then(/^the staff, the roll and the progress bar are drawn with a dim range from ([\d.]+) to the song end$/, (ctx, a) => {
+    dimmed(ctx, +a, ctx.data.meta.durationSec)
+    expect(flags(ctx, 'roll')).toEqual(['A'])
+  })
+  Given(/^an A–B repeat \[([\d.]+),([\d.]+)\]$/, async (ctx, a, b) => {
+    await at(ctx, +a)
+    await tap(ctx, chip(ctx, 'A–B'))
+    await tick(ctx, +b)
+    await tap(ctx, chip(ctx, 'A–B'))
+    expect(ctx.loop).toEqual({ start: +a, end: +b })
+  })
+  Then(/^the roll draws flags "A" at ([\d.]+) and "B" at ([\d.]+)$/, (ctx) => {
+    expect(flags(ctx, 'roll')).toEqual(['A', 'B'])
+  })
+  Given(/^no repeat$/, (ctx) => at(ctx, 9))
+  Then(/^staff, roll and progress bar are drawn without a dim range$/, (ctx) => {
+    for (const canvas of ['staff', 'roll'])
+      expect(
+        ctx.draws[canvas].some(([k]: unknown[]) => k === 'fillRect'),
+        canvas,
+      ).toBe(false)
+    expect(ctx.draws.roll.length).toBeGreaterThan(0) // it did draw
+    expect(progress(ctx).querySelector('.dim, .range')).toBeNull()
+  })
+  Given(/^sections "Strophe 1"(?: \[8\.0,24\.0\])? and "Refrain"(?: \[24\.0,40\.0\])?$/, async (ctx) => {
+    world(ctx)
+    sections(ctx)
+    await at(ctx, 2)
+  })
+  Then(/^the progress bar shows two labelled segments, also without a repeat$/, (ctx) => {
+    expect(ctx.loop ?? null).toBeNull()
+    const segs = [...progress(ctx).querySelectorAll<HTMLElement>('.seg')]
+    expect(segs.map((s) => s.textContent!.trim())).toEqual(['Strophe 1', 'Refrain'])
+    expect(segs[1].style.left).toBe(pct(ctx, 24))
+  })
+  When(/^I tap the segment "([^"]+)"$/, async (ctx, name) => {
+    const seg = [...progress(ctx).querySelectorAll<HTMLElement>('.seg')].find((s) => s.textContent!.trim() === name)!
+    await tap(ctx, seg)
+  })
+  Then(/^the chip "Abschnitt" is active, engine loop is \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
+    expect(chip(ctx, 'Abschnitt').getAttribute('aria-pressed')).toBe('true')
+    expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
+    expect(ctx.time).toBe(+t)
+  })
 })

@@ -1,12 +1,12 @@
 import { css, html, LitElement, svg } from 'lit'
-import type { Mode, Range, Tempo } from '../../core/audio-engine'
-import type { Phrase, RoleId, Song } from '../../core/content'
+import { leadInStart, type Mode, type Range, type Tempo } from '../../core/audio-engine'
+import type { Phrase, RoleId, Section, Song } from '../../core/content'
 import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
-import { barsPerPage, type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
+import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
 import { features } from '../features'
 import { abRange, einsatzRange, phraseRange, sectionAt, snapToBar } from '../repeat'
 
@@ -154,7 +154,17 @@ export class GuPractice extends LitElement {
     .chip[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
     .status { margin: 0; font-size: 13px; color: var(--muted); }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
-    .progress input { flex: 1; margin: 0; height: 24px; accent-color: var(--text); }
+    .progress .track { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .progress .segs { position: relative; height: 22px; }
+    .progress .seg { position: absolute; top: 0; bottom: 0; padding: 0 4px; margin: 0 1px; border-radius: 6px; font-size: 11px; color: var(--muted);
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .progress .seg[aria-pressed='true'] { color: var(--accent); }
+    .progress .bar { position: relative; }
+    .progress .bar div { position: absolute; top: 4px; bottom: 4px; pointer-events: none; }
+    .progress .dim { background: var(--bg); opacity: 0.6; z-index: 1; }
+    .progress .range { border: 2px solid var(--accent); border-radius: 6px; }
+    .progress .leadin { background: var(--accent); opacity: 0.25; border-radius: 6px 0 0 6px; }
+    .progress input { display: block; width: 100%; margin: 0; height: 24px; accent-color: var(--text); }
     .buttons { display: flex; align-items: center; justify-content: space-between; }
     .buttons button.round { font-size: 13px; font-weight: 700; }
     .round[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
@@ -222,7 +232,15 @@ export class GuPractice extends LitElement {
     const { settings, library } = getContext()
     const s = settings.get()
     const names = Object.fromEntries(library.roles().map((r) => [r.id, r.name]))
-    const state: DrawState = { song: this.loaded.song, roles: s.roles, names, t: this.heard(), frames: this.frames, tolerance: s.tolerance }
+    const state: DrawState = {
+      song: this.loaded.song,
+      roles: s.roles,
+      names,
+      t: this.heard(),
+      frames: this.frames,
+      tolerance: s.tolerance,
+      repeat: this.marks(),
+    }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
     const page = drawStaff(ctx2d('.staff canvas'), state)
     if (page && String(page) !== String(this.page)) {
@@ -360,10 +378,7 @@ export class GuPractice extends LitElement {
     if (kind === 'einsatz') range = einsatzRange(song, roles, now)
     if (kind === 'section') {
       const s = sectionAt(song, now)
-      if (s) {
-        this.sectionName = s.name
-        range = { start: s.start, end: s.end, leadIn: true }
-      }
+      if (s) return this.pickSection(s)
     }
     if (kind !== 'off' && !range) return // nothing to repeat: stay as is
     this.a = null
@@ -372,6 +387,38 @@ export class GuPractice extends LitElement {
       engine.seekLeadIn(range.start)
       this.t = engine.time()
     }
+  }
+
+  /** Abschnitt repeat for `s` (chip or a tap on its progress bar segment), from its lead-in. */
+  private pickSection(s: Section) {
+    const { engine } = getContext()
+    this.sectionName = s.name
+    this.a = null
+    this.setRange('section', { start: s.start, end: s.end, leadIn: true })
+    engine.seekLeadIn(s.start)
+    this.t = engine.time()
+  }
+
+  /** What staff, roll and progress bar draw for the active repeat: its range (A without B: A to the song end) and flags. */
+  private marks(): Marks | null {
+    if (this.kind === 'ab' && !this.loop) return this.a === null ? null : { start: this.a, end: this.loaded!.meta.durationSec, flags: [[this.a, 'A']] }
+    if (!this.loop) return null
+    const { start, end } = this.loop
+    return {
+      start,
+      end,
+      flags:
+        this.kind === 'ab'
+          ? [
+              [start, 'A'],
+              [end, 'B'],
+            ]
+          : [[start, this.repeatName()]],
+    }
+  }
+
+  private repeatName(): string {
+    return { off: '', phrase: `Phrase ${(this.loop?.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
   }
 
   /** One chip: set A, set B (starts the repeat), clear. */
@@ -392,8 +439,7 @@ export class GuPractice extends LitElement {
   private status(): string {
     if (this.kind === 'ab' && !this.loop) return this.a === null ? '' : `A ${clock(this.a)} · B noch nicht gesetzt`
     if (!this.loop) return ''
-    const name = { off: '', phrase: `Phrase ${(this.loop.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
-    return `${name} · ${clock(this.loop.start)}–${clock(this.loop.end)}`
+    return `${this.repeatName()} · ${clock(this.loop.start)}–${clock(this.loop.end)}`
   }
   /** Big note, target label, cents text and meter position. */
   private readout() {
@@ -430,6 +476,8 @@ export class GuPractice extends LitElement {
     const dur = loaded.meta.durationSec
     const status = this.status()
     const sections = !!loaded.song.sections?.length
+    const marks = this.marks()
+    const pct = (sec: number) => `${(sec / dur) * 100}%`
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
@@ -473,7 +521,27 @@ export class GuPractice extends LitElement {
       </div>
       <div class="progress">
         <span>${clock(this.t)}</span>
-        <input type="range" aria-label="Position" min="0" max=${dur} step="0.1" .value=${String(this.t)} @input=${(e: Event) => this.seek(+(e.target as HTMLInputElement).value)} />
+        <div class="track">
+          ${
+            sections
+              ? html`<div class="segs">${loaded.song.sections!.map(
+                  (x) =>
+                    html`<button class="seg" aria-pressed=${this.kind === 'section' && this.sectionName === x.name} style="left:${pct(x.start)};right:${pct(dur - x.end)}" @click=${() => this.pickSection(x)}>${x.name}</button>`,
+                )}</div>`
+              : ''
+          }
+          <div class="bar">
+            ${
+              marks
+                ? html`<div class="dim" style="left:0;right:${pct(dur - marks.start)}"></div>
+                    <div class="dim" style="left:${pct(marks.end)};right:0"></div>
+                    ${this.loop?.leadIn ? html`<div class="leadin" style="left:${pct(leadInStart(marks.start, bars))};right:${pct(dur - marks.start)}"></div>` : ''}
+                    <div class="range" style="left:${pct(marks.start)};right:${pct(dur - marks.end)}"></div>`
+                : ''
+            }
+            <input type="range" aria-label="Position" min="0" max=${dur} step="0.1" .value=${String(this.t)} @input=${(e: Event) => this.seek(+(e.target as HTMLInputElement).value)} />
+          </div>
+        </div>
         <span>${clock(dur)}</span>
       </div>
       <div class="buttons">
