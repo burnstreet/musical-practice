@@ -64,11 +64,12 @@ Strings:
 
 - Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …). Range follows my notes in view ±2 semitones, min 10 rows.
 - Horizontal: 5 s window, playhead at 30 % width (1.5 s behind, 3.5 s ahead). Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`.
-- Sung line: pitch frames of the last 1.5 s by their live stamp `at` (the newest point sits at the playhead, whatever latency the device reports), folded into the octave of the nearest target note at that time; `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
+- Heard time: staff, piano roll, page and readout show `engine.time() − pitch.delay()`, the song position the singer hears now (Android Chrome measured 760 ms on Bluetooth). Transport and seek keep the playback position.
+- Sung line: pitch frames of the last 1.5 s by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), folded into the octave of the nearest target note at that time; `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
 
 ## Cents readout
 
-- Sung = latest voiced frame whose `at` lies in the last 150 ms. Target = my note containing that `at` (onset grace ignored here). Scoring keeps the compensated `t`.
+- Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here).
 - Shows sung note name (no octave, as everywhere), `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`.
 - Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at cents clamped ±100 only while a voiced frame exists.
 - Mic indicator in the transport row: small status icon, no button styling.
@@ -111,9 +112,9 @@ Feature: Practice screen
     Given a sung frame 80 cents above
     Then the readout shows "+80 Cent · zu hoch"
 
-  Scenario: live readout uses the measured time, not the scored one
-    Given target D5 and a sung frame 14 cents above measured now but scored 0.3 s earlier
-    Then the readout shows "+14 Cent · sauber"
+  Scenario: the screen shows what the singer hears, not what is being played out
+    Given a delay of 0.6 s, playback at 9.7 and a frame 14 cents above D5 scored at 9.1
+    Then the readout shows "D", "Ziel D" and "+14 Cent · sauber"
 
   Scenario: pitch frames redraw once per animation frame
     Given target D5 and the screen paused

@@ -19,6 +19,8 @@ export interface PitchEngine {
   stop(): void
   /** Total delay for scoring, ms (measured or set); null = playback latency + mic baseLatency as the browser reports them. */
   setDelayMs(ms: number | null): void
+  /** The delay `t` subtracts, in s: the set one, else the reported latencies. The screen draws at song time minus this. */
+  delay(): number
   /** Returns the unsubscribe function. */
   on(ev: 'frame', fn: (f: PitchFrame) => void): () => void
   level(): number
@@ -114,7 +116,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
       const at = songTime() - detection
       // the singer reacted to what played out playbackLatency ago; the mic adds its input latency on top.
       // A measured delay replaces both: some browsers report far more than the real latency.
-      const t = at - (delayMs === null ? playbackLatency() + (ctx.baseLatency ?? 0) : delayMs / 1000)
+      const t = at - delay()
       listeners.forEach((fn) => {
         fn({ ...e.data, t, at })
       })
@@ -132,6 +134,8 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     return 'ok'
   }
 
+  const delay = () => (delayMs === null ? clocks[1]() + (running ? input : 0) : delayMs / 1000)
+
   function stop() {
     cleanup()
     cleanup = () => {}
@@ -147,6 +151,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     setDelayMs: (ms) => {
       delayMs = ms
     },
+    delay,
     on: (_ev, fn) => {
       listeners.push(fn)
       return () => {

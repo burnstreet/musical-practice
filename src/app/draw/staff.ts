@@ -11,7 +11,7 @@ export interface DrawState {
   names: Partial<Record<RoleId, string>>
   /** Song time of the playhead in seconds. */
   t: number
-  /** Pitch frames of the last 1.5 s (by live stamp `at`), oldest first; `midi: null` breaks the sung line. */
+  /** Pitch frames of the last 1.5 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
   tolerance: Tolerance
 }

@@ -175,7 +175,7 @@ export class GuPractice extends LitElement {
     const { settings, library } = getContext()
     const s = settings.get()
     const names = Object.fromEntries(library.roles().map((r) => [r.id, r.name]))
-    const state: DrawState = { song: this.loaded.song, roles: s.roles, names, t: this.t, frames: this.frames, tolerance: s.tolerance }
+    const state: DrawState = { song: this.loaded.song, roles: s.roles, names, t: this.heard(), frames: this.frames, tolerance: s.tolerance }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
     drawStaff(ctx2d('.staff canvas'), state)
     drawRoll(ctx2d('.roll canvas'), state)
@@ -253,7 +253,7 @@ export class GuPractice extends LitElement {
   private onFrame(f: PitchFrame) {
     this.session.frame(f)
     this.frames.push(f)
-    while (this.frames[0].at < f.at - 1.5) this.frames.shift()
+    while (this.frames[0].t < f.t - 1.5) this.frames.shift()
     if (this.playing || this.redrawQueued) return
     this.redrawQueued = true
     this.requestFrame(() => {
@@ -279,6 +279,11 @@ export class GuPractice extends LitElement {
     this.t = sec
   }
 
+  /** Song time the singer hears now: the playback position minus the delay (drawing and readout use it; transport and seek keep `t`). */
+  private heard() {
+    return this.t - getContext().pitch.delay()
+  }
+
   /** Phrase the playhead is in, or the last one started before it. */
   private phrase(): Phrase {
     const ps = this.loaded!.song.phrases
@@ -292,9 +297,8 @@ export class GuPractice extends LitElement {
 
   /** Big note, target label, cents text and meter position. */
   private readout() {
-    const { engine, settings } = getContext()
-    const s = settings.get()
-    const d = liveDeviation(this.loaded!.song, s.roles, engine.time(), this.frames, s.tolerance)
+    const s = getContext().settings.get()
+    const d = liveDeviation(this.loaded!.song, s.roles, this.heard(), this.frames, s.tolerance)
     if (!d) return { big: '–', label: '', text: '', cents: null }
     const dir = d.cents > 0 ? 'zu hoch' : 'zu tief'
     const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
@@ -314,7 +318,7 @@ export class GuPractice extends LitElement {
     const { bars, key, bpm } = loaded.song
     // the staff page the canvas draws; before the first layout the canvas is missing and counts as narrow
     const per = barsPerPage(this.renderRoot.querySelector<HTMLElement>('.staff canvas')?.clientWidth ?? 0)
-    const firstBar = pageOf(bars, this.t, per) * per + 1
+    const firstBar = pageOf(bars, this.heard(), per) * per + 1
     const readout = this.readout()
     const mine = library
       .roles()
