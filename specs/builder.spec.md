@@ -1,9 +1,11 @@
 ---
 name: Builder
-description: Python pipeline end. Phrase derivation, role painting in the editor, completeness check, encryption and packing into content/.
+description: Python pipeline end. Phrase derivation, section detection, role painting and section editing in the editor, completeness check, encryption and packing into content/.
 targets:
   - ../tools/pack.py
   - ../tools/phrases.py
+  - ../tools/sections.py
+  - ../web/edit-ops.js
   - ../web/app.js
 ---
 
@@ -13,6 +15,7 @@ Admin runs locally. Inputs: aligned song JSON (`web/data/NN.json`, output of `al
 
 ```
 python tools/phrases.py NN              # phrase index per note, from DOCX
+python tools/sections.py NN             # sections of a song, written into web/data/NN.json
 python tools/pack.py [--strict] [--out content]   # password from env PITCH_PASSWORD
 ```
 
@@ -55,11 +58,28 @@ Feature: Phrase derivation
     Then the script exits 1 and prints "lu"
 ```
 
+## Sections (`tools/sections.py`)
+
+Pure function `detect_sections(notes, bars)` plus a script that writes the result to the song JSON. Needs phrases, so it runs after `phrases.py`.
+
+- Line text of a phrase = its notes' syllables, normalised as in Phrases (lower-case, no punctuation or hyphens, joined).
+- Refrain: a run of two or more consecutive phrases whose sequence of line texts occurs again elsewhere in the song. Every occurrence of the run is its own section, named `Refrain`, `Refrain 2`, … in song order. One recurring phrase alone is no refrain.
+- Strophe: each stretch of phrases between refrains, before the first or after the last, named `Strophe 1`, `Strophe 2`, … in song order.
+- No refrain found: no sections (`[]`). Intro and outro without notes are never in a section.
+- Snapping: the first section starts on the bar line at or before its first note, the last ends on the bar line at or after its last note, every other boundary lies on the bar line nearest to the first note of the following section and is shared by both neighbours. Sections are contiguous inside the sung stretch.
+- Output entry: `{name, start, end}` in seconds, sorted.
+- Stored sections win: when the song JSON already has a `sections` key (also `[]`), `sections.py` and `pack.py` leave it untouched. Only the editor's re-detect replaces it, when the Admin asks.
+- `pack.py` writes the song file with its `sections` as stored; a song without the key gets the sections detected at pack time, as `sections.py` would write them (`[]` when no refrain recurs). The song JSON itself is not changed. The manifest `format` is 2.
+
 ## Editor additions (`web/app.js`)
 
 - Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved via existing save path.
 - Phrase flag: button "Phrasenanfang" toggles `phraseStart` on the selected note. Piano roll draws a vertical marker at flagged notes.
 - Song JSON `roles` list stays derived: builder recomputes from notes.
+- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: the roll draws the same bar lines, numbered as on the staff (the roll stays linear in time, the staff is spaced by onsets). Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined by spaces. Each note sits in the grid bar nearest its start minus its beat. The view needs the bar grid from `/detect-sections` and the shared build (`./at.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
+- Phrases stay editable only through `Phrasenanfang`.
+- Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the existing save path (`sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
+- Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
   `[@test] ../tests/steps/editor.steps.ts`
 
 ```gherkin
@@ -75,6 +95,79 @@ Feature: Editor role painting
     Then note 3 has phraseStart true
     When I press "Phrasenanfang" again
     Then note 3 has no phraseStart
+
+Feature: Editor sections
+  Scenario: add a section by bar numbers
+    Given a song with bars every 2 s over 20 bars and no sections
+    When I add the section "Strophe 1" from bar 3 to bar 5
+    Then the sections are "Strophe 1" [4.0,10.0]
+
+  Scenario: last bar ends at the song end
+    Given bars every 2 s over 20 bars with the song ending at 40.0
+    When I add the section "Outro" from bar 19 to bar 20
+    Then the section is [36.0,40.0]
+
+  Scenario: sections stay sorted
+    Given a section "B" from bar 9 to bar 12
+    When I add the section "A" from bar 1 to bar 4
+    Then the sections are "A" then "B"
+
+  Scenario: rename
+    Given a section "Strophe 1"
+    When I rename it to "Bridge"
+    Then it is named "Bridge" and its times are unchanged
+
+  Scenario: re-bar snaps to bar lines
+    Given a section "Strophe 1" [4.0,10.0]
+    When I set it from bar 2 to bar 6
+    Then it is [2.0,12.0]
+
+  Scenario: delete
+    Given sections "A" and "B"
+    When I delete "A"
+    Then only "B" is left
+
+  Scenario: overlap refused
+    Given a section "A" [4.0,10.0]
+    When I add "B" from bar 4 to bar 6
+    Then the sections are unchanged and the editor shows an error
+
+  Scenario: bar range backwards refused
+    Given a song with 20 bars
+    When I add a section from bar 6 to bar 3
+    Then the sections are unchanged and the editor shows an error
+
+  Scenario: re-detect replaces the list
+    Given sections "A" and "B" and detected sections "Refrain" and "Strophe 1" from the builder
+    When I confirm "Abschnitte neu erkennen"
+    Then the sections are "Refrain" and "Strophe 1"
+
+  Scenario: re-detect cancelled
+    Given sections "A" and "B"
+    When I cancel the confirmation of "Abschnitte neu erkennen"
+    Then the sections are "A" and "B"
+
+  Scenario: the list shows bar numbers
+    Given a section "Refrain" [4.0,12.0]
+    Then its row reads from bar 3 to bar 6
+
+  Scenario: a section ending at the song end reads the last bar
+    Given bars every 2 s over 20 bars with the song ending at 40.0
+    When I add the section "Outro" from bar 19 to bar 20
+    Then its row reads from bar 19 to bar 20
+
+Feature: Editor view
+  Scenario: phrase band from the phrase flags
+    Given notes "Habt", "ihr", "Platz,", "nein" where note 3 has phraseStart
+    Then the phrase band shows "1 Habt ihr" and "2 Platz, nein"
+
+  Scenario: phrase band from derived phrases without flags
+    Given notes "Habt", "ihr", "Platz,", "nein" with phrases 0, 0, 0, 1
+    Then the phrase band shows "1 Habt ihr Platz," and "2 nein"
+
+  Scenario: staff bars come from the bar grid
+    Given bars every 2 s, a note at 3.98 s on beat 0 and a note at 5.45 s on beat 3
+    Then the staff puts both notes in bar 3
 ```
 
 ## Completeness check (`pack.py`)
@@ -148,4 +241,65 @@ Feature: Packing
     Given content/ holds a file "0000000000000000.bin" not in the inputs
     When I run pack
     Then that file is gone
+```
+
+Section detection and stored sections.
+  `[@test] ../tools/tests/steps_sections.py`
+
+```gherkin
+Feature: Section detection
+  Scenario: refrains and strophes
+    Given bars every 2 s and phrases with texts a, b, x, a, b, y at [4.5,7.5], [8.5,11.5], [12.5,15.5], [20.5,23.5], [24.5,27.5], [28.5,31.5]
+    When I detect sections
+    Then I get "Refrain" [4,12], "Strophe 1" [12,20], "Refrain 2" [20,28] and "Strophe 2" [28,32]
+
+  Scenario: one recurring phrase is no refrain
+    Given phrases with texts a, b, c, a
+    When I detect sections
+    Then I get no sections
+
+  Scenario: no repeated lines
+    Given phrases with texts a, b, c, d
+    When I detect sections
+    Then I get no sections
+
+  Scenario: intro and outro are no section
+    Given bars every 2 s, an intro until 8.0, phrases a, b, x, a, b starting at 8.5 and an outro after the last note
+    When I detect sections
+    Then the first section starts at 8.0 and the last ends on the bar line after the last note
+
+  Scenario: text is normalised
+    Given phrase texts "Sin-ge mit," and "singe mit" at both occurrences of a two-phrase run
+    When I detect sections
+    Then both occurrences are refrains
+
+  Scenario: boundaries are shared and on bar lines
+    Given the detected sections of the first scenario
+    Then every section start and end is a bar start and each end equals the next start
+
+Feature: Stored sections
+  Scenario: pack keeps stored sections
+    Given a complete song whose JSON has sections "Refrain" [4,12]
+    When I run pack
+    Then the decrypted song file has the sections unchanged and the manifest format is 2
+
+  Scenario: stored empty list is kept
+    Given a complete song whose JSON has sections []
+    When I run sections.py for it
+    Then the JSON still has sections []
+
+  Scenario: song without sections key gets detected ones from sections.py
+    Given a complete song with repeated lines and no sections key
+    When I run sections.py for it
+    Then the JSON has the detected sections
+
+  Scenario: pack detects sections when the key is missing
+    Given a complete song with repeated lines and no sections key
+    When I run pack
+    Then the decrypted song file has the detected sections
+
+  Scenario: pack keeps a stored empty list
+    Given a complete song with repeated lines whose JSON has sections []
+    When I run pack
+    Then the decrypted song file has sections []
 ```
