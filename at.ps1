@@ -5,6 +5,7 @@
 param(
   [string]$Command = 'help',
   [switch]$Full,
+  [switch]$Staged,
   [Parameter(ValueFromRemainingArguments)] [string[]]$Rest = @()
 )
 
@@ -99,7 +100,8 @@ function Setup {
 }
 
 function Lint {
-  Step npx @('biome', 'check')
+  # -Staged (git hook): lint-staged runs Biome on the staged files only and re-stages its fixes.
+  if ($Staged) { Step npx @('lint-staged') } else { Step npx @('biome', 'check') }
   Step ruff @('check', '.')
   Step ruff @('format', '--check', '.')
 }
@@ -133,7 +135,7 @@ Usage: ./at.ps1 <command> [args]
   e2e         Playwright tests
   lint        Biome check + Ruff check + Ruff format --check
   format      Biome check --write + Ruff check --fix + Ruff format
-  precommit   lint, tsc, vitest, pytest (add -Full to also run e2e)
+  precommit   lint, tsc, vitest, pytest (add -Full to also run e2e; -Staged = git hook: Biome only on staged files via lint-staged)
   pack [args] tools/pack.py, args passed through, e.g. --root work/pack-root --out content --strict
               prompts for PITCH_PASSWORD if it is not set (never printed or stored)
 '@

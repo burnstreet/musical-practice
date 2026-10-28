@@ -6,7 +6,7 @@ export type Route = '#/start' | '#/songs' | `#/practice/${string}` | `#/results/
 
 export interface Settings {
   tolerance: Tolerance
-  /** Total delay for scoring, ms, 0..600; null = as the browser reports it. */
+  /** Total delay for scoring, ms, 0..1500; null = as the browser reports it. */
   delayMs: number | null
   headphoneSheetSeen: boolean
   installHintSeen: boolean
