@@ -1,6 +1,6 @@
 # Editor: section ops and server re-detect
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02, 03
 Spec: ../spec.md
 
