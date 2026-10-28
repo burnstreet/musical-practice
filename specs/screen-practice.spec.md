@@ -331,12 +331,7 @@ Feature: A–B repeat
     Given A is set at 6.0 and bars every 2 s
     When I set B at 6.4
     Then the range is [6.0,8.0]
-```
 
-Pending scenarios for repeat and skip (ticket 06, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
-  `[@test] ../tests/steps/pending/screen-practice.steps.ts`
-
-```gherkin
 Feature: Skip
   Scenario: next own entry lands a lead-in before
     Given my own spans [10.0,20.0] and [40.0,50.0], bars every 2 s and the heard time 25.0
