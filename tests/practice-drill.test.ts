@@ -17,6 +17,7 @@ it('practice shows the engine tempo and loop it enters with', async () => {
     timeSig: [4, 4],
     bars: [0, 2],
     phrases: [phrase],
+    sections: [],
     notes: [{ midi: 74, start: 1, end: 2, role: 'maria', phrase: 0, syllable: 'la', bar: 0, beat: 2, dur: 1 }],
   }
   const loaded = {

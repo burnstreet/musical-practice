@@ -65,7 +65,7 @@ function given(ctx: any, p: any = {}, count = 3) {
       songId: 's',
       song: {
         meta: { number: 8, title: '[Titel]', durationSec: 20 },
-        song: { phrases, notes: [], bars: [0, 4, 8, 12, 16], key: 'F', bpm: 100, timeSig: [4, 4] },
+        song: { phrases, sections: [], notes: [], bars: [0, 4, 8, 12, 16], key: 'F', bpm: 100, timeSig: [4, 4] },
       },
       session: { myNotes: () => [], passes: () => passes, trend: () => passes.map((x) => x.hitPct) },
     },
@@ -121,7 +121,7 @@ export default steps(({ Given, When, Then }) => {
     expect(await text(ctx)).toContain('Verlauf')
     expect(el.shadowRoot!.querySelectorAll('.trend circle').length).toBe(3)
   })
-  Then(/^engine loop is the range of phrase (\d+) with phrase (\d+) and no lead-in$/, (ctx, i, j) => {
+  Then(/^the repeat range is the range of phrase (\d+) with phrase (\d+) and no lead-in$/, (ctx, i, j) => {
     expect(ctx.engine.loop).toEqual({ start: phrases[+i].start, end: phrases[+i].end, phrase: phrases[+j] })
   })
   Then(/^tempo is 80, time is the phrase start, route is practice, playing is false$/, (ctx) => {
@@ -151,7 +151,7 @@ export default steps(({ Given, When, Then }) => {
     const on = [...el.shadowRoot!.querySelectorAll('.chip[aria-pressed="true"]')].map((c: Element) => c.textContent!.trim())
     expect(on).toEqual([label])
   })
-  Then(/^engine loop is null, tempo 100, time 0, route is practice$/, (ctx) => {
+  Then(/^no repeat range is set, tempo 100, time 0, route is practice$/, (ctx) => {
     expect(ctx.engine.loop).toBeNull()
     expect(ctx.engine.tempo).toBe(100)
     expect(ctx.engine.t).toBe(0)
