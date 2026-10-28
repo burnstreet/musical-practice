@@ -3,6 +3,7 @@ import { type AppContext, setContext } from '../../src/app/context'
 import { features } from '../../src/app/features'
 import { entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
+import { leadInStart } from '../../src/core/audio-engine'
 import type { Note, Song, SongMeta } from '../../src/core/content'
 import type { PitchFrame } from '../../src/core/types'
 import { steps } from '../gherkin'
@@ -105,7 +106,11 @@ function world(ctx: any) {
         ctx.loop = p
       },
       tempo: () => ctx.tempo ?? 100,
-      seekLeadIn: (s: number) => log(`seek ${s}`),
+      seekLeadIn: (s: number) => {
+        const to = leadInStart(s, ctx.data.song.bars)
+        log(`seek ${to}`)
+        ctx.time = to
+      },
       loop: () => ctx.loop ?? null,
       time: () => ctx.time,
       playing: () => ctx.playing,
@@ -418,4 +423,157 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.app.live).toBeNull()
     expect(location.hash).toBe('#/songs')
   })
+
+  // Repeat selector
+  const KIND: Record<string, string> = { Aus: 'off', Phrase: 'phrase', Abschnitt: 'section', Einsatz: 'einsatz', 'A–B': 'ab' }
+  const chip = (ctx: any, label: string) => ctx.el.shadowRoot!.querySelector(`.chip[data-kind="${KIND[label]}"]`) as HTMLElement
+  const status = (ctx: any) => ctx.el.shadowRoot!.querySelector('.status')
+  const pairs = (s: string) => [...s.matchAll(/\[([\d.]+),([\d.]+)\]/g)].map((m) => [+m[1], +m[2]] as [number, number])
+  const phraseSong = (ctx: any) => {
+    ctx.data.song.phrases = [
+      [0, 3],
+      [4, 9],
+      [10, 14],
+      [16, 20],
+      [22, 26],
+      [28, 32],
+    ].map(([start, end], index) => ({ index, label: `p${index}`, start, end }))
+  }
+  const ownSpans = (ctx: any, spans: [number, number][]) => {
+    ctx.data.song.bars = Array.from({ length: 30 }, (_, i) => i * 2)
+    ctx.data.song.notes = spans.map(([s, e], i) => note(74, s, e, 'maria', i))
+  }
+  const at = async (ctx: any, t: number) => {
+    await screen(ctx)
+    await tick(ctx, t)
+  }
+
+  Given(/^the heard time is inside phrase (\d+) spanning \[([\d.]+),([\d.]+)\]$/, async (ctx, i, a, b) => {
+    world(ctx)
+    phraseSong(ctx)
+    expect(ctx.data.song.phrases[+i]).toMatchObject({ start: +a, end: +b })
+    await at(ctx, +a + 2)
+  })
+  Given(
+    /^sections "([^"]+)" \[([\d.]+),([\d.]+)\] and "([^"]+)" \[([\d.]+),([\d.]+)\] and the heard time ([\d.]+)$/,
+    async (ctx, n1, a1, b1, n2, a2, b2, t) => {
+      world(ctx)
+      ctx.data.song.sections = [
+        { name: n1, start: +a1, end: +b1 },
+        { name: n2, start: +a2, end: +b2 },
+      ]
+      await at(ctx, +t)
+    },
+  )
+  Given(/^my own spans (\[.+\]) and the heard time ([\d.]+)$/, async (ctx, list, t) => {
+    world(ctx)
+    ownSpans(ctx, pairs(list))
+    await at(ctx, +t)
+  })
+  Given(/^a song without sections$/, async (ctx) => {
+    world(ctx)
+    delete ctx.data.song.sections
+    await screen(ctx)
+  })
+  Given(/^the "(\w+)" repeat is on$/, async (ctx, label) => {
+    await at(ctx, 0)
+    await tap(ctx, chip(ctx, label))
+  })
+  Given(/^the "(\w+)" repeat is on and a pass is running$/, async (ctx, label) => {
+    await at(ctx, 0)
+    await play(ctx)
+    await tap(ctx, chip(ctx, label))
+  })
+  Given(/^the "(\w+)" repeat is on for phrase (\d+)$/, async (ctx, label, i) => {
+    world(ctx)
+    phraseSong(ctx)
+    await at(ctx, ctx.data.song.phrases[+i].start + 1)
+    await tap(ctx, chip(ctx, label))
+    ctx.before = ctx.loop
+  })
+  Given(/^the "Einsatz" repeat is on for a span starting at ([\d.]+) in bars of 2 s$/, async (ctx, start) => {
+    world(ctx)
+    ownSpans(ctx, [[+start, +start + 10]])
+    await at(ctx, 0)
+    await tap(ctx, chip(ctx, 'Einsatz'))
+  })
+  When(/^I tap the chip "([^"]+)"$/, async (ctx, label) => {
+    await screen(ctx)
+    await tap(ctx, chip(ctx, label))
+  })
+  When(/^playback runs on into phrase (\d+)$/, (ctx, i) => tick(ctx, ctx.data.song.phrases[+i].start + 1))
+  When(/^I tap the progress bar at a time inside phrase (\d+)$/, async (ctx, i) => {
+    const input = ctx.el.shadowRoot!.querySelector('input[aria-label="Position"]') as HTMLInputElement
+    input.value = String(ctx.data.song.phrases[+i].start + 1)
+    input.dispatchEvent(new Event('input'))
+    await settle(ctx.el)
+  })
+  When(/^the engine emits loop$/, (ctx) => {
+    ctx.engineL.loop?.forEach((fn: (p: unknown) => void) => {
+      fn(ctx.data.song.phrases[0])
+    })
+  })
+  When(/^the heard time is ([\d.]+)$/, (ctx, t) => tick(ctx, +t))
+
+  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with phrase (\d+) and no lead-in$/, (ctx, a, b, i) => {
+    expect(ctx.loop).toEqual({ start: +a, end: +b, phrase: ctx.data.song.phrases[+i] })
+  })
+  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with lead-in$/, (ctx, a, b) => {
+    expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
+  })
+  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] without phrase and without lead-in$/, (ctx, a, b) => {
+    expect(ctx.loop).toEqual({ start: +a, end: +b })
+  })
+  Then(/^the range is \[([\d.]+),([\d.]+)\]$/, (ctx, a, b) => expect(ctx.loop).toEqual({ start: +a, end: +b }))
+  Then(/^engine loop is null$/, (ctx) => expect(ctx.loop ?? null).toBeNull())
+  Then(/^engine loop is null and no status line is shown$/, (ctx) => {
+    expect(ctx.loop ?? null).toBeNull()
+    expect(status(ctx)).toBeNull()
+  })
+  Then(/^engine loop is null and the chip reads "([^"]+)"$/, (ctx, label) => {
+    expect(ctx.loop ?? null).toBeNull()
+    expect(chip(ctx, 'A–B').textContent!.trim()).toBe(label)
+  })
+  Then(/^the status line reads "([^"]+)"$/, (ctx, s) => expect(status(ctx)!.textContent!.trim()).toBe(s))
+  Then(/^the chip reads "([^"]+)" and the status line reads "([^"]+)"$/, (ctx, label, s) => {
+    expect(chip(ctx, 'A–B').textContent!.trim()).toBe(label)
+    expect(status(ctx)!.textContent!.trim()).toBe(s)
+  })
+  Then(/^only the chip "(\w+)" is active and engine loop is that span's range$/, (ctx, label) => {
+    const on = [...ctx.el.shadowRoot!.querySelectorAll('.chip[aria-pressed="true"]')]
+    expect(on).toEqual([chip(ctx, label)])
+    expect(ctx.loop).toMatchObject({ start: 8, end: 11, leadIn: true }) // Maria's notes 8–9.5 and 10–11 merge
+  })
+  Then(/^engine loop is still the range of phrase (\d+)$/, (ctx, i) => {
+    const p = ctx.data.song.phrases[+i]
+    expect(ctx.loop).toEqual({ start: p.start, end: p.end, phrase: p })
+  })
+  Then(/^the chip "(\w+)" is still active and engine loop is unchanged$/, (ctx, label) => {
+    expect(chip(ctx, label).getAttribute('aria-pressed')).toBe('true')
+    expect(ctx.loop).toBe(ctx.before)
+  })
+  Then(/^the chips are (".+)$/, (ctx, list) => {
+    const labels = [...ctx.el.shadowRoot!.querySelectorAll('.chip')].map((c: Element) => c.textContent!.trim())
+    expect(labels).toEqual([...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]))
+  })
+  Then(/^session\.endPass did not run and re-entered notes replace earlier attempts$/, (ctx) => {
+    expect(ctx.app.live.session.passes()).toHaveLength(0)
+    expect(ctx.playing).toBe(true)
+  })
+
+  // A–B
+  Given(/^bars every 2 s and the heard time ([\d.]+)$/, (ctx, t) => at(ctx, +t))
+  Given(/^A is set at ([\d.]+)(?: and bars every 2 s)?$/, async (ctx, t) => {
+    await at(ctx, +t)
+    await tap(ctx, chip(ctx, 'A–B'))
+  })
+  When(/^the heard time is ([\d.]+) and I tap the chip again$/, async (ctx, t) => {
+    await tick(ctx, +t)
+    await tap(ctx, chip(ctx, 'A–B'))
+  })
+  When(/^I set B at ([\d.]+)$/, async (ctx, t) => {
+    await tick(ctx, +t)
+    await tap(ctx, chip(ctx, 'A–B'))
+  })
+  When(/^I tap the chip a third time$/, (ctx) => tap(ctx, chip(ctx, 'A–B')))
 })
