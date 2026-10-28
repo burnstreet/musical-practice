@@ -47,7 +47,7 @@ export interface AudioEngine {
 - Tempo: both elements `playbackRate = t / 100`, `preservesPitch = true`. `time()` reads the voices element.
 - Sync: each tick compare backing to voices. Drift over 25 ms: set backing time to voices time.
 - Repeat: when `time()` reaches `range.end`, seek to `range.start` (to `leadInStart(range.start, song.bars)` when `range.leadIn`). Emit `loop` with `range.phrase` only when the range has one. Null clears. The range is only what the caller set: the engine never moves it.
-- A seek outside the range keeps the range: playback goes on to `range.end`, then wraps.
+- A seek outside the range keeps the range. The wrap happens only when playback crosses `range.end` coming from before it: a seek before the range plays on to `range.end`, then wraps; a seek past `range.end` plays on (to the song end) without wrapping.
 - `leadInStart(sec, bars)`: `sec − 3`, then the largest bar start at or below that, never below 0. Skips use it through `seekLeadIn`.
 - `ended`: voices element ends and no loop. Engine pauses.
 - `click(at)`: oscillator 1 kHz, 20 ms, through its own gain with 2 ms fades straight to the destination (voices gain and mode do not touch it). Resumes the context. Stop cancels a click not yet played.
@@ -155,6 +155,11 @@ Feature: Repeat
     Given a range [20.0,30.0] and playback at 21.0
     When I seek to 5.0 and playback reaches 30.0
     Then time() is 20.0 after the wrap
+
+  Scenario: manual seek past the range end plays on
+    Given a range [20.0,30.0] and playback at 21.0
+    When I seek to 40.0 and playback runs for 2 s
+    Then time() is 42.0 and the range is still set
 
 Feature: Lead-in
   Scenario: snapped to the bar before

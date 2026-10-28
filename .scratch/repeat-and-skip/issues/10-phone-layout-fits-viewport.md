@@ -1,6 +1,6 @@
 # Practice screen: phone layout fits the viewport
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 Spec: ../spec.md
 
@@ -22,3 +22,7 @@ Proposed, largest saving first:
 - Smaller trims: top padding 28 → 12 px, main button 72 → 60 px, and possibly fold the voicetrack row into the header.
 
 Check against the board *Handy 3a* in design/repeat-and-skip/. Verify in the e2e test or by hand at 390x844 and 412x915.
+
+## Comments
+
+Resolved. src/app/screens/practice.ts: new upright-phone block (width under 960 px, portrait) with `min-height: 100dvh`, 12 px top padding, 8 px gaps, roll row `minmax(96px, 1fr)` with the canvas absolutely placed so it does not size the row, chips on one 32 px line (no wrap, scroll sideways when too narrow), rounds 46 px, main 60 px. Previous and next own entry moved into the play row; *Intro überspringen* sits on the *Wiederholen* line (right). Landscape-phone and desktop blocks untouched. Measured with Playwright (real layout, song with and without sections, with and without the note banner): scrollHeight equals viewport height at 390x844 and 412x915 in all four cases (no scroll, play row bottom at 828 / 899 px). 360x740 also fits except sections plus banner (750 px). Roll canvas at 390x844: 254 px (no banner) / 170 px (sections and banner). Check added to e2e/smoke.e2e.ts; spec prose in specs/screen-practice.spec.md (Upright phone). Open: the sideways phone layout (844x390) still scrolls (about 424-536 px); it was already over before the selector rows and is not part of this ticket.

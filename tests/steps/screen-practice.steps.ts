@@ -527,6 +527,15 @@ export default steps(({ Given, When, Then }) => {
     await at(ctx, 0)
     await tap(ctx, chip(ctx, 'Einsatz'))
   })
+  When(/^the practice screen is shown again$/, async (ctx) => {
+    ctx.el.remove() // like the shell on the way to results; ctx.app.live stays
+    ctx.el = null
+    await screen(ctx)
+  })
+  Then(/^only the chip "(\w+)" is active and the status line reads "([^"]+)"$/, (ctx, label, s) => {
+    expect([...ctx.el.shadowRoot!.querySelectorAll('.chip[aria-pressed="true"]')]).toEqual([chip(ctx, label)])
+    expect(status(ctx)!.textContent!.trim()).toBe(s)
+  })
   When(/^I tap the chip "([^"]+)"$/, async (ctx, label) => {
     await screen(ctx)
     await tap(ctx, chip(ctx, label))
@@ -674,6 +683,18 @@ export default steps(({ Given, When, Then }) => {
     world(ctx)
     sections(ctx)
     await at(ctx, 2)
+  })
+  Given(/^two sections both named "([^"]+)", \[([\d.]+),([\d.]+)\] and \[([\d.]+),([\d.]+)\]$/, async (ctx, name, a1, b1, a2, b2) => {
+    world(ctx)
+    ctx.data.song.sections = [
+      { name, start: +a1, end: +b1 },
+      { name, start: +a2, end: +b2 },
+    ]
+    await at(ctx, 2)
+  })
+  When(/^I tap the second segment$/, (ctx) => tap(ctx, progress(ctx).querySelectorAll<HTMLElement>('.seg')[1]))
+  Then(/^only the second segment is active$/, (ctx) => {
+    expect([...progress(ctx).querySelectorAll<HTMLElement>('.seg')].map((s) => s.getAttribute('aria-pressed'))).toEqual(['false', 'true'])
   })
   Then(/^the progress bar shows two labelled segments, also without a repeat$/, (ctx) => {
     expect(ctx.loop ?? null).toBeNull()
