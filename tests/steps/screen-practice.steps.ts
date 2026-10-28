@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import { type AppContext, setContext } from '../../src/app/context'
 import { features } from '../../src/app/features'
+import { ownSpans as mergedSpans } from '../../src/app/repeat'
 import { entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
 import { leadInStart } from '../../src/core/audio-engine'
@@ -166,7 +167,34 @@ async function screen(ctx: any): Promise<GuPractice> {
   ctx.el.requestFrame = (cb: () => void) => setTimeout(cb, 0) // happy-dom: no real animation frames
   document.body.append(ctx.el)
   await settle(ctx.el)
+  ctx.draws = { staff: [], roll: [] }
+  for (const name of ['staff', 'roll']) {
+    const canvas = ctx.el.shadowRoot!.querySelector(`.${name} canvas`) as HTMLCanvasElement
+    Object.defineProperty(canvas, 'clientWidth', { value: 600, configurable: true }) // happy-dom has no layout
+    Object.defineProperty(canvas, 'clientHeight', { value: 188, configurable: true })
+    canvas.getContext = (() => recorder(canvas, ctx.draws[name])) as any
+  }
+  await tick(ctx, ctx.time)
   return ctx.el
+}
+
+/** Fake 2D context: logs [method, ...args] of the last draw (cleared by `clearRect`, which starts every draw). */
+function recorder(canvas: HTMLCanvasElement, log: unknown[][]) {
+  const props: Record<string, unknown> = { canvas }
+  return new Proxy(props, {
+    get: (o, k: string) =>
+      k in o
+        ? o[k]
+        : (...args: unknown[]) => {
+            if (k === 'clearRect') log.length = 0
+            log.push([k, ...args, o.textBaseline])
+            return { width: 10, actualBoundingBoxAscent: 5, actualBoundingBoxDescent: 5 }
+          },
+    set: (o, k: string, v) => {
+      o[k] = v
+      return true
+    },
+  })
 }
 
 const text = (el: Element) => el.shadowRoot!.textContent!.replace(/\s+/g, ' ')
@@ -438,6 +466,7 @@ export default steps(({ Given, When, Then }) => {
       [22, 26],
       [28, 32],
     ].map(([start, end], index) => ({ index, label: `p${index}`, start, end }))
+    ctx.data.song.notes.push(note(74, 30, 31, 'maria', 5)) // a later own entry to skip to
   }
   const ownSpans = (ctx: any, spans: [number, number][]) => {
     ctx.data.song.bars = Array.from({ length: 30 }, (_, i) => i * 2)
@@ -465,7 +494,7 @@ export default steps(({ Given, When, Then }) => {
       await at(ctx, +t)
     },
   )
-  Given(/^my own spans (\[.+\]) and the heard time ([\d.]+)$/, async (ctx, list, t) => {
+  Given(/^my own spans (\[.+\])(?:, bars every 2 s)? and the heard time ([\d.]+)$/, async (ctx, list, t) => {
     world(ctx)
     ownSpans(ctx, pairs(list))
     await at(ctx, +t)
@@ -576,4 +605,148 @@ export default steps(({ Given, When, Then }) => {
     await tap(ctx, chip(ctx, 'A–B'))
   })
   When(/^I tap the chip a third time$/, (ctx) => tap(ctx, chip(ctx, 'A–B')))
+
+  // Dimming and sections
+  const sections = (ctx: any) => {
+    ctx.data.song.sections = [
+      { name: 'Strophe 1', start: 8, end: 24 },
+      { name: 'Refrain', start: 24, end: 40 },
+    ]
+  }
+  const progress = (ctx: any) => ctx.el.shadowRoot!.querySelector('.progress') as HTMLElement
+  const pct = (ctx: any, t: number) => `${(t / ctx.data.meta.durationSec) * 100}%`
+  /** Flag labels: the only texts hung from the top (row labels sit on the middle, syllables on the baseline). */
+  const flags = (ctx: any, canvas: string) => ctx.draws[canvas].filter((c: unknown[]) => c[0] === 'fillText' && c.at(-1) === 'top').map(([, s]: unknown[]) => s)
+  const dimmed = (ctx: any, start: number, end: number) => {
+    for (const canvas of ['staff', 'roll'])
+      expect(
+        ctx.draws[canvas].some(([k]: unknown[]) => k === 'fillRect'),
+        canvas,
+      ).toBe(true)
+    const range = progress(ctx).querySelector<HTMLElement>('.range')!
+    expect(range.style.left).toBe(pct(ctx, start))
+    expect(range.style.right).toBe(pct(ctx, ctx.data.meta.durationSec - end))
+    expect(progress(ctx).querySelectorAll('.dim').length).toBeGreaterThan(0)
+  }
+  Given(/^the "Abschnitt" repeat is on for \[24\.0,40\.0\]$/, async (ctx) => {
+    world(ctx)
+    sections(ctx)
+    await at(ctx, 30)
+    await tap(ctx, chip(ctx, 'Abschnitt'))
+    expect(ctx.loop).toMatchObject({ start: 24, end: 40 })
+    ctx.calls.length = 0
+  })
+  Then(/^staff, roll and progress bar are drawn with a dim range \[([\d.]+),([\d.]+)\] and a flag "([^"]+)" at ([\d.]+)$/, (ctx, a, b, name) => {
+    dimmed(ctx, +a, +b)
+    expect(flags(ctx, 'roll')).toEqual([name])
+    expect(progress(ctx).querySelector('.leadin')).not.toBeNull()
+  })
+  Then(/^the heard audio, the mic and the scorer are untouched$/, (ctx) => {
+    expect(ctx.calls).toEqual([])
+    expect(byLabel(ctx.el, 'Mikrofon aktiv')).not.toBeNull()
+  })
+  Then(/^the staff, the roll and the progress bar are drawn with a dim range from ([\d.]+) to the song end$/, (ctx, a) => {
+    dimmed(ctx, +a, ctx.data.meta.durationSec)
+    expect(flags(ctx, 'roll')).toEqual(['A'])
+  })
+  Given(/^an A–B repeat \[([\d.]+),([\d.]+)\]$/, async (ctx, a, b) => {
+    await at(ctx, +a)
+    await tap(ctx, chip(ctx, 'A–B'))
+    await tick(ctx, +b)
+    await tap(ctx, chip(ctx, 'A–B'))
+    expect(ctx.loop).toEqual({ start: +a, end: +b })
+  })
+  Then(/^the roll draws flags "A" at ([\d.]+) and "B" at ([\d.]+)$/, (ctx) => {
+    expect(flags(ctx, 'roll')).toEqual(['A', 'B'])
+  })
+  Given(/^no repeat$/, (ctx) => at(ctx, 9))
+  Then(/^staff, roll and progress bar are drawn without a dim range$/, (ctx) => {
+    for (const canvas of ['staff', 'roll'])
+      expect(
+        ctx.draws[canvas].some(([k]: unknown[]) => k === 'fillRect'),
+        canvas,
+      ).toBe(false)
+    expect(ctx.draws.roll.length).toBeGreaterThan(0) // it did draw
+    expect(progress(ctx).querySelector('.dim, .range')).toBeNull()
+  })
+  Given(/^sections "Strophe 1"(?: \[8\.0,24\.0\])? and "Refrain"(?: \[24\.0,40\.0\])?$/, async (ctx) => {
+    world(ctx)
+    sections(ctx)
+    await at(ctx, 2)
+  })
+  Then(/^the progress bar shows two labelled segments, also without a repeat$/, (ctx) => {
+    expect(ctx.loop ?? null).toBeNull()
+    const segs = [...progress(ctx).querySelectorAll<HTMLElement>('.seg')]
+    expect(segs.map((s) => s.textContent!.trim())).toEqual(['Strophe 1', 'Refrain'])
+    expect(segs[1].style.left).toBe(pct(ctx, 24))
+  })
+  When(/^I tap the segment "([^"]+)"$/, async (ctx, name) => {
+    const seg = [...progress(ctx).querySelectorAll<HTMLElement>('.seg')].find((s) => s.textContent!.trim() === name)!
+    await tap(ctx, seg)
+  })
+  Then(/^the chip "Abschnitt" is active, engine loop is \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
+    expect(chip(ctx, 'Abschnitt').getAttribute('aria-pressed')).toBe('true')
+    expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
+    expect(ctx.time).toBe(+t)
+  })
+
+  // Skip
+  const SKIPS = ['Zum vorigen Einsatz', 'Zum nächsten Einsatz']
+  const disabled = (ctx: any, label: string) => (byLabel(ctx.el, label) as HTMLButtonElement).disabled
+  When(/^I tap "(Zum (?:vorigen|nächsten) Einsatz)"$/, (ctx, label) => press(ctx, label))
+  Then(/^time\(\) is ([\d.]+)$/, (ctx, t) => expect(ctx.time).toBe(+t))
+  Given(/^bars of 2 s and my role spans (\[.+\])$/, (ctx, list) => {
+    world(ctx)
+    ownSpans(ctx, pairs(list))
+  })
+  Then(/^the own spans are (\[.+\])$/, (ctx, list) => {
+    expect(mergedSpans(ctx.data.song, ['maria']).map((s) => [s.start, s.end])).toEqual(pairs(list))
+  })
+  Then(/^"(Zum nächsten Einsatz)" from ([\d.]+) has no target$/, async (ctx, label, t) => {
+    await at(ctx, +t)
+    expect(disabled(ctx, label)).toBe(true)
+  })
+  Then(/^"(Zum (?:vorigen|nächsten) Einsatz)" is disabled$/, (ctx, label) => expect(disabled(ctx, label)).toBe(true))
+  Given(/^the heard time ([\d.]+)(?: and no later span)?$/, (ctx, t) => at(ctx, +t))
+  Given(/^an empty role set$/, async (ctx) => {
+    ctx.el.remove()
+    ctx.el = null
+    settings.set({ roles: [] })
+    await screen(ctx)
+  })
+  Then(/^both skip buttons are disabled$/, (ctx) => {
+    for (const label of SKIPS) expect(disabled(ctx, label)).toBe(true)
+  })
+  Given(/^the "Einsatz" repeat is on for (\[[\d.,]+\]) and my next own span is (\[[\d.,]+\])$/, async (ctx, a, b) => {
+    world(ctx)
+    ownSpans(ctx, [...pairs(a), ...pairs(b)])
+    await at(ctx, pairs(a)[0][0] + 2)
+    await tap(ctx, chip(ctx, 'Einsatz'))
+    expect(ctx.loop).toEqual({ start: pairs(a)[0][0], end: pairs(a)[0][1], leadIn: true })
+    await tick(ctx, pairs(a)[0][0] + 5)
+  })
+  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
+    expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
+    expect(ctx.time).toBe(+t)
+    expect(chip(ctx, 'Einsatz').getAttribute('aria-pressed')).toBe('true')
+  })
+  Then(/^engine loop is unchanged and time\(\) is the lead-in landing$/, (ctx) => {
+    expect(ctx.loop).toBe(ctx.before)
+    expect(chip(ctx, 'Phrase').getAttribute('aria-pressed')).toBe('true')
+    expect(ctx.time).toBe(leadInStart(30, ctx.data.song.bars)) // the later own entry at 30.0
+  })
+
+  // Intro skip
+  const intro = (ctx: any) =>
+    [...ctx.el.shadowRoot!.querySelectorAll('button')].find((b: HTMLElement) => b.textContent!.trim() === 'Intro überspringen') as HTMLElement | undefined
+  Given(/^the first sung note of any role starts at ([\d.]+)(?: and bars every 2 s)?$/, (ctx, t) => {
+    world(ctx)
+    ctx.data.song.notes = [note(69, +t, +t + 1, 'josef', 0), note(74, +t + 2, +t + 3, 'maria', 0)] // not mine first: any role counts
+  })
+  Then(/^the button "Intro überspringen" is visible$/, (ctx) => expect(intro(ctx)).toBeDefined())
+  When(/^I press it$/, (ctx) => tap(ctx, intro(ctx)!))
+  Then(/^the button "Intro überspringen" is not shown$/, async (ctx) => {
+    await screen(ctx)
+    expect(intro(ctx)).toBeUndefined()
+  })
 })
