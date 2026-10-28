@@ -283,6 +283,34 @@ Feature: Repeat selector
     When the heard time is 34.0
     Then the readout shows "Einsatz in 3 Takten · 6 s"
 
+Feature: Dimming and sections
+  Scenario: everything outside the range is dimmed
+    Given the "Abschnitt" repeat is on for [24.0,40.0]
+    Then staff, roll and progress bar are drawn with a dim range [24.0,40.0] and a flag "Refrain" at 24.0
+    And the heard audio, the mic and the scorer are untouched
+
+  Scenario: A and B flags
+    Given an A–B repeat [6.0,14.0]
+    Then the roll draws flags "A" at 6.0 and "B" at 14.0
+
+  Scenario: no repeat no dimming
+    Given no repeat
+    Then staff, roll and progress bar are drawn without a dim range
+
+  Scenario: sections are segments on the bar
+    Given sections "Strophe 1" and "Refrain"
+    Then the progress bar shows two labelled segments, also without a repeat
+
+  Scenario: tap a section starts its repeat
+    Given sections "Strophe 1" [8.0,24.0] and "Refrain" [24.0,40.0]
+    When I tap the segment "Refrain"
+    Then the chip "Abschnitt" is active, engine loop is [24.0,40.0] with lead-in and time() is 20.0
+
+Feature: A-B dimming
+  Scenario: A without B dims everything before A
+    Given A is set at 6.0
+    Then the staff, the roll and the progress bar are drawn with a dim range from 6.0 to the song end
+
 Feature: A–B repeat
   Scenario: A, B and clear on one button
     Given bars every 2 s and the heard time 5.1
@@ -305,15 +333,10 @@ Feature: A–B repeat
     Then the range is [6.0,8.0]
 ```
 
-Pending scenarios for repeat and skip (ticket 06 and 07, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
+Pending scenarios for repeat and skip (ticket 06, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-practice.steps.ts`.
   `[@test] ../tests/steps/pending/screen-practice.steps.ts`
 
 ```gherkin
-Feature: A-B dimming
-  Scenario: A without B dims everything before A
-    Given A is set at 6.0
-    Then the staff, the roll and the progress bar are drawn with a dim range from 6.0 to the song end
-
 Feature: Skip
   Scenario: next own entry lands a lead-in before
     Given my own spans [10.0,20.0] and [40.0,50.0], bars every 2 s and the heard time 25.0
@@ -369,27 +392,4 @@ Feature: Intro skip
   Scenario: hidden when the lead-in would land at 0
     Given the first sung note of any role starts at 2.0
     Then the button "Intro überspringen" is not shown
-
-Feature: Dimming and sections
-  Scenario: everything outside the range is dimmed
-    Given the "Abschnitt" repeat is on for [24.0,40.0]
-    Then staff, roll and progress bar are drawn with a dim range [24.0,40.0] and a flag "Refrain" at 24.0
-    And the heard audio, the mic and the scorer are untouched
-
-  Scenario: A and B flags
-    Given an A–B repeat [6.0,14.0]
-    Then the roll draws flags "A" at 6.0 and "B" at 14.0
-
-  Scenario: no repeat no dimming
-    Given no repeat
-    Then staff, roll and progress bar are drawn without a dim range
-
-  Scenario: sections are segments on the bar
-    Given sections "Strophe 1" and "Refrain"
-    Then the progress bar shows two labelled segments, also without a repeat
-
-  Scenario: tap a section starts its repeat
-    Given sections "Strophe 1" [8.0,24.0] and "Refrain" [24.0,40.0]
-    When I tap the segment "Refrain"
-    Then the chip "Abschnitt" is active, engine loop is [24.0,40.0] with lead-in and time() is 20.0
 ```
