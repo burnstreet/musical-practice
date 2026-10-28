@@ -18,26 +18,36 @@ export function ownSpans(song: Pick<Song, 'bars' | 'notes'>, roles: RoleId[]): S
   return merged
 }
 
+/** Index of the bar line nearest to `t` (0 without bars). */
+export function nearestBar(bars: number[], t: number): number {
+  return bars.reduce((best, b, i) => (Math.abs(b - t) < Math.abs(bars[best] - t) ? i : best), 0)
+}
+
 /** The bar line nearest to `t`. */
 export function snapToBar(bars: number[], t: number): number {
-  return bars.reduce((best, b) => (Math.abs(b - t) < Math.abs(best - t) ? b : best), bars[0] ?? 0)
+  return bars[nearestBar(bars, t)] ?? 0
 }
+
+/** Phrase repeat range: exactly the phrase, no lead-in. */
+export const rangeOfPhrase = (p: Phrase): Range => ({ start: p.start, end: p.end, phrase: p })
+
+/** Abschnitt or Einsatz repeat range: restarts from the lead-in. */
+export const leadInRange = (s: Span): Range => ({ start: s.start, end: s.end, leadIn: true })
 
 /** The phrase holding `now`, else the next one, else the last. */
 export function phraseRange(song: Song, now: number): Range {
-  const p: Phrase = song.phrases.find((x) => x.end > now) ?? song.phrases.at(-1)!
-  return { start: p.start, end: p.end, phrase: p }
+  return rangeOfPhrase(song.phrases.find((x) => x.end > now) ?? song.phrases.at(-1)!)
 }
 
 /** The section holding `now`, else the next one; null when none is left. */
 export function sectionAt(song: Song, now: number): Section | null {
-  return song.sections?.find((s) => s.end > now) ?? null
+  return song.sections.find((s) => s.end > now) ?? null
 }
 
 /** The own span holding `now`, else the next one; null when none is left. */
 export function einsatzRange(song: Song, roles: RoleId[], now: number): Range | null {
   const s = ownSpans(song, roles).find((x) => x.end > now)
-  return s ? { start: s.start, end: s.end, leadIn: true } : null
+  return s ? leadInRange(s) : null
 }
 
 /** A–B from two points already snapped to bar lines: swapped when B < A, B on A's bar line moves to the next one (or the song end). */
