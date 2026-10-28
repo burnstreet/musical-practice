@@ -144,7 +144,13 @@ def _(ctx):
 
 @given("a complete song with repeated lines and no sections key")
 def _(ctx):
-    make_song(ctx, repeated_notes())
+    make_song(ctx, repeated_notes(), mix=26.0, playback=26.0)
+
+
+@given("a complete song with repeated lines whose JSON has sections []")
+def _(ctx):
+    make_song(ctx, repeated_notes(), mix=26.0, playback=26.0)
+    set_sections(ctx, [])
 
 
 @given("a complete song whose JSON has no sections key")
@@ -163,9 +169,15 @@ def _(ctx):
     assert packed_song(ctx)["sections"] == [{"name": "Refrain", "start": 4, "end": 12}]
 
 
-@then("the decrypted song file has no sections field")
+@then("the decrypted song file has the detected sections")
 def _(ctx):
-    assert "sections" not in packed_song(ctx)
+    assert [s["name"] for s in packed_song(ctx)["sections"]] == ["Refrain", "Strophe 1", "Refrain 2", "Strophe 2"]
+    assert "sections" not in song_json(ctx)
+
+
+@then("the decrypted song file has sections []")
+def _(ctx):
+    assert packed_song(ctx)["sections"] == []
 
 
 @then("the JSON still has sections []")

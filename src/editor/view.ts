@@ -1,7 +1,8 @@
 // Editor view: the player's staff with a phrase band and a section band on its bar grid.
 // Built as a second vite entry (`vite build --mode editor` -> web/lib/editor-view.js) for the vanilla editor in web/.
 
-import { BASE, COLORS, draw, FONT, measurePage, pageAt, pageContent, playheadX, staffPages } from '../app/draw/staff'
+import { BASE, COLORS, draw, FONT, measurePage, pageContent, pagePoints, playheadX, staffPages } from '../app/draw/staff'
+import { nearestBar } from '../app/repeat'
 import type { Note, RoleId, Section, Song } from '../core/content'
 
 /** A note as the editor JSON holds it (web/data/NN.json). */
@@ -55,7 +56,6 @@ export function phrasesOf(notes: RawNote[]): BandPhrase[] {
 /** The raw song in the player's shape, notes in raw order (index i = raw note i); each note in the grid bar nearest its start minus its beat. */
 export function staffSong(raw: RawSong, bars: number[], key = 'C'): Song {
   const quarter = (bars.length > 1 ? bars[1] - bars[0] : 2) / 4
-  const near = (t: number) => bars.reduce((best, b, i) => (Math.abs(b - t) < Math.abs(bars[best] - t) ? i : best), 0)
   const notes: Note[] = raw.notes.map((n) => ({
     start: n.start,
     end: n.end,
@@ -63,7 +63,7 @@ export function staffSong(raw: RawSong, bars: number[], key = 'C'): Song {
     syllable: words(n),
     role: (n.role ?? '') as RoleId,
     phrase: 0,
-    bar: near(n.start - (n.beat ?? 0) * quarter),
+    bar: nearestBar(bars, n.start - (n.beat ?? 0) * quarter),
     beat: n.beat ?? 0,
     dur: n.dur ?? 1,
   }))
@@ -108,21 +108,13 @@ export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRe
   const h = staff.canvas.clientHeight
   const content = pageContent(song, [], first, count)
   const L = measurePage(staff, song, content, w, h / BASE)
-  const nb = song.bars.length
-  const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
-  const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
-  const barQ = 4
-  const points: [number, number][] = [
-    [barStart(first), L.startX + L.barX[0]],
-    ...content.onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), L.startX + L.xs[k]]),
-    [barStart(first + count), L.startX + L.barX[count - 1] + L.barW[count - 1]],
-  ]
+  const points = pagePoints(song, content, L)
   const xOf = (t: number) => playheadX(points, t)
   const heads = content.onsets.map((o, k) => ({ x: L.startX + L.xs[k], notes: o.here.map((n) => song.notes.indexOf(n)) })).filter((hd) => hd.notes.length)
 
   // selected notes on the staff: an outline around their heads
   const s = h / BASE
-  staff.strokeStyle = '#F08C14'
+  staff.strokeStyle = COLORS.select
   staff.lineWidth = 2
   for (const hd of heads)
     if (hd.notes.some((i) => v.selected.has(i))) {
@@ -131,12 +123,12 @@ export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRe
       staff.stroke()
     }
 
-  drawBands(bands, v, xOf, barStart(first), barStart(first + count), w)
+  drawBands(bands, v, xOf, points[0][0], points.at(-1)![0], w)
 
   const pages = staffPages(staff, song, [], w, h)
   const at = pages.findIndex(([f]) => f === first)
-  const prev = at > 0 ? barStart(pages[at - 1][0]) : null
-  const next = at >= 0 && at < pages.length - 1 ? barStart(pages[at + 1][0]) : null
+  const prev = at > 0 ? song.bars[pages[at - 1][0]] : null
+  const next = at >= 0 && at < pages.length - 1 ? song.bars[pages[at + 1][0]] : null
   return { first, count, prev, next, xOf, heads }
 }
 
@@ -181,6 +173,6 @@ function drawBands(ctx: CanvasRenderingContext2D, v: View, xOf: (t: number) => n
   row(
     v.sections.map((s, i) => ({ start: s.start, end: s.end, label: s.name, flag: false, picked: pick('section', i) })),
     BAND.section,
-    '#2A5C9E',
+    COLORS.bg,
   )
 }

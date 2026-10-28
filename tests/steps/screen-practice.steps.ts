@@ -37,6 +37,7 @@ function fixture(): { meta: SongMeta; song: Song } {
         { index: 0, label: 'p0', start: 0, end: 3 },
         { index: 1, label: 'p1', start: 8, end: 11 },
       ],
+      sections: [],
     },
   }
 }
@@ -501,7 +502,7 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^a song without sections$/, async (ctx) => {
     world(ctx)
-    delete ctx.data.song.sections
+    ctx.data.song.sections = []
     await screen(ctx)
   })
   Given(/^the "(\w+)" repeat is on$/, async (ctx, label) => {
@@ -537,29 +538,29 @@ export default steps(({ Given, When, Then }) => {
     input.dispatchEvent(new Event('input'))
     await settle(ctx.el)
   })
-  When(/^the engine emits loop$/, (ctx) => {
+  When(/^the repeat wraps$/, (ctx) => {
     ctx.engineL.loop?.forEach((fn: (p: unknown) => void) => {
       fn(ctx.data.song.phrases[0])
     })
   })
   When(/^the heard time is ([\d.]+)$/, (ctx, t) => tick(ctx, +t))
 
-  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with phrase (\d+) and no lead-in$/, (ctx, a, b, i) => {
+  Then(/^the repeat range is the range \[([\d.]+),([\d.]+)\] with phrase (\d+) and no lead-in$/, (ctx, a, b, i) => {
     expect(ctx.loop).toEqual({ start: +a, end: +b, phrase: ctx.data.song.phrases[+i] })
   })
-  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with lead-in$/, (ctx, a, b) => {
+  Then(/^the repeat range is the range \[([\d.]+),([\d.]+)\] with lead-in$/, (ctx, a, b) => {
     expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
   })
-  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] without phrase and without lead-in$/, (ctx, a, b) => {
+  Then(/^the repeat range is the range \[([\d.]+),([\d.]+)\] without phrase and without lead-in$/, (ctx, a, b) => {
     expect(ctx.loop).toEqual({ start: +a, end: +b })
   })
   Then(/^the range is \[([\d.]+),([\d.]+)\]$/, (ctx, a, b) => expect(ctx.loop).toEqual({ start: +a, end: +b }))
-  Then(/^engine loop is null$/, (ctx) => expect(ctx.loop ?? null).toBeNull())
-  Then(/^engine loop is null and no status line is shown$/, (ctx) => {
+  Then(/^no repeat range is set$/, (ctx) => expect(ctx.loop ?? null).toBeNull())
+  Then(/^no repeat range is set and no status line is shown$/, (ctx) => {
     expect(ctx.loop ?? null).toBeNull()
     expect(status(ctx)).toBeNull()
   })
-  Then(/^engine loop is null and the chip reads "([^"]+)"$/, (ctx, label) => {
+  Then(/^no repeat range is set and the chip reads "([^"]+)"$/, (ctx, label) => {
     expect(ctx.loop ?? null).toBeNull()
     expect(chip(ctx, 'A–B').textContent!.trim()).toBe(label)
   })
@@ -568,16 +569,16 @@ export default steps(({ Given, When, Then }) => {
     expect(chip(ctx, 'A–B').textContent!.trim()).toBe(label)
     expect(status(ctx)!.textContent!.trim()).toBe(s)
   })
-  Then(/^only the chip "(\w+)" is active and engine loop is that span's range$/, (ctx, label) => {
+  Then(/^only the chip "(\w+)" is active and the repeat range is that span's range$/, (ctx, label) => {
     const on = [...ctx.el.shadowRoot!.querySelectorAll('.chip[aria-pressed="true"]')]
     expect(on).toEqual([chip(ctx, label)])
     expect(ctx.loop).toMatchObject({ start: 8, end: 11, leadIn: true }) // Maria's notes 8–9.5 and 10–11 merge
   })
-  Then(/^engine loop is still the range of phrase (\d+)$/, (ctx, i) => {
+  Then(/^the repeat range is still the range of phrase (\d+)$/, (ctx, i) => {
     const p = ctx.data.song.phrases[+i]
     expect(ctx.loop).toEqual({ start: p.start, end: p.end, phrase: p })
   })
-  Then(/^the chip "(\w+)" is still active and engine loop is unchanged$/, (ctx, label) => {
+  Then(/^the chip "(\w+)" is still active and the repeat range is unchanged$/, (ctx, label) => {
     expect(chip(ctx, label).getAttribute('aria-pressed')).toBe('true')
     expect(ctx.loop).toBe(ctx.before)
   })
@@ -684,7 +685,7 @@ export default steps(({ Given, When, Then }) => {
     const seg = [...progress(ctx).querySelectorAll<HTMLElement>('.seg')].find((s) => s.textContent!.trim() === name)!
     await tap(ctx, seg)
   })
-  Then(/^the chip "Abschnitt" is active, engine loop is \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
+  Then(/^the chip "Abschnitt" is active, the repeat range is \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
     expect(chip(ctx, 'Abschnitt').getAttribute('aria-pressed')).toBe('true')
     expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
     expect(ctx.time).toBe(+t)
@@ -725,12 +726,12 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.loop).toEqual({ start: pairs(a)[0][0], end: pairs(a)[0][1], leadIn: true })
     await tick(ctx, pairs(a)[0][0] + 5)
   })
-  Then(/^engine loop is the range \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
+  Then(/^the repeat range is the range \[([\d.]+),([\d.]+)\] with lead-in and time\(\) is ([\d.]+)$/, (ctx, a, b, t) => {
     expect(ctx.loop).toEqual({ start: +a, end: +b, leadIn: true })
     expect(ctx.time).toBe(+t)
     expect(chip(ctx, 'Einsatz').getAttribute('aria-pressed')).toBe('true')
   })
-  Then(/^engine loop is unchanged and time\(\) is the lead-in landing$/, (ctx) => {
+  Then(/^the repeat range is unchanged and time\(\) is the lead-in landing$/, (ctx) => {
     expect(ctx.loop).toBe(ctx.before)
     expect(chip(ctx, 'Phrase').getAttribute('aria-pressed')).toBe('true')
     expect(ctx.time).toBe(leadInStart(30, ctx.data.song.bars)) // the later own entry at 30.0
