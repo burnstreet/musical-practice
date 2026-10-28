@@ -24,10 +24,13 @@ export interface AudioEngine {
   setLoop(phrase: Phrase | null): void
   time(): number                                   // song seconds, tempo-independent
   playing(): boolean
+  ctxTime(): number                                // playback context clock in s (creates the context if needed)
+  click(at: number): () => void                    // 1 kHz 20 ms click at context time at, for calibration; returns stop
   latency(): number                                // s from song time to the speaker: context baseLatency + outputLatency, 0 when missing or not loaded
   on(ev: 'tick', fn: (t: number) => void): void    // every animation frame while playing
   on(ev: 'loop', fn: (phrase: Phrase) => void): void
   on(ev: 'ended', fn: () => void): void
+  on(ev: 'pause', fn: () => void): void           // every pause(), whoever called it (settings calibration, end, unload)
   on(ev: 'enter', fn: (note: Note) => void): void  // playhead crossed note.start forward, or landed inside after seek
 }
 ```
@@ -38,6 +41,7 @@ export interface AudioEngine {
 - Sync: each tick compare backing to voices. Drift over 25 ms: set backing time to voices time.
 - Loop: when `time()` reaches `phrase.end`, seek to `phrase.start`, emit `loop`. Null clears.
 - `ended`: voices element ends and no loop. Engine pauses.
+- `click(at)`: oscillator 1 kHz, 20 ms, through its own gain with 2 ms fades straight to the destination (voices gain and mode do not touch it). Resumes the context. Stop cancels a click not yet played.
 - `latency()`: what the singer hears lags `time()` by this. The pitch engine subtracts it from frame stamps.
 - `enter` fires for every note whose `start` lies in (previous tick time, current time], and for notes containing the target after a seek.
   `[@test] ../tests/steps/audio-engine.steps.ts`
@@ -95,6 +99,13 @@ Feature: Enter events
     When I seek to 5.5
     Then enter fires once for that note
 
+Feature: Calibration click
+  Scenario: click on the playback context
+    Given an engine without a song
+    When I schedule a click at context time 2.0
+    Then a 1000 Hz tone starts at 2.0 and stops at 2.02 into the destination
+    And calling its stop cancels it
+
 Feature: Latency
   Scenario: playback latency from the context
     Given a loaded song on a context with baseLatency 0.010 and outputLatency 0.030
@@ -103,6 +114,12 @@ Feature: Latency
   Scenario: latency unknown
     Given a loaded song
     Then latency() is 0.000
+
+Feature: Pause event
+  Scenario: pause is announced
+    Given no loop set
+    When I pause the engine
+    Then a pause event fires and playing() is false
 
 Feature: End
   Scenario: song ends

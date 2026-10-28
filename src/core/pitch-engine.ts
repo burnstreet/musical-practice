@@ -12,6 +12,8 @@ export interface PitchEngine {
   start(songTime: () => number, playbackLatency?: () => number, deviceId?: string): Promise<StartResult>
   /** Switches the input device; restarts with the same clocks when running. */
   setDevice(deviceId: string): Promise<StartResult>
+  /** Clocks of the last start, to restart with them after a calibration. */
+  clocks(): [() => number, () => number]
   /** Audio inputs; labels only after mic permission. */
   devices(): Promise<{ deviceId: string; label: string }[]>
   stop(): void
@@ -138,6 +140,7 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     start,
     stop,
     setDevice: async (id) => (running ? start(...clocks, id) : 'ok'),
+    clocks: () => clocks,
     devices: async () => (await enumerate()).map(({ deviceId, label }) => ({ deviceId, label })),
     setOffsetMs: (ms) => {
       offsetMs = ms
