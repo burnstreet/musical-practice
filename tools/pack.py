@@ -111,10 +111,10 @@ def check_song(root, cfg_roles, s, work):
     return None, (notes, voices, backing, dur)
 
 
-def build_song(s, notes, dur):
-    bpm, q = s["bpm"], 60 / s["bpm"]
+def compute_bars(ordered, bpm, dur):
+    """(bar start seconds, bar index per note) for notes sorted by start; bars run on to `dur`."""
+    q = 60 / bpm
     bar_len = 4 * q
-    ordered = sorted(notes, key=lambda n: n["start"])
     # Score bar numbers repeat on repeated sections: renumber bars sequentially in time order.
     seq, known, prev = [], {}, None
     for n in ordered:
@@ -141,7 +141,13 @@ def build_song(s, notes, dur):
     lead = int((bars[0] + 1e-6) // bar_len) if bars[0] > 0 else 0
     bars = [bars[0] - (lead - m) * bar_len for m in range(lead)] + bars
     seq = [i + lead for i in seq]
-    bars = [round(b, 3) for b in bars]
+    return [round(b, 3) for b in bars], seq
+
+
+def build_song(s, notes, dur):
+    bpm = s["bpm"]
+    ordered = sorted(notes, key=lambda n: n["start"])
+    bars, seq = compute_bars(ordered, bpm, dur)
     out = [
         {
             "start": n["start"],
@@ -209,6 +215,9 @@ def main(argv=None):
             continue
         notes, voices, backing, dur = prepared
         song = build_song(s, notes, dur)
+        stored = json.loads((root / "web" / "data" / f"{s['id']}.json").read_text(encoding="utf-8"))
+        if "sections" in stored:  # stored sections win, as they are
+            song["sections"] = stored["sections"]
         used = {n["role"] for n in song["notes"]}
         songs.append(
             {
@@ -229,7 +238,7 @@ def main(argv=None):
         if f.stem not in sizes:
             f.unlink()
     manifest = {
-        "format": 1,
+        "format": 2,
         "build": datetime.now(UTC).isoformat(timespec="seconds"),
         "keyId": sha16(salt),
         "salt": base64.b64encode(salt).decode(),
