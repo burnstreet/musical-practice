@@ -31,7 +31,7 @@ const song = (spec: { phrase?: number; role?: RoleId; syllable?: string }[]): So
   const notes = spec.map((o, i) => note(1 + 2 * i, 2 + 2 * i, 67, { phrase: 0, ...o }))
   const count = Math.max(...notes.map((n) => n.phrase)) + 1
   const phrases = Array.from({ length: count }, (_, index) => ({ index, label: `P${index + 1}`, start: 0, end: 0 }))
-  return { id: '08', bpm: 90, key: 'F', timeSig: [4, 4], bars: [0], notes, phrases }
+  return { id: '08', bpm: 90, key: 'F', timeSig: [4, 4], bars: [0], notes, phrases, sections: [] }
 }
 /** Frames over the scored window of n, one per deviation in cents. */
 const sing = (n: Note, cents: number[]) =>

@@ -1,6 +1,7 @@
 import { css, html, LitElement, svg } from 'lit'
 import { noteName } from '../../core/scorer'
 import { getContext } from '../context'
+import { rangeOfPhrase } from '../repeat'
 
 export class GuResults extends LitElement {
   static properties = { songId: { type: String } }
@@ -61,10 +62,11 @@ export class GuResults extends LitElement {
 
   private drill(p: number) {
     const c = getContext()
-    c.engine.setLoop(c.live!.song.song.phrases[p])
+    const phrase = c.live!.song.song.phrases[p]
+    c.engine.setLoop(rangeOfPhrase(phrase))
     c.engine.setTempo(80)
     c.engine.pause()
-    c.engine.seek(c.live!.song.song.phrases[p].start)
+    c.engine.seek(phrase.start)
     c.route(`#/practice/${this.songId}`)
   }
 

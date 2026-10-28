@@ -31,3 +31,14 @@ canvas { display:block; width:100%; height:100%; cursor:pointer; }
 #readout { display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:8px; font-variant-numeric:tabular-nums; color:var(--muted); }
 #readout b { color:var(--fg); }
 #status { color:#b3261e; margin-top:6px; min-height:1em; }
+#view { background:#17498C; color:#fff; border-radius:8px; padding:6px 10px 8px; margin:6px 0; }
+#view[hidden], #viewHint[hidden] { display:none; }
+#view .viewbar { display:flex; align-items:center; gap:8px; }
+#view .viewbar b { min-width:90px; text-align:center; }
+#view .hint { color:#CFE0F5; }
+#staffCv { height:150px; cursor:pointer; }
+#bandCv { height:56px; cursor:pointer; }
+body.with-view #wrap { height:260px; min-height:0; }
+#sectList { flex-basis:100%; display:grid; grid-template-columns:minmax(120px,240px) 70px 70px auto; gap:4px 6px; align-items:center; }
+#sectList input { font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:6px; min-width:0; }
+#sectList .head { color:var(--muted); font-size:.85rem; }

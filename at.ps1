@@ -128,7 +128,7 @@ Usage: ./at.ps1 <command> [args]
   setup       install mise + pinned tools, tools/.venv, npm ci, Playwright chromium, then doctor
   doctor      check prerequisites (one line each, exit 1 on any problem)
   dev         Vite dev server
-  build       tsc --noEmit + vite build (to dist/)
+  build       tsc --noEmit + vite build (to dist/) + editor view (to web/lib/)
   preview     serve the build output (vite preview)
   test        vitest
   pytest      Python tests (tools/tests)
