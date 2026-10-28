@@ -1,4 +1,4 @@
-import { setRole, togglePhraseStart } from './edit-ops.js'
+import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
 
 ;(() => {
   const $ = (id) => document.getElementById(id)
@@ -571,6 +571,10 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
     }
     return null
   }
+  // shortcut: read-only list; the editable section list comes with the editor view (ticket 09)
+  function showSections() {
+    $('sectList').textContent = (song.sections || []).map((s) => `${s.name} ${s.start.toFixed(1)}–${s.end.toFixed(1)} s`).join(' · ')
+  }
   function setDirty() {
     dirty = true
     $('saveBtn').disabled = false
@@ -750,6 +754,7 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       $('timerBtn').textContent = 'Play (timer)'
       buildStems(s)
       buildRoles(s)
+      showSections()
       loadSheet(s)
       if (!noAudio) audio.src = `data/${s.audio}`
       else audio.removeAttribute('src')
@@ -815,6 +820,33 @@ import { setRole, togglePhraseStart } from './edit-ops.js'
       if (!song) return
       togglePhraseStart(song.notes, selected)
       setDirty()
+    }
+    $('sectBtn').onclick = async () => {
+      if (!song) return
+      const before = song.sections
+      try {
+        const next = await redetectSections(
+          before,
+          () => confirm('Abschnitte neu erkennen? Die aktuelle Liste wird ersetzt.'),
+          async () => {
+            const id = entry.file.replace(/\.json$/, '')
+            const r = await fetch('detect-sections', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, notes: song.notes }),
+            })
+            if (!r.ok) throw new Error(`HTTP ${r.status}`)
+            return (await r.json()).sections
+          },
+        )
+        if (next === before) return
+        song.sections = next
+        setDirty()
+        showSections()
+      } catch (e) {
+        $('status').className = ''
+        $('status').textContent = `Abschnitte nicht erkannt (${e.message}). Run tools/serve.py.`
+      }
     }
     $('selAll').onclick = () => {
       song &&
