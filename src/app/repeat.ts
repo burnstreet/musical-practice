@@ -1,6 +1,16 @@
 import type { Range } from '../core/audio-engine'
 import { type Phrase, type RoleId, roleSpans, type Section, type Song, type Span } from '../core/content'
 
+/** Repeat selector state of the practice screen. */
+export type RepeatKind = 'off' | 'phrase' | 'section' | 'einsatz' | 'ab'
+
+/** What the screen keeps in the live session while it is away (back from results): the engine only holds the range. */
+export interface RepeatState {
+  kind: RepeatKind
+  section: Section | null
+  pointA: number | null
+}
+
 /** Length of the bar that holds `t` (the last bar uses the one before it). */
 function barLength(bars: number[], t: number): number {
   const i = Math.max(0, bars.filter((b) => b <= t).length - 1)
