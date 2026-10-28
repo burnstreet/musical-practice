@@ -1,6 +1,6 @@
 # Editor: sections list visible without edit mode
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 Spec: ../spec.md
 
@@ -13,3 +13,7 @@ Goal:
 - The bar fields show a loading state, or are disabled, until the grid has arrived.
 
 Check against the board *Admin-Editor* in design/repeat-and-skip/Editor.dc.html. No unit test for the layout. The section ops are already covered in tests/specs/editor.test.ts.
+
+## Comments
+
+Resolved (agent, 2026-10-29): `#sectList` and `#sectBtn` moved out of `#editTools` into their own panel `#sectPanel` under the bands, shown as soon as a song is loaded. Until the bar grid arrives the bar fields and *Abschnitt hinzufügen* are disabled (placeholder …) and the panel head reads *Taktraster wird geladen …* (or why it is missing). Name and delete work without the grid.

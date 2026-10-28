@@ -42,7 +42,8 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     phrases = [],
     page = null,
     pick = null,
-    cfgSongs = []
+    cfgSongs = [],
+    gridState = '' // why the bar grid is missing, shown in the sections panel
   const staffCtx = $('staffCv').getContext('2d'),
     bandCtx = $('bandCv').getContext('2d')
 
@@ -252,24 +253,31 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   }
 
   // ---------- geometry ----------
+  // x0..x1: the roll's plot range; pts: (time, x) of the page's bar lines when the roll runs on the staff's bar grid
   function geom() {
+    const t = curTime(),
+      rowH = H / (hi - lo)
+    const y = { t, rowH, yOf: (m) => H - (m - lo + 0.5) * rowH, midiAt: (yy) => lo + (H - yy) / rowH - 0.5 }
+    if (page) {
+      // one page of the staff is the roll window; bar lines sit under the staff's, time is linear inside each bar
+      const off = $('staffCv').getBoundingClientRect().left - canvas.getBoundingClientRect().left
+      const pts = page.grid.map(([tt, x]) => [tt, x + off])
+      const [t0, x0] = pts[0],
+        [t1, x1] = pts[pts.length - 1]
+      return { ...y, t0, t1, x0, x1, pts, xOf: (tt) => viewMod.playheadX(pts, tt), tAt: (x) => viewMod.timeAt(pts, x) }
+    }
     const w = win(),
-      t = curTime(),
+      t0 = t - w * PLAY_FRAC,
       plotW = W - LEFT
-    const t0 = t - w * PLAY_FRAC,
-      rows = hi - lo,
-      rowH = H / rows
     return {
-      t,
-      w,
+      ...y,
       t0,
       t1: t0 + w,
-      plotW,
-      rowH,
+      x0: LEFT,
+      x1: W,
+      pts: null,
       xOf: (tt) => LEFT + ((tt - t0) / w) * plotW,
       tAt: (x) => t0 + ((x - LEFT) / plotW) * w,
-      yOf: (m) => H - (m - lo + 0.5) * rowH,
-      midiAt: (y) => lo + (H - y) / rowH - 0.5,
     }
   }
 
@@ -288,32 +296,41 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.fillStyle = '#fff'
     ctx.fillRect(0, 0, W, H)
     const g = geom(),
-      { t, w, t0, t1, plotW, rowH, xOf, yOf } = g
+      { t, t0, t1, x0, x1, rowH, xOf, yOf } = g,
+      plotW = x1 - x0
 
     for (let m = Math.floor(lo); m <= Math.ceil(hi); m++) {
       const pc = ((m % 12) + 12) % 12
       const black = [1, 3, 6, 8, 10].includes(pc)
       const y = yOf(m) - rowH / 2
       ctx.fillStyle = black ? '#eef0f4' : '#fafbfc'
-      ctx.fillRect(LEFT, y, plotW, rowH)
+      ctx.fillRect(LEFT, y, W - LEFT, rowH)
       if (pc === 0) {
         ctx.fillStyle = '#c9cfdb'
-        ctx.fillRect(LEFT, y + rowH - 1, plotW, 1)
+        ctx.fillRect(LEFT, y + rowH - 1, W - LEFT, 1)
       }
     }
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(LEFT, 0, plotW, H)
-    ctx.clip()
+    const clip = () => {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(x0, 0, plotW, H)
+      ctx.clip()
+    }
+    clip()
 
-    // spectrogram (covers midi lo-0.5 .. hi+0.5)
+    // spectrogram (covers midi lo-0.5 .. hi+0.5), one slice per bar on the bar grid
     if (spec && $('specChk').checked) {
-      const f0 = t0 / spec.hopS,
-        f1 = t1 / spec.hopS
       const yTop = yOf(spec.hi + 0.5),
         yBot = yOf(spec.lo - 0.5)
-      ctx.imageSmoothingEnabled = plotW / (f1 - f0) < 1
-      ctx.drawImage(spec.img, f0, 0, f1 - f0, spec.img.height, LEFT, yTop, plotW, yBot - yTop)
+      ctx.imageSmoothingEnabled = plotW / ((t1 - t0) / spec.hopS) < 1
+      const pts = g.pts || [
+        [t0, x0],
+        [t1, x1],
+      ]
+      for (let i = 1; i < pts.length; i++) {
+        const [[ta, xa], [tb, xb]] = [pts[i - 1], pts[i]]
+        ctx.drawImage(spec.img, ta / spec.hopS, 0, (tb - ta) / spec.hopS, spec.img.height, xa, yTop, xb - xa, yBot - yTop)
+      }
     }
     ctx.restore()
 
@@ -324,15 +341,18 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.font = '10px system-ui,sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    // finest step that keeps >= 80 px between grid lines
-    const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60].find((s) => (s / w) * plotW >= 80) || 60
+    // seconds scale: finest step that keeps >= 80 px between grid lines on average; labels never overlap
+    const step = [0.25, 0.5, 1, 2, 5, 10, 30, 60].find((s) => (s / (t1 - t0)) * plotW >= 80) || 60
+    let lastLabel = -Infinity
     for (let gg = Math.ceil(t0 / step) * step; gg < t1; gg += step) {
       const x = Math.round(xOf(gg)) + 0.5
       ctx.beginPath()
       ctx.moveTo(x, 0)
       ctx.lineTo(x, H)
       ctx.stroke()
+      if (x - lastLabel < 40) continue
       ctx.fillText(`${Math.round(gg * 100) / 100}s`, x + 2, 2)
+      lastLabel = x
     }
     // bar lines of the view's bar grid, numbered as on the staff, so roll, staff and bands share one bar grid
     if (bars) {
@@ -349,10 +369,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       })
     }
 
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(LEFT, 0, plotW, H)
-    ctx.clip()
+    clip()
 
     // notes
     song.notes.forEach((n, i) => {
@@ -596,14 +613,18 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   async function loadGrid(s) {
     bars = null
     staffSong = null
-    showSections()
     const scored = s.notes.length && s.notes.every((n) => n.beat != null)
+    gridState = scored ? 'Taktraster wird geladen …' : 'kein Taktraster: Noten ohne Takt und Schlag'
+    showSections()
     if (!scored) return showView('Notenansicht: nur für Lieder mit Takt und Schlag je Note.')
     try {
       const j = await fetchDetect()
       if (song !== s) return
       bars = j.bars
     } catch (e) {
+      if (song !== s) return
+      gridState = 'kein Taktraster (tools/serve.py)'
+      showSections()
       return showView(`Notenansicht: kein Taktraster (${e.message}). Run tools/serve.py.`)
     }
     refreshView()
@@ -612,8 +633,9 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function refreshView() {
     if (!song || !bars) return
     if (!viewMod) return showView('Notenansicht fehlt: ./mp.ps1 build')
-    const key = (cfgSongs.find((c) => `${c.id}.json` === entry.file) || {}).key
-    staffSong = viewMod.staffSong(song, bars, key)
+    // key and beats per bar from sources/config.json, as the server's bar grid uses them
+    const cfg = cfgSongs.find((c) => `${c.id}.json` === entry.file) || {}
+    staffSong = viewMod.staffSong(song, bars, cfg.key, cfg.beats || 4)
     phrases = viewMod.phrasesOf(song.notes)
     showView('')
   }
@@ -625,7 +647,10 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     resize()
   }
   function drawView() {
-    if (!staffSong) return
+    if (!staffSong) {
+      page = null
+      return
+    }
     const names = Object.fromEntries((configRoles || []).map((r) => [r.id, r.name]))
     page = viewMod.drawView(staffCtx, bandCtx, { song: staffSong, phrases, sections: song.sections || [], t: curTime(), selected, pick, names })
     if (!page) return
@@ -638,6 +663,20 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     indices.forEach((i) => {
       selected.add(i)
     })
+    turnToSelection()
+  }
+  // a selection with no note on the shown page turns staff, bands and roll (by seeking) to its first bar
+  function turnToSelection() {
+    const t = page && viewMod.turnFor(staffSong, page, selected)
+    if (t != null) seek(t)
+  }
+  function pickSection(i) {
+    const s = song.sections[i]
+    pick = { kind: 'section', index: i }
+    select(
+      song.notes.flatMap((n, k) => (n.start >= s.start && n.start < s.end ? [k] : [])),
+      false,
+    )
   }
   function onStaffClick(e) {
     if (!page) return
@@ -660,33 +699,28 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       pick = { kind: 'phrase', index: i }
       select(phrases[i].notes, false)
     } else {
-      const list = song.sections || []
-      const i = list.findIndex(inside)
-      if (i < 0) return
-      pick = { kind: 'section', index: i }
-      select(
-        song.notes.flatMap((n, k) => (n.start >= list[i].start && n.start < list[i].end ? [k] : [])),
-        false,
-      )
+      const i = (song.sections || []).findIndex(inside)
+      if (i >= 0) pickSection(i)
     }
   }
 
   function frame() {
+    if (song) drawView() // first: the roll runs on the page it draws
     if (song) draw()
-    if (song) drawView()
     requestAnimationFrame(frame)
   }
 
   // ---------- editing ----------
   function hitNote(x, y) {
     const g = geom(),
-      t = g.tAt(x),
       m = g.midiAt(y)
-    const EDGE = (6 / g.plotW) * g.w // 6 px in seconds
+    const EDGE = 6 // px
     for (let i = song.notes.length - 1; i >= 0; i--) {
-      const n = song.notes[i]
-      if (Math.abs(n.midi - m) <= 0.5 && t >= n.start - EDGE && t <= n.end + EDGE) {
-        const part = t < n.start + EDGE && n.end - n.start > 3 * EDGE ? 'start' : t > n.end - EDGE && n.end - n.start > 3 * EDGE ? 'end' : 'move'
+      const n = song.notes[i],
+        xs = g.xOf(n.start),
+        xe = g.xOf(n.end)
+      if (n.end >= g.t0 && n.start <= g.t1 && Math.abs(n.midi - m) <= 0.5 && x >= xs - EDGE && x <= xe + EDGE) {
+        const part = x < xs + EDGE && xe - xs > 3 * EDGE ? 'start' : x > xe - EDGE && xe - xs > 3 * EDGE ? 'end' : 'move'
         return { i, part }
       }
     }
@@ -707,23 +741,23 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     }
     showSections()
   }
+  // visible once a song is loaded, also outside edit mode; bar fields stay disabled until the bar grid has arrived
   function showSections() {
+    $('sectPanel').hidden = !song
+    $('sectState').textContent = bars ? '' : gridState
     const box = $('sectList')
     const list = (song && song.sections) || []
-    if (!bars) {
-      box.replaceChildren(
-        el('span', { className: 'head', textContent: list.map((s) => s.name).join(' · ') || 'Abschnitte: Taktraster fehlt (tools/serve.py)' }),
-      )
-      return
-    }
-    const num = (value, label) => el('input', { type: 'number', min: 1, max: bars.length, value, ariaLabel: label })
+    const num = (value, label) =>
+      el('input', { type: 'number', min: 1, max: bars ? bars.length : '', value, ariaLabel: label, disabled: !bars, placeholder: bars ? '' : '…' })
     const rows = list.flatMap((s, i) => {
-      const { from, to } = sectionBars(s, grid())
+      const { from, to } = bars ? sectionBars(s, grid()) : { from: '', to: '' }
       const name = el('input', { value: s.name, ariaLabel: `Name Abschnitt ${i + 1}` })
       const a = num(from, `Von Takt, Abschnitt ${i + 1}`),
         b = num(to, `Bis Takt, Abschnitt ${i + 1}`)
       name.onchange = () => sectEdit((l) => renameSection(l, i, name.value.trim() || s.name))
       a.onchange = b.onchange = () => sectEdit((l) => rebarSection(l, grid(), i, Number(a.value), Number(b.value)))
+      // focusing a row selects the section, as a click in the band does (and turns the view to it)
+      name.onfocus = a.onfocus = b.onfocus = () => pickSection(i)
       const del = el('button', { textContent: 'Löschen', ariaLabel: `Abschnitt ${s.name} löschen` })
       del.onclick = () => sectEdit((l) => deleteSection(l, i))
       return [name, a, b, del]
@@ -731,7 +765,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     const name = el('input', { placeholder: 'Name', ariaLabel: 'Name neuer Abschnitt' })
     const a = num('', 'Von Takt, neuer Abschnitt'),
       b = num('', 'Bis Takt, neuer Abschnitt')
-    const add = el('button', { textContent: 'Abschnitt hinzufügen' })
+    const add = el('button', { textContent: 'Abschnitt hinzufügen', disabled: !bars })
     add.onclick = () => sectEdit((l) => addSection(l, grid(), name.value.trim() || 'Abschnitt', Number(a.value), Number(b.value)))
     const heads = ['Abschnitt', 'von Takt', 'bis Takt', ''].map((t) => el('span', { className: 'head', textContent: t }))
     box.replaceChildren(...heads, ...rows, name, a, b, add)
@@ -1007,12 +1041,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
         $('status').textContent = `Abschnitte nicht erkannt (${e.message}). Run tools/serve.py.`
       }
     }
-    $('selAll').onclick = () => {
-      song &&
-        song.notes.forEach((_, i) => {
-          selected.add(i)
-        })
-    }
+    $('selAll').onclick = () => song && select([...song.notes.keys()], false)
     $('selNone').onclick = () => selected.clear()
     $('reloadBtn').onclick = () => entry && loadSong(entry)
     canvas.addEventListener('pointerdown', onDown)
@@ -1029,9 +1058,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       if (!editMode || !song) return
       if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') {
         e.preventDefault()
-        song.notes.forEach((_, i) => {
-          selected.add(i)
-        })
+        select([...song.notes.keys()], false)
       } else if (e.code === 'Escape') selected.clear()
       else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && selected.size) {
         e.preventDefault()
