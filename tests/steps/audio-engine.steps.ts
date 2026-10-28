@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { createAudioEngine, type Mode } from '../../src/core/audio-engine'
+import { createAudioEngine, leadInStart, type Mode, type Range } from '../../src/core/audio-engine'
 import type { Note, Phrase, RoleId } from '../../src/core/content'
 import type { LoadedSong } from '../../src/core/types'
 import { steps } from '../gherkin'
@@ -121,7 +121,7 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
     createObjectURL: (b) => `blob:${(b as Blob).type}`,
     revokeObjectURL: () => {},
   })
-  const song = { id: '08', bpm: 90, key: 'F', timeSig: [4, 4], bars: [0], notes, phrases }
+  const song = { id: '08', bpm: 90, key: 'F', timeSig: [4, 4], bars: ctx.bars ?? [0], notes, phrases }
   await engine.load({ meta: {} as any, song, voices: new Blob([], { type: 'voices' }), backing: new Blob([], { type: 'backing' }) } as LoadedSong, roles)
   const el = (type: string) => elements.find((e) => e.src === `blob:${type}`)!
   Object.assign(ctx, {
@@ -216,16 +216,71 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.voices.currentTime - ctx.backing.currentTime).toBeCloseTo(0.02, 6)
   })
 
-  Given(/^phrase (\d+) spanning \[([\d.]+),([\d.]+)\] set as loop$/, async (ctx, i, s, e) => {
+  const wait = (ctx: any, until: number) => {
+    // frames until song time wraps backwards or passes `until`
+    let last = ctx.engine.time()
+    while (ctx.clock.t < 200) {
+      ctx.tickAt(ctx.clock.t + 1 / 60)
+      const t = ctx.engine.time()
+      if (t < last || t > until + 0.5) return
+      last = t
+    }
+  }
+  const barsEvery2 = Array.from({ length: 30 }, (_, i) => i * 2)
+  const startAt = async (ctx: any, from: number, range: Range | null) => {
+    ctx.engine.seek(from)
+    ctx.engine.setLoop(range)
+    await ctx.engine.play()
+  }
+  Given(/^phrase (\d+) spanning \[([\d.]+),([\d.]+)\] set as loop range with phrase (\d+)$/, async (ctx, i, s, e) => {
     const phrases = [phrase(0, 0, 5), phrase(1, 5, 10), phrase(+i, +s, +e)]
     await setup(ctx, [], ['maria'], phrases)
-    ctx.engine.seek(+s)
-    ctx.engine.setLoop(phrases[+i])
-    await ctx.engine.play()
+    await startAt(ctx, +s, { start: +s, end: +e, phrase: phrases[+i] })
   })
-  When(/^time\(\) passes ([\d.]+)$/, (ctx) => {
-    while (!ctx.loops.length && ctx.clock.t < 100) ctx.tickAt(ctx.clock.t + 1 / 60)
+  Given(/^a range \[([\d.]+),([\d.]+)\] without phrase$/, async (ctx, s, e) => {
+    await setup(ctx)
+    await startAt(ctx, +s, { start: +s, end: +e })
   })
+  Given(/^bars at 0, 2, 4, … 2 s apart and a range \[([\d.]+),([\d.]+)\] with leadIn true$/, async (ctx, s, e) => {
+    ctx.bars = barsEvery2
+    await setup(ctx)
+    await startAt(ctx, +s, { start: +s, end: +e, leadIn: true })
+  })
+  Given(/^the loop range was set and then cleared with null$/, async (ctx) => {
+    await setup(ctx)
+    ctx.former = 30
+    await startAt(ctx, 29, { start: 20, end: 30 })
+    ctx.engine.setLoop(null)
+  })
+  Given(/^a range \[([\d.]+),([\d.]+)\] and playback at ([\d.]+)$/, async (ctx, s, e, at) => {
+    await setup(ctx)
+    ctx.end = +e
+    await startAt(ctx, +at, { start: +s, end: +e })
+  })
+  When(/^I seek to ([\d.]+) and playback reaches ([\d.]+)$/, (ctx, t, e) => {
+    ctx.engine.seek(+t)
+    wait(ctx, +e)
+  })
+  Then(/^time\(\) is ([\d.]+) after the wrap$/, (ctx, t) => expect(ctx.engine.time()).toBeCloseTo(+t, 1))
+  When(/^time\(\) passes ([\d.]+)$/, (ctx, e) => wait(ctx, +e))
+  When(/^time\(\) passes the former range end$/, (ctx) => wait(ctx, ctx.former))
+  Then(/^playback continues past it$/, (ctx) => {
+    expect(ctx.engine.time()).toBeGreaterThan(ctx.former)
+    expect(ctx.engine.playing()).toBe(true)
+  })
+  Then(/^time\(\) is ([\d.]+), no loop event fires, and playback continues$/, (ctx, t) => {
+    expect(ctx.engine.time()).toBeCloseTo(+t, 1)
+    expect(ctx.loops).toEqual([])
+    expect(ctx.engine.playing()).toBe(true)
+  })
+  Then(/^time\(\) is ([\d.]+)$/, (ctx, t) => expect(ctx.engine.time()).toBeCloseTo(+t, 1))
+
+  Given(/^bars 2 s apart$/, async (ctx) => {
+    ctx.bars = barsEvery2
+    await setup(ctx)
+  })
+  Then(/^leadInStart\(([\d.]+)\) is ([\d.]+)$/, (ctx, s, t) => expect(leadInStart(+s, ctx.bars)).toBe(+t))
+  When(/^I call seekLeadIn\(([\d.]+)\)$/, (ctx, s) => ctx.engine.seekLeadIn(+s))
   Then(/^time\(\) is ([\d.]+), a loop event names phrase (\d+), and playback continues$/, (ctx, t, i) => {
     expect(ctx.engine.time()).toBeCloseTo(+t, 6)
     expect(ctx.loops.map((p: Phrase) => p.index)).toEqual([+i])
