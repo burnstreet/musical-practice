@@ -19,10 +19,11 @@ const QUIET = 0.08
 const EARLY = 0.1
 const LATE = 0.8
 const MIN_CLICKS = 5
-const MAX_SPREAD = 0.025
+const MAX_SPREAD = 0.04
 const COUNT_IN = 1
 const EVERY = 1
-const CLICKS = 8
+const CLICKS = 12
+const WARMUP = 4 // the singer first finds the rhythm; these clicks are not measured
 const TAIL = 0.5
 
 /** Onset = a frame louder than max(4 × quiet floor, 0.01) after at least 80 ms below that; the floor averages quiet frames. */
@@ -55,7 +56,7 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
 }
 
-/** Median and median absolute deviation of the delays (s); null with fewer than 5 or a spread over 25 ms. */
+/** Median and median absolute deviation of the delays (s); null with fewer than 5 or a spread over 40 ms. */
 export function summarize(delays: number[]): Calibration | null {
   if (delays.length < MIN_CLICKS) return null
   const mid = median(delays)
@@ -73,7 +74,7 @@ export interface CalibrationRun {
 }
 
 /**
- * Starts the mic on the playback context's clock, plays 8 clicks a second apart after a 1 s count-in and measures click → onset.
+ * Starts the mic on the playback context's clock, plays 12 clicks a second apart after a 1 s count-in and measures click → onset on the last 8.
  * The caller stops or restores the mic afterwards.
  */
 export function runCalibration(
@@ -104,7 +105,7 @@ export function runCalibration(
     for (const c of clicks) stops.push(engine.click(c))
     await sleep((COUNT_IN + (CLICKS - 1) * EVERY + TAIL) * 1000)
     off()
-    return cancelled ? null : summarize(matchClicks(detectOnsets(frames), clicks))
+    return cancelled ? null : summarize(matchClicks(detectOnsets(frames), clicks.slice(WARMUP)))
   })()
   return {
     done,
