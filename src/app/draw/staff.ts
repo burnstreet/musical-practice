@@ -14,10 +14,36 @@ export interface DrawState {
   /** Pitch frames of the last 1.5 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
   tolerance: Tolerance
+  /** Active repeat: everything outside start…end is dimmed; flags [time, label] mark it. Drawing only. */
+  repeat?: Marks | null
 }
 
-/** tokens.css values (a canvas cannot use custom properties directly). */
-export const COLORS = { accent: '#C8E05A', other: '#A9D3F7', muted: '#CFE0F5', line: '#3F78BF', surface: '#17498C', text: '#FFFFFF' }
+export interface Marks {
+  start: number
+  end: number
+  flags: [number, string][]
+}
+
+/** Dims x < from and x > to (canvas `h` high) by painting the card colour over them. */
+export function dimOutside(ctx: CanvasRenderingContext2D, left: number, from: number, to: number, right: number, h: number): void {
+  ctx.fillStyle = COLORS.surface
+  ctx.globalAlpha = 0.6
+  if (from > left) ctx.fillRect(left, 0, from - left, h)
+  if (to < right) ctx.fillRect(to, 0, right - to, h)
+  ctx.globalAlpha = 1
+}
+
+/** tokens.css values (a canvas cannot use custom properties directly); `select` = the editor's selection orange, as in its roll. */
+export const COLORS = {
+  bg: '#1F5FAB',
+  select: '#F08C14',
+  accent: '#C8E05A',
+  other: '#A9D3F7',
+  muted: '#CFE0F5',
+  line: '#3F78BF',
+  surface: '#17498C',
+  text: '#FFFFFF',
+}
 export const FONT = "'DM Sans', system-ui, sans-serif"
 const MUSIC = "'Noto Music', 'Segoe UI Symbol', 'Apple Symbols', serif"
 
@@ -302,10 +328,10 @@ const RESTS: Record<number, { glyph: string; anchor: 'top' | 'bottom' | 'centre'
   0.25: { glyph: '\u{1D13F}', anchor: 'centre', step: 3 },
 }
 /** Artboard height: the drawing scales with the canvas height. */
-const BASE = 112
+export const BASE = 112
 
 /** Onsets of bars first…first+count−1, sorted: notes sharing a beat, and rests (no syllable) in the gaps of each bar. */
-function pageContent(song: Song, roles: RoleId[], first: number, count: number) {
+export function pageContent(song: Song, roles: RoleId[], first: number, count: number) {
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const mine = (n: Note) => roles.includes(n.role)
   const bars = Array.from({ length: count }, (_, i) => first + i)
@@ -338,7 +364,7 @@ function pageContent(song: Song, roles: RoleId[], first: number, count: number) 
 }
 
 /** Page layout of `content` on a canvas `w` wide at drawing scale `s`; measures the syllables in the bold lyric font. */
-function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number) {
+export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number) {
   const fifths = keyFifths(song.key)
   ctx.font = `700 ${12 * s}px ${FONT}` // measured bold: the current note's syllable is drawn bold
   const startX = 46 * s + Math.abs(fifths) * 8 * s
@@ -364,6 +390,20 @@ function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnT
     },
   )
   return { s, startX, ...page }
+}
+
+/** (song time, x) of a page's start, each onset and its end, for `playheadX`; bars past the song's end (last page) continue at the last bar's length. */
+export function pagePoints(song: Song, content: ReturnType<typeof pageContent>, L: ReturnType<typeof measurePage>): [number, number][] {
+  const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
+  const nb = song.bars.length
+  const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
+  const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
+  const [first, count] = [content.bars[0], content.bars.length]
+  return [
+    [barStart(first), L.startX + L.barX[0]],
+    ...content.onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), L.startX + L.xs[k]]),
+    [barStart(first + count), L.startX + L.barX[count - 1] + L.barW[count - 1]],
+  ]
 }
 
 /** Page split per song, canvas size, roles and font state; measuring every page each frame would be too slow. */
@@ -451,18 +491,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   }
 
   // Playhead, dashed as in the piano roll: moves from onset to onset, so the singer sees the next entry coming
-  // bars past the song's end (last page) continue at the last bar's length
-  const nb = song.bars.length
-  const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
-  const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
-  const px = playheadX(
-    [
-      [barStart(first), startX + L.barX[0]],
-      ...onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), startX + L.xs[k]]),
-      [barStart(first + per), startX + L.barX[per - 1] + L.barW[per - 1]],
-    ],
-    t,
-  )
+  const points = pagePoints(song, content, L)
+  const px = playheadX(points, t)
   ctx.strokeStyle = COLORS.text
   ctx.lineWidth = 1.5
   ctx.setLineDash([3, 4])
@@ -574,5 +604,20 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
     ctx.fillStyle = colour(n)
     ctx.fillText(n.syllable, startX + L.xs[k], 100 * s)
   })
+
+  // Repeat: the page outside the range dimmed, a line at the range start when it is on this page
+  if (state.repeat) {
+    const { start, end } = state.repeat
+    const [left, right] = [points[0], points.at(-1)!]
+    dimOutside(ctx, left[1], playheadX(points, start), playheadX(points, end), right[1], h) // playheadX clamps to the page
+    if (start >= left[0] && start < right[0]) {
+      ctx.strokeStyle = COLORS.accent
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(playheadX(points, start), 22 * s)
+      ctx.lineTo(playheadX(points, start), 78 * s)
+      ctx.stroke()
+    }
+  }
   return shown
 }
