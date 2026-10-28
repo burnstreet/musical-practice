@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { foldToTargetOctave, rowRange } from '../src/app/draw/roll'
-import { barsPerPage, keyFifths, layoutBar, layoutPage, noteValue, type PageOnset, pageOf, restsIn, staffPos } from '../src/app/draw/staff'
+import { barsPerPage, keyFifths, layoutBar, layoutPage, noteValue, type PageOnset, pageOf, playheadX, restsIn, staffPos } from '../src/app/draw/staff'
 import type { Note } from '../src/core/content'
 
 describe('staff layout', () => {
@@ -211,6 +211,26 @@ describe('lyric-aware page layout', () => {
     check(onsets, 400, r)
   })
 })
+describe('staff playhead', () => {
+  // bar line at 0 s / 40 px, onsets at 0 s / 60 px and 1 s / 200 px, page end 2 s / 300 px
+  const points: [number, number][] = [
+    [0, 40],
+    [0, 60],
+    [1, 200],
+    [2, 300],
+  ]
+  it('sits on an onset at its time and moves linearly to the next', () => {
+    expect(playheadX(points, 0)).toBe(60)
+    expect(playheadX(points, 0.5)).toBe(130)
+    expect(playheadX(points, 1)).toBe(200)
+    expect(playheadX(points, 1.5)).toBe(250)
+  })
+  it('stays inside the page', () => {
+    expect(playheadX(points, -1)).toBe(40)
+    expect(playheadX(points, 5)).toBe(300)
+  })
+})
+
 describe('roll layout', () => {
   it('spans my notes in view ±2 semitones', () => {
     expect(rowRange([60, 72])).toEqual([58, 74])
