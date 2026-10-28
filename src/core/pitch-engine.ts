@@ -17,7 +17,8 @@ export interface PitchEngine {
   /** Audio inputs; labels only after mic permission. */
   devices(): Promise<{ deviceId: string; label: string }[]>
   stop(): void
-  setOffsetMs(ms: number): void
+  /** Total delay for scoring, ms (measured or set); null = playback latency + mic baseLatency as the browser reports them. */
+  setDelayMs(ms: number | null): void
   /** Returns the unsubscribe function. */
   on(ev: 'frame', fn: (f: PitchFrame) => void): () => void
   level(): number
@@ -51,7 +52,7 @@ const defaultGetUserMedia = () => (navigator.mediaDevices?.getUserMedia ? (c: Me
 
 export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
   const listeners: ((f: PitchFrame) => void)[] = []
-  let offsetMs = 0
+  let delayMs: number | null = null
   let rms = 0
   let cleanup = () => {}
   let running = false
@@ -111,8 +112,9 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     node.port.onmessage = (e: MessageEvent<Omit<PitchFrame, 't' | 'at'>>) => {
       rms = e.data.rms
       const at = songTime() - detection
-      // the singer reacted to what played out playbackLatency ago; the mic adds its input latency on top
-      const t = at - playbackLatency() - (ctx.baseLatency ?? 0) - offsetMs / 1000
+      // the singer reacted to what played out playbackLatency ago; the mic adds its input latency on top.
+      // A measured delay replaces both: some browsers report far more than the real latency.
+      const t = at - (delayMs === null ? playbackLatency() + (ctx.baseLatency ?? 0) : delayMs / 1000)
       listeners.forEach((fn) => {
         fn({ ...e.data, t, at })
       })
@@ -142,8 +144,8 @@ export function createPitchEngine(deps: PitchEngineDeps = {}): PitchEngine {
     setDevice: async (id) => (running ? start(...clocks, id) : 'ok'),
     clocks: () => clocks,
     devices: async () => (await enumerate()).map(({ deviceId, label }) => ({ deviceId, label })),
-    setOffsetMs: (ms) => {
-      offsetMs = ms
+    setDelayMs: (ms) => {
+      delayMs = ms
     },
     on: (_ev, fn) => {
       listeners.push(fn)
