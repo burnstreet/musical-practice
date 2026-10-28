@@ -2,9 +2,11 @@ import { type Note, visibleNotes } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
 import { COLORS, type DrawState, FONT, fit } from './staff'
 
-const BEHIND = 1.5
-const AHEAD = 3.5
+/** Playhead at 30 % of the window. */
+const BEHIND_SHARE = 0.3
 const MIN_ROWS = 10
+/** Lyric strip under the rows, px. */
+const LYRICS = 22
 const MARGIN = 2
 
 /** Inclusive midi range of the rows: notes ±2 semitones, padded to at least 10 rows (G4 area when empty). */
@@ -23,13 +25,30 @@ export function foldToTargetOctave(midi: number, t: number, mine: Note[]): numbe
   return target ? target.midi + foldCents(midi, target.midi) / 100 : midi
 }
 
-/** Piano roll, 5 s window, playhead at 30 %. No-op without a context (happy-dom). */
+/** Seconds the roll shows at a canvas width: 72 px per second, 5…8 s (a wider screen shows more of what comes). */
+export const rollWindow = (cssWidth: number) => Math.min(8, Math.max(5, cssWidth / 72))
+
+/**
+ * Syllable positions in the lyric strip: each at its note's start, pushed right just enough to keep `gap` px after the
+ * previous one, so none is left out or overprinted. `widths` in the same order as `xs` (sorted by start).
+ */
+export function lyricXs(xs: number[], widths: number[], gap: number): number[] {
+  const out: number[] = []
+  xs.forEach((x, i) => {
+    out.push(i ? Math.max(x, out[i - 1] + widths[i - 1] + gap) : x)
+  })
+  return out
+}
+
+/** Piano roll, window of `rollWindow`, playhead at 30 %, lyric strip at the bottom. No-op without a context (happy-dom). */
 export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): void {
   if (!ctx) return
-  const { w, h } = fit(ctx)
+  const { w, h: full } = fit(ctx)
+  const h = full - LYRICS
   const { song, roles, t, frames } = state
-  const t0 = t - BEHIND
-  const t1 = t + AHEAD
+  const span = rollWindow(w)
+  const t0 = t - span * BEHIND_SHARE
+  const t1 = t0 + span
   const x = (time: number) => ((time - t0) / (t1 - t0)) * w
   const notes = visibleNotes(song.notes, roles)
   const inView = notes.filter((n) => n.end > t0 && n.start < t1)
@@ -90,10 +109,31 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.lineWidth = 1.5
   ctx.setLineDash([3, 4])
   ctx.beginPath()
-  ctx.moveTo(x(t), 0) // same axis as notes and sung line (BEHIND/(BEHIND+AHEAD) = 30 %)
-  ctx.lineTo(x(t), h)
+  ctx.moveTo(x(t), 0) // same axis as notes and sung line (30 %)
+  ctx.lineTo(x(t), full)
   ctx.stroke()
   ctx.setLineDash([])
+
+  // Lyric strip: one syllable per onset (mine first), from the window's left edge; the sounding one of mine bold
+  const onsets = [...inView].sort((a, b) => a.start - b.start || +roles.includes(b.role) - +roles.includes(a.role))
+  const sung = onsets.filter((n, i) => n.syllable && (i === 0 || n.start !== onsets[i - 1].start))
+  const font = (n: Note) => `${roles.includes(n.role) && n.start <= t && t < n.end ? 700 : 400} 12px ${FONT}`
+  const widths = sung.map((n) => {
+    ctx.font = font(n)
+    return ctx.measureText(n.syllable).width
+  })
+  const lx = lyricXs(
+    sung.map((n) => x(n.start)),
+    widths,
+    6,
+  )
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  sung.forEach((n, i) => {
+    ctx.font = font(n)
+    ctx.fillStyle = roles.includes(n.role) ? COLORS.accent : COLORS.other
+    ctx.fillText(n.syllable, lx[i], full - 6)
+  })
 
   // Sung line: dark outline under a 4 px white line, null frames break it
   const mine = notes.filter((n) => roles.includes(n.role))

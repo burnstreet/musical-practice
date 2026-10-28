@@ -137,6 +137,10 @@ def build_song(s, notes, dur):
     bars.append(known[idx[-1]])
     while bars[-1] + bar_len <= dur:
         bars.append(bars[-1] + bar_len)
+    # The intro before the first sung bar: whole bars counted back from it, so the staff shows the rests.
+    lead = int((bars[0] + 1e-6) // bar_len) if bars[0] > 0 else 0
+    bars = [bars[0] - (lead - m) * bar_len for m in range(lead)] + bars
+    seq = [i + lead for i in seq]
     bars = [round(b, 3) for b in bars]
     out = [
         {
