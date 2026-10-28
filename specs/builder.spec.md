@@ -170,8 +170,8 @@ Feature: Packing
     Then that file is gone
 ```
 
-Pending scenarios for repeat and skip (ticket 02, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the real block and points the link at `../tools/tests/steps_sections.py`.
-  `[@test] ../tools/tests/pending/steps_sections.py.pending`
+Section detection and stored sections.
+  `[@test] ../tools/tests/steps_sections.py`
 
 ```gherkin
 Feature: Section detection
