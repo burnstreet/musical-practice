@@ -17,6 +17,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from sections import detect_for
 
 ITERATIONS = 600_000
 RATE = 44100
@@ -216,8 +217,8 @@ def main(argv=None):
         notes, voices, backing, dur = prepared
         song = build_song(s, notes, dur)
         stored = json.loads((root / "web" / "data" / f"{s['id']}.json").read_text(encoding="utf-8"))
-        if "sections" in stored:  # stored sections win, as they are
-            song["sections"] = stored["sections"]
+        # stored sections win, as they are; else detect as sections.py would
+        song["sections"] = stored["sections"] if "sections" in stored else detect_for(notes, s["bpm"])
         used = {n["role"] for n in song["notes"]}
         songs.append(
             {

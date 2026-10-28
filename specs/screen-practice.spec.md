@@ -79,7 +79,7 @@ Strings:
 
 ## Repeat
 
-Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop toggle. One kind active at a time; tapping another chip switches, `Aus` clears (`engine.setLoop(null)`). Not persisted across sessions. Ranges are song seconds; "now" = the heard time.
+Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop toggle. One kind active at a time; tapping another chip switches, `Aus` clears the repeat range. Not persisted across sessions. Ranges are song seconds; "now" = the heard time.
 
 - Phrase: the phrase holding now, else the next one, else the last. Range = phrase start/end, `phrase` set, no lead-in.
 - Abschnitt: the section holding now, else the next one. Range = section start/end, lead-in. Chip hidden when `song.sections` is missing or empty.
@@ -233,41 +233,41 @@ Feature: Repeat selector
   Scenario: Phrase repeat takes the current phrase
     Given the heard time is inside phrase 2 spanning [10.0,14.0]
     When I tap the chip "Phrase"
-    Then engine loop is the range [10.0,14.0] with phrase 2 and no lead-in
+    Then the repeat range is the range [10.0,14.0] with phrase 2 and no lead-in
     And the status line reads "Phrase 3 · 0:10–0:14"
 
   Scenario: Abschnitt repeat takes the section holding the playhead
     Given sections "Strophe 1" [8.0,24.0] and "Refrain" [24.0,40.0] and the heard time 30.0
     When I tap the chip "Abschnitt"
-    Then engine loop is the range [24.0,40.0] with lead-in
+    Then the repeat range is the range [24.0,40.0] with lead-in
     And the status line reads "Refrain · 0:24–0:40"
 
   Scenario: Einsatz repeat takes my own span, or the next one
     Given my own spans [10.0,20.0] and [40.0,50.0] and the heard time 30.0
     When I tap the chip "Einsatz"
-    Then engine loop is the range [40.0,50.0] with lead-in
+    Then the repeat range is the range [40.0,50.0] with lead-in
 
   Scenario: Einsatz without any span ahead stays off
     Given my own spans [10.0,20.0] and the heard time 30.0
     When I tap the chip "Einsatz"
-    Then engine loop is null
+    Then no repeat range is set
 
   Scenario: one kind at a time
     Given the "Phrase" repeat is on
     When I tap the chip "Einsatz"
-    Then only the chip "Einsatz" is active and engine loop is that span's range
+    Then only the chip "Einsatz" is active and the repeat range is that span's range
     When I tap the chip "Aus"
-    Then engine loop is null and no status line is shown
+    Then no repeat range is set and no status line is shown
 
   Scenario: range is fixed when switched on
     Given the "Phrase" repeat is on for phrase 2
     When playback runs on into phrase 3
-    Then engine loop is still the range of phrase 2
+    Then the repeat range is still the range of phrase 2
 
   Scenario: seek outside the range keeps the repeat
     Given the "Phrase" repeat is on for phrase 2
     When I tap the progress bar at a time inside phrase 5
-    Then the chip "Phrase" is still active and engine loop is unchanged
+    Then the chip "Phrase" is still active and the repeat range is unchanged
 
   Scenario: no sections hides the Abschnitt chip
     Given a song without sections
@@ -275,7 +275,7 @@ Feature: Repeat selector
 
   Scenario: wrap keeps the pass going
     Given the "Phrase" repeat is on and a pass is running
-    When the engine emits loop
+    When the repeat wraps
     Then session.endPass did not run and re-entered notes replace earlier attempts
 
   Scenario: countdown keeps working during repeat
@@ -304,7 +304,7 @@ Feature: Dimming and sections
   Scenario: tap a section starts its repeat
     Given sections "Strophe 1" [8.0,24.0] and "Refrain" [24.0,40.0]
     When I tap the segment "Refrain"
-    Then the chip "Abschnitt" is active, engine loop is [24.0,40.0] with lead-in and time() is 20.0
+    Then the chip "Abschnitt" is active, the repeat range is [24.0,40.0] with lead-in and time() is 20.0
 
 Feature: A-B dimming
   Scenario: A without B dims everything before A
@@ -317,10 +317,10 @@ Feature: A–B repeat
     When I tap the chip "A–B"
     Then the chip reads "B setzen" and the status line reads "A 0:06 · B noch nicht gesetzt"
     When the heard time is 13.7 and I tap the chip again
-    Then engine loop is the range [6.0,14.0] without phrase and without lead-in
+    Then the repeat range is the range [6.0,14.0] without phrase and without lead-in
     And the status line reads "A–B · 0:06–0:14"
     When I tap the chip a third time
-    Then engine loop is null and the chip reads "A–B"
+    Then no repeat range is set and the chip reads "A–B"
 
   Scenario: B before A swaps
     Given A is set at 14.0
@@ -364,12 +364,12 @@ Feature: Skip
   Scenario: skip moves an active Einsatz repeat
     Given the "Einsatz" repeat is on for [10.0,20.0] and my next own span is [40.0,50.0]
     When I tap "Zum nächsten Einsatz"
-    Then engine loop is the range [40.0,50.0] with lead-in and time() is 36.0
+    Then the repeat range is the range [40.0,50.0] with lead-in and time() is 36.0
 
   Scenario: skip keeps any other repeat
     Given the "Phrase" repeat is on for phrase 2
     When I tap "Zum nächsten Einsatz"
-    Then engine loop is unchanged and time() is the lead-in landing
+    Then the repeat range is unchanged and time() is the lead-in landing
 
 Feature: Intro skip
   Scenario: shown before the first sung note
