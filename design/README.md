@@ -21,4 +21,18 @@ Files are self-contained HTML artboards (`<x-dc>` markup, inline styles). Open i
 
 Placeholder lyrics in the artboards are from the public-domain folk song "Der Mond ist aufgegangen", not from the musical. Song titles are `[Liedtitel eintragen]` placeholders.
 
+## Repeat and skip (`repeat-and-skip/`)
+
+Snapshot of the Claude Design canvas "Wiederholen und Springen – Entwürfe" (spec `.scratch/repeat-and-skip/spec.md`):
+https://claude.ai/artifact/7CZmN8NxVA5vztViGPY1j4. Added next to the boards above, not replacing them. Unverified drafts.
+
+| file | screen | size |
+|---|---|---|
+| repeat-and-skip/Main.dc.html | Handy 3a Singen · Abschnitt wiederholen | 390×844 |
+| repeat-and-skip/MainIntro.dc.html | Handy 3b Singen · Intro überspringen | 390×844 |
+| repeat-and-skip/MainAB.dc.html | Handy 3c Singen · A–B setzen | 390×844 |
+| repeat-and-skip/MainDesktop.dc.html | Desktop 3 Singen · Einsatz wiederholen | 1280×960, fluid |
+| repeat-and-skip/Editor.dc.html | Admin-Editor · Phrasen, Abschnitte, Noten | 1440×1040, fluid |
+| repeat-and-skip/canvas.json | board index | |
+
 Pending edits (see `specs/overview.spec.md` → Design deltas): remove "Aufnahme anhören", add download size line, progress bar, badges, settings sheet, headphone sheet, install hint, trend line, reduce voicetrack modes to three.

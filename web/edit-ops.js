@@ -32,6 +32,14 @@ export const renameSection = (sections, i, name) => sections.map((s, k) => (k ==
 
 export const deleteSection = (sections, i) => sections.filter((_, k) => k !== i)
 
+// Bar numbers of a section's list row, the inverse of place(): from = bar starting at start, to = last bar before end.
+export function sectionBars(s, grid) {
+  const near = (t) => grid.bars.reduce((best, b, i) => (Math.abs(b - t) < Math.abs(grid.bars[best] - t) ? i : best), 0)
+  const from = near(s.start) + 1
+  const to = Math.abs(s.end - grid.end) < 1e-3 ? grid.bars.length : near(s.end)
+  return { from, to: Math.max(from, to) }
+}
+
 // detect() asks the builder (editor server); runs only after confirm().
 export async function redetectSections(sections, confirm, detect) {
   return confirm() ? await detect() : sections
