@@ -90,7 +90,11 @@ export class GuSettingsSheet extends LitElement {
     const run = this.calibrate(engine, pitch, id)
     this.run = { run, restore }
     this.cal = 'running'
-    const result = await run.done
+    this.timer = window.setInterval(() => (this.level = pitch.level()), 50)
+    const result = await run.done.finally(() => {
+      clearInterval(this.timer)
+      this.level = 0
+    })
     if (this.run?.run !== run) return // cancelled
     this.run = null
     if (result && result !== 'no-mic') {
@@ -148,6 +152,11 @@ export class GuSettingsSheet extends LitElement {
     route('#/start')
   }
 
+  /** Mic level bar: shows that the phone hears something. */
+  private meter() {
+    return html`<div class="meter" role="meter" aria-label="Pegel" aria-valuemin="0" aria-valuemax="1" aria-valuenow=${this.level}><div style="width:${Math.min(100, this.level * 300)}%"></div></div>`
+  }
+
   render() {
     const { settings, pitch, engine } = getContext()
     const s = settings.get()
@@ -175,7 +184,7 @@ export class GuSettingsSheet extends LitElement {
         </div>
 
         <h3><label for="delay">Verzögerung</label></h3>
-        <input id="delay" type="range" min="0" max="600" step="10" .value=${String(delayMs)} @input=${delay} />
+        <input id="delay" type="range" min="0" max="1500" step="10" .value=${String(delayMs)} @input=${delay} />
         <p>${delayMs} ms${s.delayMs === null ? ' (automatisch)' : ''}</p>
         <p>Zeit vom Klang im Kopfhörer bis zum Mikrofon, für die Bewertung. Am besten messen lassen.</p>
         <p>Vom Browser gemeldet: Wiedergabe ${ms(engine.latency())} ms · Mikrofon ${ms(pitch.inputLatency())} ms</p>
@@ -183,7 +192,7 @@ export class GuSettingsSheet extends LitElement {
         <p>Sag „ta“ genau mit jedem Klick – oder halte den Kopfhörer ans Mikrofon.</p>
         ${
           this.cal === 'running'
-            ? html`<p role="status">Messung läuft …</p><button @click=${this.cancelCal}>Abbrechen</button>`
+            ? html`<p role="status">Messung läuft …</p>${this.meter()}<button @click=${this.cancelCal}>Abbrechen</button>`
             : this.cal === 'unclear'
               ? html`<p role="alert">Nicht eindeutig – bitte nochmal.</p>`
               : this.cal === 'no-mic'
@@ -201,7 +210,7 @@ export class GuSettingsSheet extends LitElement {
         <h3>Mikrofon testen</h3>
         ${
           this.mic === 'on'
-            ? html`<div class="meter" role="meter" aria-label="Pegel" aria-valuemin="0" aria-valuemax="1" aria-valuenow=${this.level}><div style="width:${Math.min(100, this.level * 300)}%"></div></div>
+            ? html`${this.meter()}
               <p aria-live="polite">${this.note || '–'}</p>
               <button @click=${this.stopMic}>Test beenden</button>`
             : html`<button @click=${this.startMic}>Mikrofon testen</button>

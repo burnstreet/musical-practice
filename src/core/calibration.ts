@@ -17,7 +17,7 @@ const FACTOR = 4
 const MIN_RMS = 0.01
 const QUIET = 0.08
 const EARLY = 0.1
-const LATE = 0.8
+const LATE = 0.9 // with clicks 1 s apart, a later onset could be the next click's
 const MIN_CLICKS = 5
 const MAX_SPREAD = 0.04
 const COUNT_IN = 1
@@ -43,7 +43,7 @@ export function detectOnsets(frames: Level[]): number[] {
   return onsets
 }
 
-/** Delay (onset − click) of each click: its first onset from 100 ms before to 800 ms after (a Bluetooth delay fits). */
+/** Delay (onset − click) of each click: its first onset from 100 ms before to 900 ms after (a Bluetooth delay fits). */
 export const matchClicks = (onsets: number[], clicks: number[]): number[] =>
   clicks.flatMap((c) => {
     const first = onsets.find((o) => o - c >= -EARLY - 1e-9 && o - c <= LATE + 1e-9)
@@ -64,8 +64,8 @@ export function summarize(delays: number[]): Calibration | null {
   return spread > MAX_SPREAD + 1e-9 ? null : { ms: Math.round(mid * 1000), spreadMs: Math.round(spread * 1000) }
 }
 
-/** The measured delay as the scoring delay: steps of 10, 0…600 (the slider's range). */
-export const delayFor = (measuredMs: number): number => Math.max(0, Math.min(600, Math.round(measuredMs / 10) * 10))
+/** The measured delay as the scoring delay: steps of 10, 0…1500 (the slider's range). */
+export const delayFor = (measuredMs: number): number => Math.max(0, Math.min(1500, Math.round(measuredMs / 10) * 10))
 
 export interface CalibrationRun {
   /** Result, null when unclear or cancelled, 'no-mic' when the mic did not start. */
