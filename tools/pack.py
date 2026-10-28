@@ -113,7 +113,8 @@ def check_song(root, cfg_roles, s, work):
 
 def build_song(s, notes, dur):
     bpm, q = s["bpm"], 60 / s["bpm"]
-    bar_len = 4 * q
+    beats = s.get("beats", 4)  # quarters per bar (time signature beats/4)
+    bar_len = beats * q
     ordered = sorted(notes, key=lambda n: n["start"])
     # Score bar numbers repeat on repeated sections: renumber bars sequentially in time order.
     seq, known, prev = [], {}, None
@@ -160,7 +161,7 @@ def build_song(s, notes, dur):
     for p in sorted({n["phrase"] for n in out}):
         ns = [n for n in out if n["phrase"] == p]
         phrases.append({"index": p, "label": f"Phrase {p + 1}", "start": ns[0]["start"], "end": ns[-1]["end"]})
-    return {"id": s["id"], "bpm": bpm, "key": s["key"], "timeSig": [4, 4], "bars": bars, "notes": out, "phrases": phrases}
+    return {"id": s["id"], "bpm": bpm, "key": s["key"], "timeSig": [beats, 4], "bars": bars, "notes": out, "phrases": phrases}
 
 
 def main(argv=None):
