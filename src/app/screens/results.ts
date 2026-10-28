@@ -61,7 +61,8 @@ export class GuResults extends LitElement {
 
   private drill(p: number) {
     const c = getContext()
-    c.engine.setLoop(c.live!.song.song.phrases[p])
+    const ph = c.live!.song.song.phrases[p]
+    c.engine.setLoop({ start: ph.start, end: ph.end, phrase: ph })
     c.engine.setTempo(80)
     c.engine.pause()
     c.engine.seek(c.live!.song.song.phrases[p].start)
