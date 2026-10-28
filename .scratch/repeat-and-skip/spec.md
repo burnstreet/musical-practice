@@ -1,6 +1,6 @@
 # Repeat and skip
 
-Status: ready-for-agent
+Status: resolved
 
 Designs: Claude Design canvas "Wiederholen und Springen – Entwürfe", https://claude.ai/artifact/7CZmN8NxVA5vztViGPY1j4 (boards: *Handy 3a Abschnitt wiederholen*, *3b Intro überspringen*, *3c A–B setzen*, *Desktop 3 Einsatz wiederholen*, *Admin-Editor*). Snapshot into `design/` when the work lands.
 

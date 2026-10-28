@@ -1,6 +1,6 @@
 # Practice screen: repeat selector and ranges
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 03, 04
 Spec: ../spec.md
 

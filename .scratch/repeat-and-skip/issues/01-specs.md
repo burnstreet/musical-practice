@@ -1,6 +1,6 @@
 # Update module specs and glossary
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 Spec: ../spec.md
 

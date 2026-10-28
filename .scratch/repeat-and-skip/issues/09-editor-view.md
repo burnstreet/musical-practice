@@ -1,6 +1,6 @@
 # Editor: shared staff, bands and roll view
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 08, 05
 Spec: ../spec.md
 

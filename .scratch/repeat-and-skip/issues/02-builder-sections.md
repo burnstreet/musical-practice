@@ -1,6 +1,6 @@
 # Builder: section detection
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 Spec: ../spec.md
 
