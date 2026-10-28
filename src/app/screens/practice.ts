@@ -8,6 +8,7 @@ import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
 import { barsPerPage, type DrawState, draw as drawStaff, pageOf } from '../draw/staff'
 import { features } from '../features'
+import { abRange, einsatzRange, phraseRange, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -15,6 +16,14 @@ const MODES: Record<Mode, [label: string, next: Mode]> = {
   backing: ['nur Playback', 'all'],
 }
 const NEXT_TEMPO: Record<Tempo, Tempo> = { 100: 90, 90: 80, 80: 70, 70: 100 }
+type Kind = 'off' | 'phrase' | 'section' | 'einsatz' | 'ab'
+const CHIPS: [Kind, string][] = [
+  ['off', 'Aus'],
+  ['phrase', 'Phrase'],
+  ['section', 'Abschnitt'],
+  ['einsatz', 'Einsatz'],
+  ['ab', 'A–B'],
+]
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
 // Icons from the artboards
@@ -25,9 +34,6 @@ const GEAR = icon(
   20,
 )
 const CHEVRON = icon(svg`<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`, 16)
-const LOOP = icon(
-  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/></g>`,
-)
 const TO_START = icon(
   svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
 )
@@ -82,6 +88,8 @@ export class GuPractice extends LitElement {
     mic: { state: true },
     tempo: { state: true },
     loop: { state: true },
+    kind: { state: true },
+    a: { state: true },
   }
   static styles = css`
     :host { display: grid; gap: 12px; box-sizing: border-box; min-height: 100vh; padding: 28px 20px 24px; max-width: 560px; margin: 0 auto;
@@ -139,6 +147,12 @@ export class GuPractice extends LitElement {
     .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -4px; }
     .transport { grid-area: transport; align-self: end; display: flex; flex-direction: column; gap: 10px; }
     @media (min-width: 960px) { .transport { align-self: start; background: var(--surface); border-radius: 24px; padding: 20px 24px; } .transport .round { background: var(--bg); } }
+    .repeat { display: flex; flex-direction: column; gap: 6px; }
+    .repeat .label { font-size: 12px; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { height: 40px; padding: 0 14px; border-radius: 20px; font-size: 14px; }
+    .chip[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
+    .status { margin: 0; font-size: 13px; color: var(--muted); }
     .progress { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
     .progress input { flex: 1; margin: 0; height: 24px; accent-color: var(--text); }
     .buttons { display: flex; align-items: center; justify-content: space-between; }
@@ -160,6 +174,11 @@ export class GuPractice extends LitElement {
   declare mic: boolean
   declare tempo: Tempo
   declare loop: Range | null
+  /** Active repeat kind; A–B with  set and no loop waits for B. */
+  declare kind: Kind
+  /** A–B point A, a bar line. */
+  declare a: number | null
+  private sectionName = ''
   /** The role set has notes in this song; otherwise listen only (`noPart` hint). */
   singsHere = false
   session!: Session
@@ -180,6 +199,8 @@ export class GuPractice extends LitElement {
     this.mic = false
     this.tempo = 100
     this.loop = null
+    this.kind = 'off'
+    this.a = null
   }
 
   connectedCallback() {
@@ -225,6 +246,7 @@ export class GuPractice extends LitElement {
     // Results may have set a drill loop and tempo on the engine.
     this.tempo = engine.tempo()
     this.loop = engine.loop()
+    this.kind = this.loop?.phrase ? 'phrase' : 'off'
     if (!wired.has(engine)) {
       wired.add(engine)
       engine.on('tick', (t) => {
@@ -320,12 +342,59 @@ export class GuPractice extends LitElement {
     return [...ps].reverse().find((p) => p.start <= this.t) ?? ps[0]
   }
 
-  private toggleLoop() {
-    const p = this.phrase()
-    this.loop = this.loop ? null : { start: p.start, end: p.end, phrase: p }
-    getContext().engine.setLoop(this.loop)
+  private setRange(kind: Kind, range: Range | null) {
+    getContext().engine.setLoop(range)
+    this.loop = range
+    this.kind = kind
   }
 
+  /** Switch the repeat selector. The range is fixed now; Abschnitt and Einsatz also jump to their lead-in. */
+  private pick(kind: Kind) {
+    const { engine } = getContext()
+    const { song } = this.loaded!
+    const now = this.heard()
+    const roles = getContext().settings.get().roles
+    if (kind === 'ab') return this.cycleAB(now)
+    let range: Range | null = null
+    if (kind === 'phrase') range = phraseRange(song, now)
+    if (kind === 'einsatz') range = einsatzRange(song, roles, now)
+    if (kind === 'section') {
+      const s = sectionAt(song, now)
+      if (s) {
+        this.sectionName = s.name
+        range = { start: s.start, end: s.end, leadIn: true }
+      }
+    }
+    if (kind !== 'off' && !range) return // nothing to repeat: stay as is
+    this.a = null
+    this.setRange(kind, range)
+    if (range?.leadIn) {
+      engine.seekLeadIn(range.start)
+      this.t = engine.time()
+    }
+  }
+
+  /** One chip: set A, set B (starts the repeat), clear. */
+  private cycleAB(now: number) {
+    const { bars } = this.loaded!.song
+    if (this.kind === 'ab' && this.loop) {
+      this.a = null
+      return this.setRange('off', null)
+    }
+    const p = snapToBar(bars, now)
+    if (this.kind !== 'ab' || this.a === null) {
+      this.setRange('ab', null)
+      this.a = p
+    } else this.setRange('ab', abRange(bars, this.a, p, this.loaded!.meta.durationSec))
+  }
+
+  /** `{name} · {m:ss}–{m:ss}`; A–B with A only: `A {m:ss} · B noch nicht gesetzt`; '' without a repeat. */
+  private status(): string {
+    if (this.kind === 'ab' && !this.loop) return this.a === null ? '' : `A ${clock(this.a)} · B noch nicht gesetzt`
+    if (!this.loop) return ''
+    const name = { off: '', phrase: `Phrase ${(this.loop.phrase?.index ?? 0) + 1}`, section: this.sectionName, einsatz: 'Einsatz', ab: 'A–B' }[this.kind]
+    return `${name} · ${clock(this.loop.start)}–${clock(this.loop.end)}`
+  }
   /** Big note, target label, cents text and meter position. */
   private readout() {
     const s = getContext().settings.get()
@@ -359,6 +428,8 @@ export class GuPractice extends LitElement {
       .map((x) => x.name)
       .join(', ')
     const dur = loaded.meta.durationSec
+    const status = this.status()
+    const sections = !!loaded.song.sections?.length
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
@@ -390,13 +461,22 @@ export class GuPractice extends LitElement {
       <div class="ends"><span>tief</span><span>hoch</span></div>
     </section>
     <div class="transport">
+      <div class="repeat" role="group" aria-label="Wiederholen">
+        <span class="label">Wiederholen</span>
+        <div class="chips">
+          ${CHIPS.filter(([k]) => k !== 'section' || sections).map(
+            ([k, label]) =>
+              html`<button class="chip" data-kind=${k} aria-pressed=${k === 'off' ? this.kind === 'off' : this.kind === k} @click=${() => this.pick(k)}>${k === 'ab' && this.kind === 'ab' && !this.loop ? 'B setzen' : label}</button>`,
+          )}
+        </div>
+        ${status ? html`<p class="status" role="status">${status}</p>` : ''}
+      </div>
       <div class="progress">
         <span>${clock(this.t)}</span>
         <input type="range" aria-label="Position" min="0" max=${dur} step="0.1" .value=${String(this.t)} @input=${(e: Event) => this.seek(+(e.target as HTMLInputElement).value)} />
         <span>${clock(dur)}</span>
       </div>
       <div class="buttons">
-        <button class="round" aria-label="Phrase wiederholen" aria-pressed=${!!this.loop} @click=${this.toggleLoop}>${LOOP}</button>
         <button class="round" aria-label="Zurück zum Anfang der Phrase" @click=${() => this.seek(this.phrase().start)}>${TO_START}</button>
         ${
           this.playing

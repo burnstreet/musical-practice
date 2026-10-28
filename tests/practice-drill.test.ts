@@ -27,7 +27,14 @@ it('practice shows the engine tempo and loop it enters with', async () => {
   }
   setContext({
     library: { roles: () => [{ id: 'maria', name: 'Maria', sings: true }], getSong: async () => loaded },
-    engine: { load: async () => {}, setMode: () => {}, on: () => {}, time: () => 0, tempo: () => 80, loop: () => phrase },
+    engine: {
+      load: async () => {},
+      setMode: () => {},
+      on: () => {},
+      time: () => 0,
+      tempo: () => 80,
+      loop: () => ({ start: phrase.start, end: phrase.end, phrase }),
+    },
     pitch: { start: async () => 'ok', on: () => () => {}, stop: () => {}, delay: () => 0 },
     settings,
     live: null,
@@ -41,6 +48,6 @@ it('practice shows the engine tempo and loop it enters with', async () => {
   await el.updateComplete
   const root = el.shadowRoot!
   expect(root.querySelector('[aria-label="Tempo 80 Prozent"]')?.textContent?.trim()).toBe('80%')
-  expect(root.querySelector('[aria-label="Phrase wiederholen"]')?.getAttribute('aria-pressed')).toBe('true')
+  expect(root.querySelector('[data-kind="phrase"]')?.getAttribute('aria-pressed')).toBe('true')
   expect(root.textContent).toContain('· F · 80 BPM')
 })

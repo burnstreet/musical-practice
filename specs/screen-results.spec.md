@@ -60,12 +60,7 @@ Feature: Results screen
 
   Scenario: no recording button
     Then no element with text "Aufnahme anhören" exists
-```
 
-Pending scenarios for repeat and skip (ticket 05, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/screen-results.steps.ts`.
-  `[@test] ../tests/steps/pending/screen-results.steps.ts`
-
-```gherkin
 Feature: Results screen drill
   Scenario: drill action
     Given worstPhrase 2
