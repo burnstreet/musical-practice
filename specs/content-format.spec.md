@@ -56,6 +56,16 @@ Feature: Public manifest
     Given a valid manifest JSON whose files contain the id "not-hex"
     When I parse it as a manifest
     Then parsing fails with ContentError "files"
+
+  Scenario: format 2 manifest parses
+    Given a manifest JSON with format 2 and otherwise valid fields
+    When I parse it as a manifest
+    Then I get the manifest
+
+  Scenario: unknown format version rejected
+    Given a manifest JSON with format 3
+    When I parse it as a manifest
+    Then parsing fails with ContentError "format"
 ```
 
 ## Library (encrypted JSON)
@@ -119,6 +129,36 @@ Feature: Song file
     Given a song JSON with one phrase and a note with phrase 3
     When I parse it as a song
     Then parsing fails with ContentError "phrase"
+
+  Scenario: song with sections parses
+    Given a song JSON with sections "Strophe 1" [0.0,20.0] and "Refrain" [20.0,40.0]
+    When I parse it as a song
+    Then song.sections has two entries named "Strophe 1" and "Refrain"
+
+  Scenario: song without sections parses
+    Given a song JSON without a sections field
+    When I parse it as a song
+    Then parsing succeeds and song.sections is empty
+
+  Scenario: section ending before it starts rejected
+    Given a song JSON with a section [20.0,20.0]
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+
+  Scenario: overlapping sections rejected
+    Given a song JSON with sections [0.0,20.0] and [10.0,30.0]
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+
+  Scenario: unsorted sections rejected
+    Given a song JSON with sections [20.0,30.0] then [0.0,10.0]
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
+
+  Scenario: unnamed section rejected
+    Given a song JSON with a section named ""
+    When I parse it as a song
+    Then parsing fails with ContentError "sections"
 ```
 
 ## Role spans
@@ -172,50 +212,3 @@ Feature: Visible notes
 
 - MP3, mono, 128 kbps, 44.1 kHz. Voices = full mix. Backing = aligned playback or Demucs accompaniment.
 - Both stems of a song equal in length within 20 ms. Sample 0 of both = same musical instant.
-
-Pending scenarios for repeat and skip (ticket 03, `.scratch/repeat-and-skip`). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at `../tests/steps/content-format.steps.ts`.
-  `[@test] ../tests/steps/pending/content-format.steps.ts`
-
-```gherkin
-Feature: Format version
-  Scenario: format 2 manifest parses
-    Given a manifest JSON with format 2 and otherwise valid fields
-    When I parse it as a manifest
-    Then I get the manifest
-
-  Scenario: unknown format version rejected
-    Given a manifest JSON with format 3
-    When I parse it as a manifest
-    Then parsing fails with ContentError "format"
-
-Feature: Song sections
-  Scenario: song with sections parses
-    Given a song JSON with sections "Strophe 1" [0.0,20.0] and "Refrain" [20.0,40.0]
-    When I parse it as a song
-    Then song.sections has two entries named "Strophe 1" and "Refrain"
-
-  Scenario: song without sections parses
-    Given a song JSON without a sections field
-    When I parse it as a song
-    Then parsing succeeds and song.sections is empty
-
-  Scenario: section ending before it starts rejected
-    Given a song JSON with a section [20.0,20.0]
-    When I parse it as a song
-    Then parsing fails with ContentError "sections"
-
-  Scenario: overlapping sections rejected
-    Given a song JSON with sections [0.0,20.0] and [10.0,30.0]
-    When I parse it as a song
-    Then parsing fails with ContentError "sections"
-
-  Scenario: unsorted sections rejected
-    Given a song JSON with sections [20.0,30.0] then [0.0,10.0]
-    When I parse it as a song
-    Then parsing fails with ContentError "sections"
-
-  Scenario: unnamed section rejected
-    Given a song JSON with a section named ""
-    When I parse it as a song
-    Then parsing fails with ContentError "sections"
-```
