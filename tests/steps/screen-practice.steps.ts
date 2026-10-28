@@ -85,6 +85,9 @@ function world(ctx: any) {
       pause: () => {
         log('pause')
         ctx.playing = false
+        ctx.engineL.pause?.forEach((fn: () => void) => {
+          fn()
+        }) // like the real engine
       },
       seek: (s: number) => {
         log(`seek ${s}`)
@@ -106,6 +109,8 @@ function world(ctx: any) {
       time: () => ctx.time,
       playing: () => ctx.playing,
       latency: () => ctx.latency ?? 0,
+      ctxTime: () => 0,
+      click: () => () => {},
       on: on(ctx.engineL),
     },
     pitch: {
@@ -124,6 +129,7 @@ function world(ctx: any) {
       inputLatency: () => 0,
       setDevice: async () => 'ok' as const,
       devices: async () => [],
+      clocks: () => [() => 0, () => 0],
       active: () => false,
     },
     sw: {} as any,
@@ -312,6 +318,14 @@ export default steps(({ Given, When, Then }) => {
   Given(/^the results screen is enabled$/, (ctx) => {
     world(ctx)
     features.results = true
+  })
+  When(/^the engine is paused from outside the screen$/, async (ctx) => {
+    ctx.app.engine.pause()
+    await settle(ctx.el)
+  })
+  Then(/^the transport shows "Abspielen" and session\.endPass ran$/, (ctx) => {
+    expect(byLabel(ctx.el, 'Abspielen')).not.toBeNull()
+    expect(ctx.app.live.session.passes()).toHaveLength(1)
   })
   When(/^I press pause$/, (ctx) => pause(ctx))
   When(/^I press the back button$/, (ctx) => press(ctx, 'Zurück zur Auswahl'))

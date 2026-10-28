@@ -84,7 +84,7 @@ Numbers refer to the grilling session of 2026-10-27.
 - Download: whole library after unlock, per-file blobs in IndexedDB, content-hash ids, re-download changed only. Public manifest carries sizes before unlock. (Q21, Q28)
 - Scoring per note: 100 ms onset grace, fold to nearest octave, hit = at least half of voiced frames within tolerance, unsung note = miss. Frames outside my notes ignored. (Q22)
 - Settings: tolerance easy 75 / normal 50 / strict 30 cents, mic delay ±300 ms, headphone note, mic test, lock. (Q23)
-- Latency: AudioContext base + output latency plus user offset. No calibration wizard. (Q24)
+- Latency: AudioContext base + output latency plus user offset; the offset can be measured with clicks in the settings (shell spec, Latency calibration). (Q24)
 - Session = open song to leave song. Pass = play to pause. Note frames reset when playback re-enters the note. Trend from pass 2. History keeps best and last per session. (Q25, Q30)
 - Admin tools: existing viewer + plot_aligned.py, local only. (Q26)
 - Song without my notes: playable in `all`, scoring off, mic idle, hint shown. (Q27)
@@ -145,7 +145,7 @@ Run on iOS Safari (installed PWA and browser tab) and Android Chrome before each
 
 ## Out of Scope
 
-- Streaming services. Accounts, sync, upload UI. Forced alignment. Recording own voice. Protection against password sharing. Auto voicetrack mode. Calibration wizard. OCR of scanned lyrics. Transposition. Dialog trainer (own spec later).
+- Streaming services. Accounts, sync, upload UI. Forced alignment. Recording own voice. Protection against password sharing. Auto voicetrack mode. OCR of scanned lyrics. Transposition. Dialog trainer (own spec later).
 
 ## Further Notes
 
