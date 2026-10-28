@@ -97,7 +97,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
 
   // Sung line: dark outline under a 4 px white line, null frames break it
   const mine = notes.filter((n) => roles.includes(n.role))
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.at), y(foldToTargetOctave(f.midi, f.at, mine))]))
+  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
     [COLORS.surface, 8],

@@ -28,7 +28,7 @@ it('practice shows the engine tempo and loop it enters with', async () => {
   setContext({
     library: { roles: () => [{ id: 'maria', name: 'Maria', sings: true }], getSong: async () => loaded },
     engine: { load: async () => {}, setMode: () => {}, on: () => {}, time: () => 0, tempo: () => 80, loop: () => phrase },
-    pitch: { start: async () => 'ok', on: () => () => {}, stop: () => {} },
+    pitch: { start: async () => 'ok', on: () => () => {}, stop: () => {}, delay: () => 0 },
     settings,
     live: null,
     route: () => {},

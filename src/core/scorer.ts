@@ -51,10 +51,10 @@ export interface LiveDeviation {
   level: 'ok' | 'slight' | 'far'
 }
 
-/** Live readout: the latest voiced frame measured (`at`) within 150 ms before `t` vs my note sounding at that moment. Cents rounded. */
+/** Live readout: the latest voiced frame (`t`) within 150 ms before the heard time `t` vs my note sounding at that moment. Cents rounded. */
 export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null {
-  const sung = [...frames].reverse().find((f) => f.midi !== null && f.at >= t - 0.15 && f.at <= t)
-  const note = sung && [...song.notes].reverse().find((n) => roles.includes(n.role) && n.start <= sung.at && sung.at <= n.end)
+  const sung = [...frames].reverse().find((f) => f.midi !== null && f.t >= t - 0.15 && f.t <= t)
+  const note = sung && [...song.notes].reverse().find((n) => roles.includes(n.role) && n.start <= sung.t && sung.t <= n.end)
   if (!note || !sung) return null
   const cents = Math.round(foldCents(sung.midi!, note.midi))
   const level = Math.abs(cents) <= 15 ? 'ok' : Math.abs(cents) <= tol ? 'slight' : 'far'

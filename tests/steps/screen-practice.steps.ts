@@ -121,6 +121,7 @@ function world(ctx: any) {
       },
       stop: () => log('pitch.stop'),
       setDelayMs: () => {},
+      delay: () => ctx.delay ?? 0,
       on: (ev: string, fn: (x: any) => void) => {
         on(ctx.pitchL)(ev, fn)
         return () => {}
@@ -228,10 +229,11 @@ export default steps(({ Given, When, Then }) => {
     await tick(ctx, 8.5)
     await frame(ctx, { midi: above ? 74 + +above / 100 : 62 + +d4 / 100 })
   })
-  Given(/^target D5 and a sung frame (\d+) cents above measured now but scored ([\d.]+) s earlier$/, async (ctx, n, back) => {
+  Given(/^a delay of ([\d.]+) s, playback at ([\d.]+) and a frame (\d+) cents above D5 scored at ([\d.]+)$/, async (ctx, delay, at, n, t) => {
+    ctx.delay = +delay
     await screen(ctx)
-    await tick(ctx, 8.5)
-    await frame(ctx, { midi: 74 + +n / 100, t: ctx.time - +back })
+    await tick(ctx, +at)
+    await frame(ctx, { midi: 74 + +n / 100, t: +t, at: +at })
   })
   Given(/^target D5 and the screen paused$/, async (ctx) => {
     const el = await screen(ctx)
