@@ -32,7 +32,7 @@ const world = (active: boolean) => {
         listeners++
         return () => void listeners--
       },
-      level: () => 0,
+      level: () => 0.1,
       setDelayMs: (ms: number) => calls.push(`delay ${ms}`),
       clocks: () => [() => 7, () => 0],
     },
@@ -121,6 +121,18 @@ it('asks to repeat an unclear measurement and keeps the delay', async () => {
   const { el } = await calibrate(null)
   expect(el.shadowRoot!.textContent).toContain('Nicht eindeutig – bitte nochmal.')
   expect(settings.get().delayMs).toBe(40)
+})
+
+it('shows the mic level while measuring, so the user sees the phone hears them', async () => {
+  world(false)
+  const el = (await open()) as any
+  el.calibrate = () => ({ done: new Promise(() => {}), cancel: () => {} })
+  ;[...el.shadowRoot.querySelectorAll('button')].find((b: HTMLElement) => b.textContent!.trim() === 'Verzögerung messen').click()
+  await new Promise((r) => setTimeout(r, 80))
+  await el.updateComplete
+  expect(el.shadowRoot.textContent).toContain('Messung läuft …')
+  expect(el.shadowRoot.querySelector('[role="meter"]').getAttribute('aria-valuenow')).toBe('0.1')
+  el.remove() // cancels the run in this world, not the next test's
 })
 
 it('restarts the practice mic with its own clocks after measuring', async () => {
