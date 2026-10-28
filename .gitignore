@@ -17,3 +17,4 @@ e2e/.tmp/
 test-results/
 .ruff_cache/
 .claude/worktrees/
+web/lib/
