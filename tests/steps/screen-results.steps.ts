@@ -119,7 +119,7 @@ export default steps(({ Given, When, Then }) => {
     expect(el.shadowRoot!.querySelectorAll('.trend circle').length).toBe(3)
   })
   Then(/^engine loop is phrase 2, tempo 80, time is the phrase start, route is practice, playing is false$/, (ctx) => {
-    expect(ctx.engine.loop).toEqual(phrases[2])
+    expect(ctx.engine.loop).toEqual({ start: phrases[2].start, end: phrases[2].end, phrase: phrases[2] })
     expect(ctx.engine.tempo).toBe(80)
     expect(ctx.engine.t).toBe(phrases[2].start)
     expect(ctx.routed).toEqual(['#/practice/s'])
