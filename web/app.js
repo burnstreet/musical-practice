@@ -1,4 +1,4 @@
-import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
+import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart } from './edit-ops.js'
 
 ;(() => {
   const $ = (id) => document.getElementById(id)
@@ -35,6 +35,16 @@ import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
   // sheet music (OpenSheetMusicDisplay)
   let osmd = null,
     cursorPos = null
+  // bars and sections view (staff shared with the player: web/lib/editor-view.js, built by ./mp.ps1 build)
+  let viewMod = null,
+    bars = null, // bar start seconds from the editor server
+    staffSong = null,
+    phrases = [],
+    page = null,
+    pick = null,
+    cfgSongs = []
+  const staffCtx = $('staffCv').getContext('2d'),
+    bandCtx = $('bandCv').getContext('2d')
 
   const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
   const hexA = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`
@@ -551,8 +561,105 @@ import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
     $('rSel').textContent = selected.size + (dirty ? ' (unsaved)' : '')
   }
 
+  // ---------- bars and sections view ----------
+  // grid for the section ops: bar starts and the song end (audio length, else one bar past the last bar)
+  function grid() {
+    const n = bars.length
+    const len = n > 1 ? bars[n - 1] - bars[n - 2] : 2
+    return { bars, end: Number.isFinite(audio.duration) && !noAudio ? audio.duration : bars[n - 1] + len }
+  }
+  async function fetchDetect() {
+    const id = entry.file.replace(/\.json$/, '')
+    const r = await fetch('detect-sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, notes: song.notes }),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    return r.json()
+  }
+  // the bar grid comes from the builder (via /detect-sections), never computed here
+  async function loadGrid(s) {
+    bars = null
+    staffSong = null
+    showSections()
+    const scored = s.notes.length && s.notes.every((n) => n.beat != null)
+    if (!scored) return showView('Notenansicht: nur für Lieder mit Takt und Schlag je Note.')
+    try {
+      const j = await fetchDetect()
+      if (song !== s) return
+      bars = j.bars
+    } catch (e) {
+      return showView(`Notenansicht: kein Taktraster (${e.message}). Run tools/serve.py.`)
+    }
+    refreshView()
+    showSections()
+  }
+  function refreshView() {
+    if (!song || !bars) return
+    if (!viewMod) return showView('Notenansicht fehlt: ./mp.ps1 build')
+    const key = (cfgSongs.find((c) => `${c.id}.json` === entry.file) || {}).key
+    staffSong = viewMod.staffSong(song, bars, key)
+    phrases = viewMod.phrasesOf(song.notes)
+    showView('')
+  }
+  function showView(hint) {
+    $('view').hidden = !staffSong
+    $('viewHint').hidden = !hint
+    $('viewHint').textContent = hint
+    document.body.classList.toggle('with-view', !!staffSong)
+    resize()
+  }
+  function drawView() {
+    if (!staffSong) return
+    const names = Object.fromEntries((configRoles || []).map((r) => [r.id, r.name]))
+    page = viewMod.drawView(staffCtx, bandCtx, { song: staffSong, phrases, sections: song.sections || [], t: curTime(), selected, pick, names })
+    if (!page) return
+    $('pageLbl').textContent = `Takt ${page.first + 1}–${page.first + page.count}`
+    $('pagePrev').disabled = page.prev === null
+    $('pageNext').disabled = page.next === null
+  }
+  function select(indices, add) {
+    if (!add) selected = new Set()
+    indices.forEach((i) => {
+      selected.add(i)
+    })
+  }
+  function onStaffClick(e) {
+    if (!page) return
+    const x = e.clientX - $('staffCv').getBoundingClientRect().left
+    const hit = page.heads.reduce((a, h) => (!a || Math.abs(h.x - x) < Math.abs(a.x - x) ? h : a), null)
+    // shortcut: a click picks every note at the nearest onset (all voices); pick by pitch if chords get in the way
+    if (!hit || Math.abs(hit.x - x) > 14) return
+    pick = null
+    select(hit.notes, e.shiftKey)
+  }
+  function onBandClick(e) {
+    if (!page) return
+    const r = $('bandCv').getBoundingClientRect(),
+      x = e.clientX - r.left,
+      y = e.clientY - r.top
+    const inside = (it) => page.xOf(it.start) <= x && x <= page.xOf(it.end)
+    if (y < viewMod.BAND.phrase[1] + 2) {
+      const i = phrases.findIndex(inside)
+      if (i < 0) return
+      pick = { kind: 'phrase', index: i }
+      select(phrases[i].notes, false)
+    } else {
+      const list = song.sections || []
+      const i = list.findIndex(inside)
+      if (i < 0) return
+      pick = { kind: 'section', index: i }
+      select(
+        song.notes.flatMap((n, k) => (n.start >= list[i].start && n.start < list[i].end ? [k] : [])),
+        false,
+      )
+    }
+  }
+
   function frame() {
     if (song) draw()
+    if (song) drawView()
     requestAnimationFrame(frame)
   }
 
@@ -571,13 +678,54 @@ import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
     }
     return null
   }
-  // shortcut: read-only list; the editable section list comes with the editor view (ticket 09)
+  // section list: name, from bar, to bar (as on the staff), delete; plus an add row. Needs the bar grid.
+  function el(tag, props) {
+    return Object.assign(document.createElement(tag), props)
+  }
+  function sectEdit(op) {
+    try {
+      song.sections = op(song.sections || [])
+      pick = null
+      setDirty()
+    } catch (e) {
+      $('status').className = ''
+      $('status').textContent = e.message
+    }
+    showSections()
+  }
   function showSections() {
-    $('sectList').textContent = (song.sections || []).map((s) => `${s.name} ${s.start.toFixed(1)}–${s.end.toFixed(1)} s`).join(' · ')
+    const box = $('sectList')
+    const list = (song && song.sections) || []
+    if (!bars) {
+      box.replaceChildren(
+        el('span', { className: 'head', textContent: list.map((s) => s.name).join(' · ') || 'Abschnitte: Taktraster fehlt (tools/serve.py)' }),
+      )
+      return
+    }
+    const num = (value, label) => el('input', { type: 'number', min: 1, max: bars.length, value, ariaLabel: label })
+    const rows = list.flatMap((s, i) => {
+      const { from, to } = sectionBars(s, grid())
+      const name = el('input', { value: s.name, ariaLabel: `Name Abschnitt ${i + 1}` })
+      const a = num(from, `Von Takt, Abschnitt ${i + 1}`),
+        b = num(to, `Bis Takt, Abschnitt ${i + 1}`)
+      name.onchange = () => sectEdit((l) => renameSection(l, i, name.value.trim() || s.name))
+      a.onchange = b.onchange = () => sectEdit((l) => rebarSection(l, grid(), i, Number(a.value), Number(b.value)))
+      const del = el('button', { textContent: 'Löschen', ariaLabel: `Abschnitt ${s.name} löschen` })
+      del.onclick = () => sectEdit((l) => deleteSection(l, i))
+      return [name, a, b, del]
+    })
+    const name = el('input', { placeholder: 'Name', ariaLabel: 'Name neuer Abschnitt' })
+    const a = num('', 'Von Takt, neuer Abschnitt'),
+      b = num('', 'Bis Takt, neuer Abschnitt')
+    const add = el('button', { textContent: 'Abschnitt hinzufügen' })
+    add.onclick = () => sectEdit((l) => addSection(l, grid(), name.value.trim() || 'Abschnitt', Number(a.value), Number(b.value)))
+    const heads = ['Abschnitt', 'von Takt', 'bis Takt', ''].map((t) => el('span', { className: 'head', textContent: t }))
+    box.replaceChildren(...heads, ...rows, name, a, b, add)
   }
   function setDirty() {
     dirty = true
     $('saveBtn').disabled = false
+    refreshView()
   }
   function shiftSelected(dt, part) {
     selected.forEach((i) => {
@@ -754,7 +902,8 @@ import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
       $('timerBtn').textContent = 'Play (timer)'
       buildStems(s)
       buildRoles(s)
-      showSections()
+      pick = null
+      loadGrid(s)
       loadSheet(s)
       if (!noAudio) audio.src = `data/${s.audio}`
       else audio.removeAttribute('src')
@@ -829,18 +978,14 @@ import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
           before,
           () => confirm('Abschnitte neu erkennen? Die aktuelle Liste wird ersetzt.'),
           async () => {
-            const id = entry.file.replace(/\.json$/, '')
-            const r = await fetch('detect-sections', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id, notes: song.notes }),
-            })
-            if (!r.ok) throw new Error(`HTTP ${r.status}`)
-            return (await r.json()).sections
+            const j = await fetchDetect()
+            bars = j.bars
+            return j.sections
           },
         )
         if (next === before) return
         song.sections = next
+        pick = null
         setDirty()
         showSections()
       } catch (e) {
@@ -886,8 +1031,19 @@ import { redetectSections, setRole, togglePhraseStart } from './edit-ops.js'
         e.returnValue = ''
       }
     })
+    $('staffCv').addEventListener('click', onStaffClick)
+    $('bandCv').addEventListener('click', onBandClick)
+    $('pagePrev').onclick = () => page && page.prev !== null && seek(page.prev)
+    $('pageNext').onclick = () => page && page.next !== null && seek(page.next)
     try {
-      configRoles = (await (await fetch('config.json', { cache: 'no-store' })).json()).roles
+      viewMod = await import('./lib/editor-view.js')
+    } catch (e) {
+      /* not built: refreshView shows the hint */
+    }
+    try {
+      const cfg = await (await fetch('config.json', { cache: 'no-store' })).json()
+      configRoles = cfg.roles
+      cfgSongs = cfg.songs || []
     } catch (e) {
       /* no config: dropdown falls back to song roles */
     }
