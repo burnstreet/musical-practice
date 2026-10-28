@@ -81,7 +81,7 @@ Feature: Public manifest
 }
 ```
 
-- Role ids: lower-case ASCII, from the global list: `erzaehler1`, `erzaehler2`, `anna`, `mutter`, `engel`, `benjamin`, `roemer`, `hirte`, `josef`, `wirt`, `weihnachtsmann`, `maria`, `esel`, `kuh`, `schaf`, `chor`. Display name per role in the library. The `sings` flag comes from the builder config.
+- Role ids: lower-case ASCII, from the global list: `erzaehler1`, `erzaehler2`, `anna`, `mutter`, `engel`, `benjamin`, `roemer`, `hirte`, `josef`, `wirt`, `weihnachtsmann`, `maria`, `esel`, `kuh`, `schaf`, `chor`, `maenner`, `frauen`. Display name per role in the library. The `sings` flag comes from the builder config.
 - Songs sorted by `number`. `roles` of a song = roles that have at least one note.
 - `parseLibrary` rejects a song whose `roles` names an unknown role id, or whose three file ids are missing.
   `[@test] ../tests/steps/content-format.steps.ts`
