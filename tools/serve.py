@@ -2,7 +2,8 @@
 endpoint for note edits made in the viewer.
 
 GET  /config.json       -> sources/config.json (404 when absent)
-POST /detect-sections   -> body {"id", "notes"}: sections the builder detects for those notes
+POST /detect-sections   -> body {"id", "notes"}: {sections, bars}: the sections the builder
+                           detects for those notes and the bar grid (bar start seconds)
 POST /save/<name>.json  -> writes web/data/<name>.json and keeps a timestamped
                            copy in work/edits/.
 
@@ -17,7 +18,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 from RangeHTTPServer import RangeRequestHandler
-from sections import detect_for
+from sections import bar_grid, detect_sections
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -74,7 +75,8 @@ class Handler(RangeRequestHandler):
             req = json.loads(body)
             cfg = json.loads((ROOT / "sources" / "config.json").read_text(encoding="utf-8"))
             bpm = next(s["bpm"] for s in cfg["songs"] if s["id"] == req["id"])
-            out = json.dumps({"sections": detect_for(req["notes"], bpm)}).encode()
+            bars = bar_grid(req["notes"], bpm)
+            out = json.dumps({"sections": detect_sections(req["notes"], bars), "bars": bars}).encode()
         except Exception as e:  # noqa: BLE001
             self.send_error(400, f"cannot detect: {e}")
             return
