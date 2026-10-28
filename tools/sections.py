@@ -61,13 +61,17 @@ def detect_sections(notes, bars):
     return out
 
 
-def detect_for(notes, bpm):
-    """detect_sections on the bar grid the packer would build for these raw (unpacked) notes."""
+def bar_grid(notes, bpm):
+    """Bar start seconds the packer would build for these raw (unpacked) notes."""
     import pack  # bar grid shared with the packer
 
     ordered = sorted(notes, key=lambda n: n["start"])
-    bars, _ = pack.compute_bars(ordered, bpm, ordered[-1]["end"] + 8 * 60 / bpm)
-    return detect_sections(notes, bars)
+    return pack.compute_bars(ordered, bpm, ordered[-1]["end"] + 8 * 60 / bpm)[0]
+
+
+def detect_for(notes, bpm):
+    """detect_sections on the packer's bar grid."""
+    return detect_sections(notes, bar_grid(notes, bpm))
 
 
 def main(argv, root=ROOT):
