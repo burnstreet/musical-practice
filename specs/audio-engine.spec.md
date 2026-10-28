@@ -1,6 +1,6 @@
 ---
 name: Audio engine
-description: Two-stem playback with role-based muting, three voicetrack modes, tempo without pitch change, phrase loop, sync, time ticks.
+description: Two-stem playback with role-based muting, three voicetrack modes, tempo without pitch change, repeat over a time range, lead-in seek, sync, time ticks.
 targets:
   - ../src/core/audio-engine.ts
 ---
@@ -12,6 +12,12 @@ Wraps two media elements (voices, backing) routed through Web Audio gain nodes. 
 ```ts { .api }
 export type Mode = 'all' | 'others' | 'backing'
 export type Tempo = 100 | 90 | 80 | 70
+export const LEAD_IN_SEC = 3                         // single named value, tunable
+
+/** Repeat range in song seconds. `phrase` set only for the Phrase repeat. `leadIn` true: wrap lands on leadInStart(start). */
+export interface Range { start: number; end: number; phrase?: Phrase; leadIn?: boolean }
+
+export function leadInStart(sec: number, bars: number[]): number   // sec − LEAD_IN_SEC, snapped back to the previous bar line, never below 0
 
 export interface AudioEngine {
   load(song: LoadedSong, roles: RoleId[]): Promise<void>
@@ -21,7 +27,8 @@ export interface AudioEngine {
   seek(sec: number): void
   setMode(m: Mode): void
   setTempo(t: Tempo): void
-  setLoop(phrase: Phrase | null): void
+  setLoop(range: Range | null): void               // the Repeat; "loop" stays the engine name
+  seekLeadIn(sec: number): void                    // seek(leadInStart(sec))
   time(): number                                   // song seconds, tempo-independent
   playing(): boolean
   ctxTime(): number                                // playback context clock in s (creates the context if needed)
@@ -39,7 +46,9 @@ export interface AudioEngine {
 - Mode change while playing applies at once with 30 ms ramp.
 - Tempo: both elements `playbackRate = t / 100`, `preservesPitch = true`. `time()` reads the voices element.
 - Sync: each tick compare backing to voices. Drift over 25 ms: set backing time to voices time.
-- Loop: when `time()` reaches `phrase.end`, seek to `phrase.start`, emit `loop`. Null clears.
+- Repeat: when `time()` reaches `range.end`, seek to `range.start` (to `leadInStart(range.start, song.bars)` when `range.leadIn`). Emit `loop` with `range.phrase` only when the range has one. Null clears. The range is only what the caller set: the engine never moves it.
+- A seek outside the range keeps the range: playback goes on to `range.end`, then wraps.
+- `leadInStart(sec, bars)`: `sec − 3`, then the largest bar start at or below that, never below 0. Skips use it through `seekLeadIn`.
 - `ended`: voices element ends and no loop. Engine pauses.
 - `click(at)`: oscillator 1 kHz, 20 ms, through its own gain with 2 ms fades straight to the destination (voices gain and mode do not touch it). Resumes the context. Stop cancels a click not yet played.
 - `latency()`: what the singer hears lags `time()` by this. The pitch engine subtracts it from frame stamps.
@@ -82,12 +91,6 @@ Feature: Sync
     When a tick runs
     Then backing time is untouched
 
-Feature: Loop
-  Scenario: phrase repeats
-    Given phrase 2 spanning [10.0,14.0] set as loop
-    When time() passes 14.0
-    Then time() is 10.0, a loop event names phrase 2, and playback continues
-
 Feature: Enter events
   Scenario: forward playback
     Given notes starting at 1.0 and 1.2
@@ -126,4 +129,49 @@ Feature: End
     Given no loop set
     When the voices element ends
     Then ended fires and playing() is false
+```
+
+Pending scenarios for repeat and skip (ticket 04, .scratch/repeat-and-skip). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at ../tests/steps/audio-engine.steps.ts.
+  `[@test] ../tests/steps/pending/audio-engine.steps.ts`
+```gherkin
+Feature: Repeat
+  Scenario: phrase repeats
+    Given phrase 2 spanning [10.0,14.0] set as loop range with phrase 2
+    When time() passes 14.0
+    Then time() is 10.0, a loop event names phrase 2, and playback continues
+
+  Scenario: plain range wraps without a loop event
+    Given a range [20.0,30.0] without phrase
+    When time() passes 30.0
+    Then time() is 20.0, no loop event fires, and playback continues
+
+  Scenario: range with lead-in wraps before its start
+    Given bars at 0, 2, 4, … 2 s apart and a range [21.0,30.0] with leadIn true
+    When time() passes 30.0
+    Then time() is 18.0
+
+  Scenario: no range
+    Given the loop range was set and then cleared with null
+    When time() passes the former range end
+    Then playback continues past it
+
+  Scenario: manual seek outside the range keeps it
+    Given a range [20.0,30.0] and playback at 21.0
+    When I seek to 5.0 and playback reaches 30.0
+    Then time() is 20.0 after the wrap
+
+Feature: Lead-in
+  Scenario: snapped to the bar before
+    Given bars 2 s apart
+    Then leadInStart(21.0) is 18.0
+    And leadInStart(20.0) is 16.0
+
+  Scenario: never before zero
+    Given bars 2 s apart
+    Then leadInStart(1.0) is 0.0
+
+  Scenario: seekLeadIn seeks there
+    Given bars 2 s apart
+    When I call seekLeadIn(21.0)
+    Then time() is 18.0
 ```
