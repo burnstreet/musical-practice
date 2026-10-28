@@ -1,6 +1,6 @@
 ---
 name: Screen Practice
-description: Live singing screen. Artboards Main.dc.html and MainDesktop.dc.html. Header, mode button, staff, piano roll, cents readout, transport, mic state, hints.
+description: Live singing screen. Artboards Main.dc.html and MainDesktop.dc.html. Header, mode button, staff, piano roll, cents readout, repeat selector, skip row, progress bar with sections, transport, mic state, hints.
 targets:
   - ../src/app/screens/practice.ts
   - ../src/app/draw/staff.ts
@@ -28,7 +28,13 @@ Strings:
 | centsFar | `{±n} Cent · zu hoch` / `zu tief` |
 | noTarget | `–` |
 | meterEnds | `tief` (left) / `hoch` (right), under the meter |
-| loop | aria `Phrase wiederholen` (toggle) |
+| repeatLabel | `Wiederholen` (heading of the selector row) |
+| repeatValues | `Aus` / `Phrase` / `Abschnitt` / `Einsatz` / `A–B` (chips, one active) |
+| abSetB | chip text `B setzen` after A is set |
+| repeatStatus | `{name} · {m:ss}–{m:ss}`; A–B with A only: `A {m:ss} · B noch nicht gesetzt` |
+| skipPrev | aria `Zum vorigen Einsatz` |
+| skipNext | aria `Zum nächsten Einsatz` |
+| introSkip | `Intro überspringen` |
 | phraseStart | aria `Zurück zum Anfang der Phrase` |
 | pause | aria `Pause`; with `features.results` on `Pause und Auswertung` |
 | tempo | `{t}%`, aria `Tempo {t} Prozent` |
@@ -71,6 +77,36 @@ Strings:
 - Sung line: pitch frames of the last 1.5 s by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), folded into the octave of the nearest target note at that time; `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
 - Lyric strip: 22 px under the rows (the playhead runs through it). One syllable per onset in view (mine first), 12 px, at its note's start, pushed right only as far as needed to keep 6 px after the previous one (`lyricXs`), so none is left out or overprinted. Mine accent, others `--other`, my sounding one bold.
 
+## Repeat
+
+Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop toggle. One kind active at a time; tapping another chip switches, `Aus` clears the repeat range. Not persisted across sessions. Ranges are song seconds; "now" = the heard time.
+
+- Phrase: the phrase holding now, else the next one, else the last. Range = phrase start/end, `phrase` set, no lead-in.
+- Abschnitt: the section holding now, else the next one. Range = section start/end, lead-in. Chip hidden when `song.sections` is missing or empty.
+- Einsatz: the own span holding now, else the next one. Range = span start/end, lead-in. No span at or after now: chip stays off.
+- A–B: one chip cycles. First tap sets A at now snapped to the nearest bar line, chip reads `abSetB`, status `A m:ss · B noch nicht gesetzt`. Second tap sets B the same way and starts the repeat (no lead-in). B before A: swapped. B on the same bar line as A: B moves to the next bar line. Third tap clears both and ends the repeat. Switching to another kind in between drops A.
+- The range is fixed when the kind is switched on. Playback, passes and phrase changes never update it.
+- Lead-in: restart (and the first seek on switching on) lands on `leadInStart(range.start, song.bars)` with `LEAD_IN_SEC` = 3, for Abschnitt and Einsatz only. Phrase and A–B land exactly on their start.
+- A manual seek outside the range keeps the repeat on. Playback goes on to the range end, then wraps.
+- The wrap is not a pause: the pass goes on, `session.enter` for re-entered notes replaces earlier attempts (scorer rule unchanged). The countdown to my next entry keeps working during repeat and skip.
+- Dimming: while a repeat is on, staff, piano roll and progress bar draw everything outside the range at reduced opacity and mark the range start (roll: flag with the range name; A–B: flags `A` and `B`). A without B dims everything before A. Drawing only: sound, mic, scoring and the cents readout are untouched.
+- Status line under the selector: `repeatStatus`, hidden when no repeat.
+
+## Own spans and skip
+
+- Own spans = `roleSpans` of my roles with spans merged when the gap between them is below one bar (the length of the bar that holds the gap start).
+- `skipPrev`: goes to the start of the latest own span whose start lies more than `LEAD_IN_SEC` before now, else nowhere. Landing = `seekLeadIn(span.start)`. Disabled when no such span or my role set is empty.
+- `skipNext`: goes to the first own span whose lead-in landing lies after now. Landing as above. Disabled when none or my role set is empty.
+- Skip while Einsatz is on and the target is another span: the repeat moves to that span (range, lead-in). Skip with any other repeat: range stays, playback goes to the landing and wraps at the range end as usual.
+- `introSkip`: visible only while now is before the first sung note of any role, and only when `leadInStart(first note start)` is above 0. Press: `seekLeadIn(first note start)`. Hidden otherwise, so the transport holds no button that does nothing.
+- Skip row: `skipPrev`, `skipNext`, `introSkip`. The `phraseStart` button stays.
+
+## Progress bar and sections
+
+- Sections show as labelled segments on the bar, always (also without a repeat). No sections: plain bar.
+- Tap on a segment: Abschnitt repeat for that section, seek to its lead-in landing. Tap elsewhere: seek.
+- Active range highlighted, the lead-in before it marked.
+
 ## Sideways phone
 
 - Landscape with at most 560 px height: header on top, staff and piano roll on the left, mode, readout and transport in a 280 px column on the right, everything on one screen (the roll takes the remaining height, at least 110 px). Wider staff and roll show more bars and seconds ahead. The manifest allows any orientation.
@@ -84,8 +120,7 @@ Strings:
 
 ## Transport
 
-- Progress bar `m:ss` elapsed / total, tap seeks.
-- `loop`: toggles loop on the current phrase. Active state highlighted.
+- Progress bar `m:ss` elapsed / total, tap seeks. See Progress bar.
 - `phraseStart`: seek to current phrase start.
 - `tempo`: cycles 100 → 90 → 80 → 70 → 100.
 - `pause`: engine.pause, `session.endPass` (passes still go to history), stay paused on practice. Only with `features.results` on: route results when a pass result exists.
@@ -193,4 +228,163 @@ Feature: Practice screen
     Given two completed passes
     When I navigate back
     Then history.record was called with two passes and engine.unload ran
+
+Feature: Repeat selector
+  Scenario: Phrase repeat takes the current phrase
+    Given the heard time is inside phrase 2 spanning [10.0,14.0]
+    When I tap the chip "Phrase"
+    Then the repeat range is the range [10.0,14.0] with phrase 2 and no lead-in
+    And the status line reads "Phrase 3 · 0:10–0:14"
+
+  Scenario: Abschnitt repeat takes the section holding the playhead
+    Given sections "Strophe 1" [8.0,24.0] and "Refrain" [24.0,40.0] and the heard time 30.0
+    When I tap the chip "Abschnitt"
+    Then the repeat range is the range [24.0,40.0] with lead-in
+    And the status line reads "Refrain · 0:24–0:40"
+
+  Scenario: Einsatz repeat takes my own span, or the next one
+    Given my own spans [10.0,20.0] and [40.0,50.0] and the heard time 30.0
+    When I tap the chip "Einsatz"
+    Then the repeat range is the range [40.0,50.0] with lead-in
+
+  Scenario: Einsatz without any span ahead stays off
+    Given my own spans [10.0,20.0] and the heard time 30.0
+    When I tap the chip "Einsatz"
+    Then no repeat range is set
+
+  Scenario: one kind at a time
+    Given the "Phrase" repeat is on
+    When I tap the chip "Einsatz"
+    Then only the chip "Einsatz" is active and the repeat range is that span's range
+    When I tap the chip "Aus"
+    Then no repeat range is set and no status line is shown
+
+  Scenario: range is fixed when switched on
+    Given the "Phrase" repeat is on for phrase 2
+    When playback runs on into phrase 3
+    Then the repeat range is still the range of phrase 2
+
+  Scenario: seek outside the range keeps the repeat
+    Given the "Phrase" repeat is on for phrase 2
+    When I tap the progress bar at a time inside phrase 5
+    Then the chip "Phrase" is still active and the repeat range is unchanged
+
+  Scenario: no sections hides the Abschnitt chip
+    Given a song without sections
+    Then the chips are "Aus", "Phrase", "Einsatz" and "A–B"
+
+  Scenario: wrap keeps the pass going
+    Given the "Phrase" repeat is on and a pass is running
+    When the repeat wraps
+    Then session.endPass did not run and re-entered notes replace earlier attempts
+
+  Scenario: countdown keeps working during repeat
+    Given the "Einsatz" repeat is on for a span starting at 40.0 in bars of 2 s
+    When the heard time is 34.0
+    Then the readout shows "Einsatz in 3 Takten · 6 s"
+
+Feature: Dimming and sections
+  Scenario: everything outside the range is dimmed
+    Given the "Abschnitt" repeat is on for [24.0,40.0]
+    Then staff, roll and progress bar are drawn with a dim range [24.0,40.0] and a flag "Refrain" at 24.0
+    And the heard audio, the mic and the scorer are untouched
+
+  Scenario: A and B flags
+    Given an A–B repeat [6.0,14.0]
+    Then the roll draws flags "A" at 6.0 and "B" at 14.0
+
+  Scenario: no repeat no dimming
+    Given no repeat
+    Then staff, roll and progress bar are drawn without a dim range
+
+  Scenario: sections are segments on the bar
+    Given sections "Strophe 1" and "Refrain"
+    Then the progress bar shows two labelled segments, also without a repeat
+
+  Scenario: tap a section starts its repeat
+    Given sections "Strophe 1" [8.0,24.0] and "Refrain" [24.0,40.0]
+    When I tap the segment "Refrain"
+    Then the chip "Abschnitt" is active, the repeat range is [24.0,40.0] with lead-in and time() is 20.0
+
+Feature: A-B dimming
+  Scenario: A without B dims everything before A
+    Given A is set at 6.0
+    Then the staff, the roll and the progress bar are drawn with a dim range from 6.0 to the song end
+
+Feature: A–B repeat
+  Scenario: A, B and clear on one button
+    Given bars every 2 s and the heard time 5.1
+    When I tap the chip "A–B"
+    Then the chip reads "B setzen" and the status line reads "A 0:06 · B noch nicht gesetzt"
+    When the heard time is 13.7 and I tap the chip again
+    Then the repeat range is the range [6.0,14.0] without phrase and without lead-in
+    And the status line reads "A–B · 0:06–0:14"
+    When I tap the chip a third time
+    Then no repeat range is set and the chip reads "A–B"
+
+  Scenario: B before A swaps
+    Given A is set at 14.0
+    When I set B at 6.0
+    Then the range is [6.0,14.0]
+
+  Scenario: B on the same bar line moves on
+    Given A is set at 6.0 and bars every 2 s
+    When I set B at 6.4
+    Then the range is [6.0,8.0]
+
+Feature: Skip
+  Scenario: next own entry lands a lead-in before
+    Given my own spans [10.0,20.0] and [40.0,50.0], bars every 2 s and the heard time 25.0
+    When I tap "Zum nächsten Einsatz"
+    Then time() is 36.0
+
+  Scenario: previous goes to the current span start when far enough in
+    Given my own spans [10.0,20.0] and [40.0,50.0] and the heard time 44.0
+    When I tap "Zum vorigen Einsatz"
+    Then time() is 36.0
+
+  Scenario: previous goes one further back when just after the start
+    Given my own spans [10.0,20.0] and [40.0,50.0] and the heard time 41.0
+    When I tap "Zum vorigen Einsatz"
+    Then time() is 6.0
+
+  Scenario: spans less than one bar apart merge
+    Given bars of 2 s and my role spans [10.0,14.0] and [15.0,20.0]
+    Then the own spans are [10.0,20.0]
+    And "Zum nächsten Einsatz" from 12.0 has no target
+
+  Scenario: skip buttons disabled without a target
+    Given my own spans [10.0,20.0] and the heard time 11.0
+    Then "Zum vorigen Einsatz" is disabled
+    Given the heard time 15.0 and no later span
+    Then "Zum nächsten Einsatz" is disabled
+    Given an empty role set
+    Then both skip buttons are disabled
+
+  Scenario: skip moves an active Einsatz repeat
+    Given the "Einsatz" repeat is on for [10.0,20.0] and my next own span is [40.0,50.0]
+    When I tap "Zum nächsten Einsatz"
+    Then the repeat range is the range [40.0,50.0] with lead-in and time() is 36.0
+
+  Scenario: skip keeps any other repeat
+    Given the "Phrase" repeat is on for phrase 2
+    When I tap "Zum nächsten Einsatz"
+    Then the repeat range is unchanged and time() is the lead-in landing
+
+Feature: Intro skip
+  Scenario: shown before the first sung note
+    Given the first sung note of any role starts at 12.0 and bars every 2 s
+    And the heard time 1.0
+    Then the button "Intro überspringen" is visible
+    When I press it
+    Then time() is 8.0
+
+  Scenario: hidden once the first note has started
+    Given the first sung note of any role starts at 12.0
+    And the heard time 12.5
+    Then the button "Intro überspringen" is not shown
+
+  Scenario: hidden when the lead-in would land at 0
+    Given the first sung note of any role starts at 2.0
+    Then the button "Intro überspringen" is not shown
 ```

@@ -18,7 +18,7 @@ const manifest = (o: object = {}) => ({
 const files = { voices: '0000000000000001', backing: '0000000000000002', notes: '0000000000000003' }
 const song = (id: string, number: number, roles = ['maria']) => ({ id, number, title: 't', durationSec: 10, roles, files })
 const note = (start: number, end: number, role = 'maria', phrase = 0) => ({ start, end, midi: 60, syllable: 'la', role, phrase, bar: 0, beat: 0, dur: 1 })
-const songJson = (notes: object[], phrases = [{ index: 0, label: 'p', start: 0, end: 1 }]) => ({
+const songJson = (notes: object[], phrases = [{ index: 0, label: 'p', start: 0, end: 1 }], extra: object = {}) => ({
   id: '08',
   bpm: 90,
   key: 'F',
@@ -26,6 +26,7 @@ const songJson = (notes: object[], phrases = [{ index: 0, label: 'p', start: 0, 
   bars: [0],
   notes,
   phrases,
+  ...extra,
 })
 const pairs = (s: string) => [...s.matchAll(/\[([\d.]+),([\d.]+)\]/g)].map((m) => ({ start: +m[1], end: +m[2] }))
 const attempt = (ctx: any, fn: () => unknown) => {
@@ -43,8 +44,12 @@ export default steps(({ Given, When, Then }) => {
       ctx.json = manifest({ keyId, iterations: +it, library, songCount: +sc, totalBytes: +tb, files: JSON.parse(f) })
     },
   )
-  Given(/^a manifest JSON with format 2$/, (ctx) => {
-    ctx.json = manifest({ format: 2 })
+  Given(/^a manifest JSON with format (\d+)(?: and otherwise valid fields)?$/, (ctx, f) => {
+    ctx.json = manifest({ format: +f })
+  })
+  Then(/^I get the manifest$/, (ctx) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result).toMatchObject({ format: 2 })
   })
   Given(/^a valid manifest JSON whose files contain the id "(.*)"$/, (ctx, id) => {
     ctx.json = manifest({ files: { fedcba9876543210: 1, [id]: 2 } })
@@ -75,6 +80,29 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^a song JSON with one phrase and a note with phrase 3$/, (ctx) => {
     ctx.json = songJson([note(1, 2, 'maria', 3)])
+  })
+  const sec = (name: string, [start, end]: number[]) => ({ name, start, end })
+  const withSections = (ctx: any, sections: object[]) => {
+    ctx.json = songJson([note(1, 2)], undefined, { sections })
+  }
+  Given(/^a song JSON with sections "(.*)" \[([\d.]+),([\d.]+)\] and "(.*)" \[([\d.]+),([\d.]+)\]$/, (ctx, n1, a, b, n2, c, d) => {
+    withSections(ctx, [sec(n1, [+a, +b]), sec(n2, [+c, +d])])
+  })
+  Given(/^a song JSON with sections (\[.*\]) (?:and|then) (\[.*\])$/, (ctx, a, b) => {
+    withSections(ctx, [...pairs(a), ...pairs(b)])
+  })
+  Given(/^a song JSON with a section (\[.*\])$/, (ctx, a) => withSections(ctx, pairs(a)))
+  Given(/^a song JSON with a section named ""$/, (ctx) => withSections(ctx, [sec('', [0, 10])]))
+  Given(/^a song JSON without a sections field$/, (ctx) => {
+    ctx.json = songJson([note(1, 2)])
+  })
+  Then(/^song.sections has two entries named "(.*)" and "(.*)"$/, (ctx, a, b) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result.sections.map((s: any) => s.name)).toEqual([a, b])
+  })
+  Then(/^parsing succeeds and song.sections is empty$/, (ctx) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result.sections).toEqual([])
   })
   When(/^I parse it as a song$/, (ctx) => attempt(ctx, () => parseSong(ctx.json)))
 

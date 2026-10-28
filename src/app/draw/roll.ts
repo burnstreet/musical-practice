@@ -1,6 +1,6 @@
 import { type Note, visibleNotes } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
-import { COLORS, type DrawState, FONT, fit } from './staff'
+import { COLORS, type DrawState, dimOutside, FONT, fit } from './staff'
 
 /** Playhead at 30 % of the window. */
 const BEHIND_SHARE = 0.3
@@ -104,16 +104,6 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     ctx.globalAlpha = 1
   }
 
-  // Playhead
-  ctx.strokeStyle = COLORS.text
-  ctx.lineWidth = 1.5
-  ctx.setLineDash([3, 4])
-  ctx.beginPath()
-  ctx.moveTo(x(t), 0) // same axis as notes and sung line (30 %)
-  ctx.lineTo(x(t), full)
-  ctx.stroke()
-  ctx.setLineDash([])
-
   // Lyric strip: one syllable per onset (mine first), from the window's left edge; the sounding one of mine bold
   const onsets = [...inView].sort((a, b) => a.start - b.start || +roles.includes(b.role) - +roles.includes(a.role))
   const sung = onsets.filter((n, i) => n.syllable && (i === 0 || n.start !== onsets[i - 1].start))
@@ -134,6 +124,39 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     ctx.fillStyle = roles.includes(n.role) ? COLORS.accent : COLORS.other
     ctx.fillText(n.syllable, lx[i], full - 6)
   })
+
+  // Repeat: outside the range dimmed, a flag with its name (A and B for A–B) at its edges
+  if (state.repeat) {
+    const clamp = (v: number) => Math.min(w, Math.max(0, v))
+    dimOutside(ctx, 0, clamp(x(state.repeat.start)), clamp(x(state.repeat.end)), w, full)
+    ctx.font = `700 11px ${FONT}`
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    for (const [time, label] of state.repeat.flags) {
+      const fx = x(time)
+      ctx.fillStyle = ctx.strokeStyle = COLORS.accent
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(fx, 0)
+      ctx.lineTo(fx, full)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.roundRect(fx, 0, ctx.measureText(label).width + 10, 16, [0, 4, 4, 0])
+      ctx.fill()
+      ctx.fillStyle = COLORS.surface
+      ctx.fillText(label, fx + 5, 2)
+    }
+  }
+
+  // Playhead
+  ctx.strokeStyle = COLORS.text
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([3, 4])
+  ctx.beginPath()
+  ctx.moveTo(x(t), 0) // same axis as notes and sung line (30 %)
+  ctx.lineTo(x(t), full)
+  ctx.stroke()
+  ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
   const mine = notes.filter((n) => roles.includes(n.role))
