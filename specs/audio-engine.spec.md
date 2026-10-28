@@ -129,11 +129,7 @@ Feature: End
     Given no loop set
     When the voices element ends
     Then ended fires and playing() is false
-```
 
-Pending scenarios for repeat and skip (ticket 04, .scratch/repeat-and-skip). Not run yet: the link below names a file that does not exist. The ticket moves these into the block above and points the link at ../tests/steps/audio-engine.steps.ts.
-  `[@test] ../tests/steps/pending/audio-engine.steps.ts`
-```gherkin
 Feature: Repeat
   Scenario: phrase repeats
     Given phrase 2 spanning [10.0,14.0] set as loop range with phrase 2
