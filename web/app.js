@@ -43,7 +43,8 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     page = null,
     pick = null,
     cfgSongs = [],
-    gridState = '' // why the bar grid is missing, shown in the sections panel
+    gridState = '', // why the bar grid is missing, shown in the sections panel
+    noteKey = '' // what the selected-note card shows now
   const staffCtx = $('staffCv').getContext('2d'),
     bandCtx = $('bandCv').getContext('2d')
 
@@ -482,7 +483,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     const opts = configRoles || [...new Set(s.notes.map((n) => n.role).filter(Boolean))].map((r) => ({ id: r, name: r }))
     const keep = $('roleSel').value
     $('roleSel').replaceChildren(...opts.map((r) => new Option(r.name, r.id)))
-    $('roleSel').value = keep
+    if (opts.some((r) => r.id === keep)) $('roleSel').value = keep
   }
   function buildRoles(s) {
     roleColor = {}
@@ -707,6 +708,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function frame() {
     if (song) drawView() // first: the roll runs on the page it draws
     if (song) draw()
+    if (song) showNote()
     requestAnimationFrame(frame)
   }
 
@@ -744,12 +746,13 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   // visible once a song is loaded, also outside edit mode; bar fields stay disabled until the bar grid has arrived
   function showSections() {
     $('sectPanel').hidden = !song
+    $('noteCard').hidden = !song
     $('sectState').textContent = bars ? '' : gridState
     const box = $('sectList')
     const list = (song && song.sections) || []
     const num = (value, label) =>
       el('input', { type: 'number', min: 1, max: bars ? bars.length : '', value, ariaLabel: label, disabled: !bars, placeholder: bars ? '' : '…' })
-    const rows = list.flatMap((s, i) => {
+    const rows = list.map((s, i) => {
       const { from, to } = bars ? sectionBars(s, grid()) : { from: '', to: '' }
       const name = el('input', { value: s.name, ariaLabel: `Name Abschnitt ${i + 1}` })
       const a = num(from, `Von Takt, Abschnitt ${i + 1}`),
@@ -758,17 +761,61 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       a.onchange = b.onchange = () => sectEdit((l) => rebarSection(l, grid(), i, Number(a.value), Number(b.value)))
       // focusing a row selects the section, as a click in the band does (and turns the view to it)
       name.onfocus = a.onfocus = b.onfocus = () => pickSection(i)
-      const del = el('button', { textContent: 'Löschen', ariaLabel: `Abschnitt ${s.name} löschen` })
+      const del = el('button', { textContent: '✕', title: 'Löschen', ariaLabel: `Abschnitt ${s.name} löschen` })
       del.onclick = () => sectEdit((l) => deleteSection(l, i))
-      return [name, a, b, del]
+      const row = el('div', { className: 'row' })
+      row.dataset.i = i
+      row.append(name, a, b, del)
+      return row
     })
     const name = el('input', { placeholder: 'Name', ariaLabel: 'Name neuer Abschnitt' })
     const a = num('', 'Von Takt, neuer Abschnitt'),
       b = num('', 'Bis Takt, neuer Abschnitt')
     const add = el('button', { textContent: 'Abschnitt hinzufügen', disabled: !bars })
     add.onclick = () => sectEdit((l) => addSection(l, grid(), name.value.trim() || 'Abschnitt', Number(a.value), Number(b.value)))
-    const heads = ['Abschnitt', 'von Takt', 'bis Takt', ''].map((t) => el('span', { className: 'head', textContent: t }))
-    box.replaceChildren(...heads, ...rows, name, a, b, add)
+    const head = el('div', { className: 'row head' })
+    head.append(...['Name', 'von Takt', 'bis Takt', ''].map((t) => el('span', { textContent: t })))
+    const addRow = el('div', { className: 'row add' })
+    addRow.append(name, a, b, add)
+    box.replaceChildren(head, ...rows, addRow)
+    noteKey = ''
+  }
+  // card "Ausgewählte Note": read-only summary of the selection; the section row of a picked section is marked.
+  // Role and phrase start are set in #noteEdit (edit mode).
+  function showNote() {
+    const ids = [...selected].filter((i) => song.notes[i]).sort((a, b) => song.notes[a].start - song.notes[b].start)
+    const notes = ids.map((i) => song.notes[i])
+    const first = notes[0]
+    let big = 'Keine Note',
+      info = 'Klick auf Note, Phrase oder Abschnitt',
+      meta = ''
+    if (first) {
+      const bar = (i) => (staffSong ? staffSong.notes[i].bar + 1 : null)
+      const pos = []
+      if (ids.length === 1) {
+        const word = first.syllable || first.lyric
+        if (word) pos.push(`„${word}“`)
+        if (staffSong) pos.push(`Takt ${bar(ids[0])}, Schlag ${Math.floor(staffSong.notes[ids[0]].beat) + 1}`)
+        const ph = phrases.find((p) => p.notes.includes(ids[0]))
+        if (ph) pos.push(`Phrase ${ph.number}`)
+      } else if (staffSong) pos.push(`Takt ${Math.min(...ids.map(bar))}–${Math.max(...ids.map(bar))}`)
+      big = ids.length > 1 ? `${ids.length} Noten` : first.name || midiName(first.midi)
+      info = pos.join(' · ')
+      const names = Object.fromEntries((configRoles || []).map((r) => [r.id, r.name]))
+      const roles = [...new Set(notes.map((n) => n.role).filter(Boolean))].map((r) => names[r] || r)
+      const sect = (song.sections || []).find((s) => first.start >= s.start && first.start < s.end)
+      meta = [sect && `Abschnitt ${sect.name}`, roles.length && `Rolle ${roles.join(', ')}`].filter(Boolean).join(' · ')
+    }
+    const pressed = notes.length > 0 && notes.every((n) => n.phraseStart)
+    const key = [big, info, meta, pressed, pick && pick.kind === 'section' ? pick.index : ''].join('\n')
+    if (key === noteKey) return
+    noteKey = key
+    $('noteBig').textContent = big
+    $('noteInfo').textContent = info
+    $('noteMeta').textContent = meta
+    $('phraseBtn').setAttribute('aria-pressed', pressed)
+    for (const row of $('sectList').querySelectorAll('.row[data-i]'))
+      row.classList.toggle('picked', !!pick && pick.kind === 'section' && Number(row.dataset.i) === pick.index)
   }
   function setDirty() {
     dirty = true
@@ -858,6 +905,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function setEditMode(on) {
     editMode = on
     $('editTools').hidden = !on
+    $('noteEdit').hidden = !on
     canvas.style.cursor = on ? 'crosshair' : 'pointer'
     if (!on) {
       selected.clear()

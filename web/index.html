@@ -32,35 +32,46 @@
   <div id="editTools" class="toolbar" hidden>
     <button id="selAll">Select all</button>
     <button id="selNone">Clear</button>
-    <select id="roleSel"></select>
-    <button id="roleBtn">Rolle setzen</button>
-    <button id="phraseBtn">Phrasenanfang</button>
     <button id="saveBtn" disabled>Save</button>
     <button id="reloadBtn">Reload</button>
     <span class="hint">Click/drag box: select (Shift adds) &middot; drag note: move group &middot; drag note edge: resize &middot; &larr;/&rarr;: 10 ms (Shift: 100 ms, Ctrl: start only, Alt: end only)</span>
   </div>
   <div id="legend" hidden></div>
-  <section id="view" hidden>
-    <div class="viewbar">
-      <button id="pagePrev" aria-label="Vorige Takte">&lsaquo;</button>
-      <b id="pageLbl"></b>
-      <button id="pageNext" aria-label="Nächste Takte">&rsaquo;</button>
-      <span class="hint">Klick auf Note, Phrase oder Abschnitt: auswählen</span>
+  <div id="editor">
+    <div id="editorMain">
+      <section id="view" hidden>
+        <div class="viewbar">
+          <span class="cap">Noten · Phrasen · Abschnitte</span>
+          <button id="pagePrev" aria-label="Vorige Takte">&lsaquo;</button>
+          <b id="pageLbl"></b>
+          <button id="pageNext" aria-label="Nächste Takte">&rsaquo;</button>
+        </div>
+        <canvas id="staffCv"></canvas>
+        <canvas id="bandCv"></canvas>
+      </section>
+      <p id="viewHint" class="hint" hidden></p>
+      <div id="wrap"><canvas id="roll"></canvas></div>
+      <div id="sheet" hidden></div>
     </div>
-    <canvas id="staffCv"></canvas>
-    <canvas id="bandCv"></canvas>
-  </section>
-  <p id="viewHint" class="hint" hidden></p>
-  <section id="sectPanel" hidden>
-    <div class="viewbar">
-      <b>Abschnitte</b>
-      <span id="sectState" class="hint"></span>
-      <button id="sectBtn">Abschnitte neu erkennen</button>
-    </div>
-    <div id="sectList"></div>
-  </section>
-  <div id="wrap"><canvas id="roll"></canvas></div>
-  <div id="sheet" hidden></div>
+    <aside id="editorSide">
+      <section id="noteCard" class="panel" hidden>
+        <div class="cap">Ausgewählte Note</div>
+        <div class="noteMain"><span id="noteBig"></span><span id="noteInfo"></span></div>
+        <div id="noteMeta"></div>
+        <div id="noteEdit" hidden>
+          <select id="roleSel"></select>
+          <button id="roleBtn" class="primary">Rolle setzen</button>
+          <button id="phraseBtn" aria-pressed="false">Phrasenanfang</button>
+        </div>
+      </section>
+      <section id="sectPanel" class="panel" hidden>
+        <div class="cap">Abschnitte</div>
+        <span id="sectState"></span>
+        <div id="sectList"></div>
+        <button id="sectBtn">Abschnitte neu erkennen</button>
+      </section>
+    </aside>
+  </div>
   <div id="readout">
     <span>Time <b id="rTime">0.00</b> s</span>
     <span>Pitch <b id="rPitch">–</b></span>
