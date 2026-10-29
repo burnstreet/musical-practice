@@ -55,7 +55,7 @@ export interface LiveDeviation {
 export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null {
   const sung = [...frames].reverse().find((f) => f.midi !== null && f.t >= t - 0.15 && f.t <= t)
   const note = sung && [...song.notes].reverse().find((n) => roles.includes(n.role) && n.start <= sung.t && sung.t <= n.end)
-  if (!note || !sung) return null
+  if (!note || !sung || note.spoken) return null
   const cents = Math.round(foldCents(sung.midi!, note.midi))
   const level = Math.abs(cents) <= 15 ? 'ok' : Math.abs(cents) <= tol ? 'slight' : 'far'
   return { note, sungMidiFolded: note.midi + cents / 100, cents, level }

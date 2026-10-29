@@ -81,6 +81,13 @@ export default steps(({ Given, When, Then }) => {
   Given(/^a song JSON with one phrase and a note with phrase 3$/, (ctx) => {
     ctx.json = songJson([note(1, 2, 'maria', 3)])
   })
+  Given(/^a song JSON with a note marked spoken (.*)$/, (ctx, v) => {
+    ctx.json = songJson([{ ...note(1, 2), spoken: JSON.parse(v) }])
+  })
+  Then(/^the note is spoken$/, (ctx) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result.notes[0].spoken).toBe(true)
+  })
   const sec = (name: string, [start, end]: number[]) => ({ name, start, end })
   const withSections = (ctx: any, sections: object[]) => {
     ctx.json = songJson([note(1, 2)], undefined, { sections })
