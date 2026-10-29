@@ -113,9 +113,10 @@ Feature: Library
 
 - `bars[i]` = start second of bar i. The intro before the first sung bar gets whole bars counted back from it (as many as fit after 0 s), so the staff shows its rests; `bar` of the notes counts them. `timeSig` is `[beats, 4]`, the builder config's `beats` per song (default 4). `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
 - Notes sorted by `start`. `end > start`. `midi` integer 36–96. `role` in library roles. `phrase` indexes `phrases`.
+- `spoken` optional boolean. `true` = spoken or rapped, no pitch: shown with its rhythm and syllable, never scored. `midi` still required; builder writes 71, app ignores it.
 - `phrases[i].start` = first note start, `.end` = last note end of that phrase. Contiguous, non-overlapping, sorted.
 - `sections` is optional (bundles without it stay valid; format 1 files never have it). Entries: `name` non-empty string, `start`/`end` seconds with `end > start`, snapped to bar lines by the builder and editor. Sorted by `start`, non-overlapping. Empty array allowed. The singer UI hides section features when the field is missing or empty.
-- `parseSong` rejects unsorted notes, a note whose `phrase` is out of range, a phrase without notes, and `sections` that is not an array, has an entry with an empty name or `end <= start`, or is unsorted or overlapping.
+- `parseSong` rejects unsorted notes, a note whose `phrase` is out of range or whose `spoken` is not a boolean, a phrase without notes, and `sections` that is not an array, has an entry with an empty name or `end <= start`, or is unsorted or overlapping.
   `[@test] ../tests/steps/content-format.steps.ts`
 
 ```gherkin
@@ -129,6 +130,16 @@ Feature: Song file
     Given a song JSON with one phrase and a note with phrase 3
     When I parse it as a song
     Then parsing fails with ContentError "phrase"
+
+  Scenario: spoken note parses
+    Given a song JSON with a note marked spoken true
+    When I parse it as a song
+    Then the note is spoken
+
+  Scenario: spoken flag not a boolean rejected
+    Given a song JSON with a note marked spoken "yes"
+    When I parse it as a song
+    Then parsing fails with ContentError "notes"
 
   Scenario: song with sections parses
     Given a song JSON with sections "Strophe 1" [0.0,20.0] and "Refrain" [20.0,40.0]

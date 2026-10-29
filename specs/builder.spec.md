@@ -215,6 +215,7 @@ Feature: Stem preparation
 
 ## Packing
 
+- Song file notes: `syllable` from the input `syllable` or `lyric` (`""` when none); `spoken: true` copied from an input note that has it (rap, see content-format), left out otherwise.
 - Library and song files: JSON, UTF-8, no whitespace. Encrypt per content-format. File id from plaintext hash. Write `content/<id>.bin`.
 - Stems: encrypt the MP3 bytes the same way.
 - Manifest per content-format. `totalBytes` = sum of `.bin` sizes.

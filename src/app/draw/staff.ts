@@ -91,12 +91,20 @@ const shifts = new WeakMap<Song, number>()
 export function octaveShift(song: Song): number {
   let shift = shifts.get(song)
   if (shift === undefined) {
-    const midis = song.notes.map((n) => n.midi).sort((a, b) => a - b)
+    const midis = song.notes
+      .filter((n) => !n.spoken)
+      .map((n) => n.midi)
+      .sort((a, b) => a - b)
     const median = midis.length ? midis[midis.length >> 1] : 64
     shift = median < 59 ? 12 * Math.ceil((59 - median) / 12) : 0
     shifts.set(song, shift)
   }
   return shift
+}
+
+/** Staff position of a note as written: a spoken note (no pitch) on the middle line, else its midi plus `octaveShift`. */
+export function notePos(n: Note, song: Song, fifths: number): ReturnType<typeof staffPos> {
+  return n.spoken ? { step: 4, acc: '' } : staffPos(n.midi + octaveShift(song), fifths)
 }
 
 /**
@@ -391,7 +399,7 @@ export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: 
       bar,
       beat,
       label: content.lyric[k]?.syllable ? ctx.measureText(content.lyric[k].syllable).width : 0,
-      acc: here.some((n) => staffPos(n.midi + octaveShift(song), fifths).acc !== ''),
+      acc: here.some((n) => notePos(n, song, fifths).acc !== ''),
     })),
     {
       barQ: (song.timeSig[0] * 4) / song.timeSig[1],
@@ -555,7 +563,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
 
   for (const n of notes) {
     const nx = x(n)
-    const { step, acc } = staffPos(n.midi + shift, fifths)
+    const { step, acc } = notePos(n, song, fifths)
     const ny = y(step)
     const { base, dot } = noteValue(n.dur)
     const up = step < 4
@@ -589,13 +597,20 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
       ctx.bezierCurveTo(stemX + 1 * s, fy + dir * 6 * s, stemX + 8 * s, fy + dir * 8 * s, stemX + 6 * s, fy + dir * 16 * s)
       ctx.stroke()
     }
-    // head: hollow for half and whole
+    // head: a slash for a spoken note (rhythm only), hollow for half and whole
     ctx.beginPath()
-    ctx.ellipse(nx, ny, rx, 4 * s, base === 4 ? -Math.PI / 18 : -Math.PI / 9, 0, 2 * Math.PI)
-    if (base >= 2) {
-      ctx.lineWidth = 1.6 * s
+    if (n.spoken) {
+      ctx.lineWidth = 2.5 * s
+      ctx.moveTo(nx - rx, ny + gap / 2)
+      ctx.lineTo(nx + rx, ny - gap / 2)
       ctx.stroke()
-    } else ctx.fill()
+    } else {
+      ctx.ellipse(nx, ny, rx, 4 * s, base === 4 ? -Math.PI / 18 : -Math.PI / 9, 0, 2 * Math.PI)
+      if (base >= 2) {
+        ctx.lineWidth = 1.6 * s
+        ctx.stroke()
+      } else ctx.fill()
+    }
     if (dot) {
       ctx.beginPath()
       ctx.arc(nx + rx + 4 * s, step % 2 === 0 ? y(step + 1) : ny, 1.7 * s, 0, 2 * Math.PI) // a dot on a line sits in the space above

@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import type { Note, RoleId, Song } from '../../src/core/content'
-import { foldCents, scoreNote, scorePass, type Tolerance } from '../../src/core/scorer'
+import { foldCents, liveDeviation, scoreNote, scorePass, type Tolerance } from '../../src/core/scorer'
 import { Session } from '../../src/core/session'
 import type { PitchFrame } from '../../src/core/types'
 import { steps } from '../gherkin'
@@ -241,6 +241,34 @@ export default steps(({ Given, When, Then }) => {
   Then(/^scoredNotes is (\d+) and myNotes has (\d+) note$/, (ctx, n, m) => {
     expect(ctx.result.scoredNotes).toBe(+n)
     expect(ctx.session.myNotes()).toHaveLength(+m)
+  })
+
+  Given(/^a session for roles \[maria\] with a sung note and a spoken note$/, (ctx) => {
+    ctx.song = song([{}, {}])
+    ctx.song.notes[1].spoken = true
+    ctx.session = new Session(ctx.song, ['maria'], 50)
+  })
+  When(/^I start a pass, enter both notes, feed frames inside both, end the pass$/, (ctx) => {
+    const s: Session = ctx.session
+    s.startPass()
+    ctx.song.notes.forEach((n: Note, i: number) => {
+      s.enter(i)
+      sing(n, [0, 0, 0]).forEach((f) => {
+        s.frame(f)
+      })
+    })
+    ctx.result = s.endPass()
+  })
+  Given(/^a spoken maria note \[1.0,2.0\] and a frame at 1.5$/, (ctx) => {
+    ctx.song = song([{}])
+    ctx.song.notes[0].spoken = true
+    ctx.frames = frames([67], 1.5, 1.5)
+  })
+  When(/^I take the live deviation at ([\d.]+) for \[maria\]$/, (ctx, t) => {
+    ctx.result = liveDeviation(ctx.song, ['maria'], +t, ctx.frames, 50)
+  })
+  Then(/^there is no live deviation$/, (ctx) => {
+    expect(ctx.result).toBeNull()
   })
 
   // "sung is true, hit is true, cents is 10", "hitPct is 50, meanCents is -25, tendency is low" etc., checked against ctx.result
