@@ -1,6 +1,6 @@
 ---
 name: Screen Practice
-description: Live singing screen. Artboards Main.dc.html and MainDesktop.dc.html. Header, mode button, staff, piano roll, cents readout, repeat selector, skip row, progress bar with sections, transport, mic state, hints.
+description: Live singing screen. Artboards Main.dc.html and MainDesktop.dc.html. Header, mode button, staff, piano roll, cents readout, repeat selector, progress bar with sections, transport, mic state, hints.
 targets:
   - ../src/app/screens/practice.ts
   - ../src/app/draw/staff.ts
@@ -79,7 +79,7 @@ Strings:
 
 ## Repeat
 
-Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop toggle. One kind active at a time; tapping another chip switches, `Aus` clears the repeat range. Not persisted across sessions. Ranges are song seconds; "now" = the heard time.
+Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop toggle. One kind active at a time; tapping another chip switches, `Aus` clears the repeat range. Not persisted across sessions, but kept while the same session goes on: when the screen is shown again (back from results) chip, name, A and B follow the engine range. Ranges are song seconds; "now" = the heard time.
 
 - Phrase: the phrase holding now, else the next one, else the last. Range = phrase start/end, `phrase` set, no lead-in.
 - Abschnitt: the section holding now, else the next one. Range = section start/end, lead-in. Chip hidden when `song.sections` is missing or empty.
@@ -87,7 +87,8 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 - A–B: one chip cycles. First tap sets A at now snapped to the nearest bar line, chip reads `abSetB`, status `A m:ss · B noch nicht gesetzt`. Second tap sets B the same way and starts the repeat (no lead-in). B before A: swapped. B on the same bar line as A: B moves to the next bar line. Third tap clears both and ends the repeat. Switching to another kind in between drops A.
 - The range is fixed when the kind is switched on. Playback, passes and phrase changes never update it.
 - Lead-in: restart (and the first seek on switching on) lands on `leadInStart(range.start, song.bars)` with `LEAD_IN_SEC` = 3, for Abschnitt and Einsatz only. Phrase and A–B land exactly on their start.
-- A manual seek outside the range keeps the repeat on. Playback goes on to the range end, then wraps.
+- A manual seek outside the range keeps the repeat on. A seek before the range plays on to the range end, then wraps. A seek past the range end plays on without wrapping (engine rule: wrap only when playback crosses the end from before it).
+- Section segments are told apart by their start, not their name: two sections of the same name never light up together.
 - The wrap is not a pause: the pass goes on, `session.enter` for re-entered notes replaces earlier attempts (scorer rule unchanged). The countdown to my next entry keeps working during repeat and skip.
 - Dimming: while a repeat is on, staff, piano roll and progress bar draw everything outside the range at reduced opacity and mark the range start (roll: flag with the range name; A–B: flags `A` and `B`). A without B dims everything before A. Drawing only: sound, mic, scoring and the cents readout are untouched.
 - Status line under the selector: `repeatStatus`, hidden when no repeat.
@@ -99,7 +100,7 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 - `skipNext`: goes to the first own span whose lead-in landing lies after now. Landing as above. Disabled when none or my role set is empty.
 - Skip while Einsatz is on and the target is another span: the repeat moves to that span (range, lead-in). Skip with any other repeat: range stays, playback goes to the landing and wraps at the range end as usual.
 - `introSkip`: visible only while now is before the first sung note of any role, and only when `leadInStart(first note start)` is above 0. Press: `seekLeadIn(first note start)`. Hidden otherwise, so the transport holds no button that does nothing.
-- Skip row: `skipPrev`, `skipNext`, `introSkip`. The `phraseStart` button stays.
+- Play row: `phraseStart`, `skipPrev`, play/pause, `skipNext`, `tempo`, mic. `introSkip` sits on the `repeatLabel` line, right.
 
 ## Progress bar and sections
 
@@ -107,9 +108,13 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 - Tap on a segment: Abschnitt repeat for that section, seek to its lead-in landing. Tap elsewhere: seek.
 - Active range highlighted, the lead-in before it marked.
 
+## Upright phone
+
+- Portrait, width below 960 px (390x844, 412x915): the whole screen, play row included, fits the visible height (`100dvh`) with or without the hint, no page scroll. The chips stay on one line (32 px, scroll sideways when too narrow), the roll takes the height the other rows leave (at least 96 px). Up to 760 px height (360x740) the staff is 96 px instead of 112 px, so sections plus the hint still fit. Checked in `e2e/smoke.e2e.ts`.
+
 ## Sideways phone
 
-- Landscape with at most 560 px height: header on top, staff and piano roll on the left, mode, readout and transport in a 280 px column on the right, everything on one screen (the roll takes the remaining height, at least 110 px). Wider staff and roll show more bars and seconds ahead. The manifest allows any orientation.
+- Landscape with at most 560 px height (844x390, 915x412): the whole screen, play row included, fits the visible height (`100dvh`) with or without sections and with or without the hint, no page scroll. The mode button sits in the header row on the right, staff and piano roll on the left, readout and transport in a 320 px column on the right. The staff is 80 px high, the readout and transport are denser (chips 32 px on one line, 40 px buttons, 52 px main button), the roll takes the remaining height (at least 96 px). Wider staff and roll show more bars and seconds ahead. The manifest allows any orientation. Checked in `e2e/smoke.e2e.ts` together with the upright sizes and 1280x800.
 
 ## Cents readout
 
@@ -283,6 +288,18 @@ Feature: Repeat selector
     When the heard time is 34.0
     Then the readout shows "Einsatz in 3 Takten · 6 s"
 
+  Scenario: the repeat survives showing the screen again
+    Given the "Abschnitt" repeat is on for [24.0,40.0]
+    When the practice screen is shown again
+    Then only the chip "Abschnitt" is active and the status line reads "Refrain · 0:24–0:40"
+
+  Scenario: a pending A survives showing the screen again
+    Given A is set at 6.0 and bars every 2 s
+    When the practice screen is shown again
+    Then the chip reads "B setzen" and the status line reads "A 0:06 · B noch nicht gesetzt"
+    When I set B at 14.0
+    Then the range is [6.0,14.0]
+
 Feature: Dimming and sections
   Scenario: everything outside the range is dimmed
     Given the "Abschnitt" repeat is on for [24.0,40.0]
@@ -306,6 +323,10 @@ Feature: Dimming and sections
     When I tap the segment "Refrain"
     Then the chip "Abschnitt" is active, the repeat range is [24.0,40.0] with lead-in and time() is 20.0
 
+  Scenario: sections of the same name are told apart
+    Given two sections both named "Refrain", [8.0,24.0] and [24.0,40.0]
+    When I tap the second segment
+    Then only the second segment is active
 Feature: A-B dimming
   Scenario: A without B dims everything before A
     Given A is set at 6.0
