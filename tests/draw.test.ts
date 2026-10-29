@@ -6,6 +6,7 @@ import {
   layoutBar,
   layoutPage,
   noteValue,
+  octaveShift,
   type PageOnset,
   pageAt,
   pageOf,
@@ -14,7 +15,7 @@ import {
   splitPages,
   staffPos,
 } from '../src/app/draw/staff'
-import type { Note } from '../src/core/content'
+import type { Note, Song } from '../src/core/content'
 
 describe('staff layout', () => {
   it('reads the key signature from song.key', () => {
@@ -32,6 +33,14 @@ describe('staff layout', () => {
     expect(staffPos(77, 0).step).toBe(8) // F5, top line
     expect(staffPos(60, 0).step).toBe(-2) // C4, ledger line
     expect(staffPos(71, 0).step).toBe(4) // B4, middle line
+  })
+
+  it('writes a song with a low median note an octave higher, others as sounded', () => {
+    const song = (midis: number[]) => ({ notes: midis.map((midi) => ({ midi })) }) as unknown as Song
+    expect(octaveShift(song([55, 56, 57, 59, 62]))).toBe(12) // men's range G3-D4, median 57
+    expect(octaveShift(song([43, 44, 45]))).toBe(24)
+    expect(octaveShift(song([60, 62, 64, 65]))).toBe(0)
+    expect(octaveShift(song([]))).toBe(0)
   })
 
   it('needs no accidental for pitches in the key', () => {
