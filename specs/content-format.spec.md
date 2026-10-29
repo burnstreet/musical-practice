@@ -81,7 +81,7 @@ Feature: Public manifest
 }
 ```
 
-- Role ids: lower-case ASCII, from the global list: `erzaehler1`, `erzaehler2`, `anna`, `mutter`, `engel`, `benjamin`, `roemer`, `hirte`, `josef`, `wirt`, `weihnachtsmann`, `maria`, `esel`, `kuh`, `schaf`, `chor`. Display name per role in the library. The `sings` flag comes from the builder config.
+- Role ids: lower-case ASCII, from the global list: `erzaehler1`, `erzaehler2`, `anna`, `mutter`, `engel`, `benjamin`, `roemer`, `hirte`, `josef`, `wirt`, `weihnachtsmann`, `maria`, `esel`, `kuh`, `schaf`, `chor`, `maenner`, `frauen`. Display name per role in the library. The `sings` flag comes from the builder config.
 - Songs sorted by `number`. `roles` of a song = roles that have at least one note.
 - `parseLibrary` rejects a song whose `roles` names an unknown role id, or whose three file ids are missing.
   `[@test] ../tests/steps/content-format.steps.ts`
@@ -111,7 +111,7 @@ Feature: Library
 }
 ```
 
-- `bars[i]` = start second of bar i. The intro before the first sung bar gets whole bars counted back from it (as many as fit after 0 s), so the staff shows its rests; `bar` of the notes counts them. `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
+- `bars[i]` = start second of bar i. The intro before the first sung bar gets whole bars counted back from it (as many as fit after 0 s), so the staff shows its rests; `bar` of the notes counts them. `timeSig` is `[beats, 4]`, the builder config's `beats` per song (default 4). `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
 - Notes sorted by `start`. `end > start`. `midi` integer 36–96. `role` in library roles. `phrase` indexes `phrases`.
 - `phrases[i].start` = first note start, `.end` = last note end of that phrase. Contiguous, non-overlapping, sorted.
 - `sections` is optional (bundles without it stay valid; format 1 files never have it). Entries: `name` non-empty string, `start`/`end` seconds with `end > start`, snapped to bar lines by the builder and editor. Sorted by `start`, non-overlapping. Empty array allowed. The singer UI hides section features when the field is missing or empty.
