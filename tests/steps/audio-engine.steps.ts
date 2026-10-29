@@ -261,6 +261,15 @@ export default steps(({ Given, When, Then }) => {
     ctx.engine.seek(+t)
     wait(ctx, +e)
   })
+  When(/^I seek to ([\d.]+) and playback runs for ([\d.]+) s$/, (ctx, t, d) => {
+    ctx.engine.seek(+t)
+    const until = ctx.clock.t + +d
+    while (ctx.clock.t < until - 1e-9) ctx.tickAt(ctx.clock.t + 1 / 60)
+  })
+  Then(/^time\(\) is ([\d.]+) and the range is still set$/, (ctx, t) => {
+    expect(ctx.engine.time()).toBeCloseTo(+t, 1)
+    expect(ctx.engine.loop()).toEqual({ start: 20, end: ctx.end })
+  })
   Then(/^time\(\) is ([\d.]+) after the wrap$/, (ctx, t) => expect(ctx.engine.time()).toBeCloseTo(+t, 1))
   When(/^time\(\) passes ([\d.]+)$/, (ctx, e) => wait(ctx, +e))
   When(/^time\(\) passes the former range end$/, (ctx) => wait(ctx, ctx.former))

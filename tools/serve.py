@@ -3,7 +3,8 @@ endpoint for note edits made in the viewer.
 
 GET  /config.json       -> sources/config.json (404 when absent)
 POST /detect-sections   -> body {"id", "notes"}: {sections, bars}: the sections the builder
-                           detects for those notes and the bar grid (bar start seconds)
+                           detects for those notes (phrases re-derived from their phraseStart
+                           flags first) and the bar grid (bar start seconds)
 POST /save/<name>.json  -> writes web/data/<name>.json and keeps a timestamped
                            copy in work/edits/.
 
@@ -17,6 +18,7 @@ import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from phrases import derive_phrases
 from RangeHTTPServer import RangeRequestHandler
 from sections import bar_grid, detect_sections, song_beats, song_bpm
 
@@ -73,6 +75,7 @@ class Handler(RangeRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         try:
             req = json.loads(body)
+            derive_phrases(req["notes"], [])  # phrase from the current phraseStart flags; no flags: stored phrases stay
             bars = bar_grid(req["notes"], song_bpm(ROOT, req["id"]), song_beats(ROOT, req["id"]))
             out = json.dumps({"sections": detect_sections(req["notes"], bars), "bars": bars}).encode()
         except Exception as e:  # noqa: BLE001
