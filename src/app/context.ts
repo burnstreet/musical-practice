@@ -5,6 +5,7 @@ import type { PitchEngine } from '../core/pitch-engine'
 import type { Session } from '../core/session'
 import type { LoadedSong } from '../core/types'
 import type { Vault } from '../core/vault'
+import type { RepeatState } from './repeat'
 import type { Route, settings } from './settings'
 
 export type { Route }
@@ -31,7 +32,7 @@ export interface AppContext extends ShellDeps {
   settings: typeof settings
   route(to: Route): void
   /** Set by the practice screen on enter; shell clears it on routes to songs/start. */
-  live: { songId: string; song: LoadedSong; session: Session } | null
+  live: { songId: string; song: LoadedSong; session: Session; repeat?: RepeatState } | null
   openSettings(): void
   /** Resolves when the singer may play (sheet confirmed or already seen). */
   ensureHeadphoneSheet(): Promise<void>

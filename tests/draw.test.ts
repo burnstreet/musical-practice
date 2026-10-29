@@ -10,6 +10,7 @@ import {
   type PageOnset,
   pageAt,
   pageOf,
+  pagePoints,
   playheadX,
   restsIn,
   splitPages,
@@ -276,6 +277,25 @@ describe('staff playhead', () => {
   it('stays inside the page', () => {
     expect(playheadX(points, -1)).toBe(40)
     expect(playheadX(points, 5)).toBe(300)
+  })
+  it('puts a sung note at its own start, not where the bar grid would put its beat', () => {
+    // bars 0 s and 2 s; an upbeat on beat 3.5 sung late at 1.9 s (the grid says 1.75 s), a rest on beat 2
+    const note = (start: number, bar: number, beat: number) =>
+      ({ start, end: start + 0.1, midi: 60, syllable: 'x', role: 'chor', phrase: 0, bar, beat, dur: 0.5 }) as Note
+    const song = { timeSig: [4, 4], bars: [0, 2, 4], notes: [] } as unknown as Song
+    const [a, b] = [note(0.1, 0, 0), note(1.9, 0, 3.5)]
+    const content = {
+      bars: [0],
+      notes: [a, b],
+      onsets: [
+        { bar: 0, beat: 0, here: [a] },
+        { bar: 0, beat: 2, here: [] },
+        { bar: 0, beat: 3.5, here: [b] },
+      ],
+      lyric: [],
+    }
+    const L = { startX: 0, xs: [10, 50, 90], barX: [0], barW: [100] } as unknown as Parameters<typeof pagePoints>[2]
+    expect(pagePoints(song, content, L).map(([t]) => t)).toEqual([0, 0.1, 1, 1.9, 2])
   })
 })
 
