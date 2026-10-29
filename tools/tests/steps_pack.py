@@ -248,6 +248,17 @@ def test_intro_gets_bars_before_the_first_sung_bar():
     assert song["notes"][0]["bar"] == 2
 
 
+def test_three_quarter_song_gets_bars_of_three_beats():
+    # 60 bpm, "beats": 3 → 3 s bars; a pickup on beat 2 of bar 0, then bar 1 starts 1 s later
+    n = [
+        {"start": 2.0, "end": 2.5, "midi": 60, "lyric": "a", "role": "maria", "phrase": 0, "bar": 0, "beat": 2.0, "dur": 0.5},
+        {"start": 3.0, "end": 4.0, "midi": 62, "lyric": "b", "role": "maria", "phrase": 0, "bar": 1, "beat": 0.0, "dur": 1.0},
+    ]
+    song = pack.build_song({"id": "01", "bpm": 60, "key": "D", "beats": 3}, n, 12.0)
+    assert song["timeSig"] == [3, 4]
+    assert song["bars"][:3] == [0.0, 3.0, 6.0]
+
+
 def test_repeat_gets_later_bar_and_bars_increase():
     n = [
         {"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "maria", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}

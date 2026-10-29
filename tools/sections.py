@@ -63,22 +63,27 @@ def detect_sections(notes, bars):
     return out
 
 
-def bar_grid(notes, bpm):
+def bar_grid(notes, bpm, beats=4):
     """Bar start seconds the packer would build for these raw (unpacked) notes."""
     import pack  # bar grid shared with the packer
 
     ordered = sorted(notes, key=lambda n: n["start"])
-    return pack.compute_bars(ordered, bpm, ordered[-1]["end"] + 8 * 60 / bpm)[0]
+    return pack.compute_bars(ordered, bpm, ordered[-1]["end"] + 8 * 60 / bpm, beats)[0]
 
 
-def detect_for(notes, bpm):
+def detect_for(notes, bpm, beats=4):
     """detect_sections on the packer's bar grid."""
-    return detect_sections(notes, bar_grid(notes, bpm))
+    return detect_sections(notes, bar_grid(notes, bpm, beats))
 
 
 def song_bpm(root, nid):
     cfg = json.loads((Path(root) / "sources" / "config.json").read_text(encoding="utf-8"))
     return next(s["bpm"] for s in cfg["songs"] if s["id"] == nid)
+
+
+def song_beats(root, nid):
+    cfg = json.loads((Path(root) / "sources" / "config.json").read_text(encoding="utf-8"))
+    return next(s.get("beats", 4) for s in cfg["songs"] if s["id"] == nid)
 
 
 def main(argv, root=ROOT):
@@ -91,7 +96,7 @@ def main(argv, root=ROOT):
     if any(n.get("phrase") is None for n in notes):
         print("notes without phrase: run phrases.py first")
         sys.exit(1)
-    song["sections"] = detect_for(notes, song_bpm(root, nn))
+    song["sections"] = detect_for(notes, song_bpm(root, nn), song_beats(root, nn))
     path.write_text(json.dumps(song, ensure_ascii=False, indent=1), encoding="utf-8")
 
 

@@ -112,10 +112,10 @@ def check_song(root, cfg_roles, s, work):
     return None, (notes, voices, backing, dur)
 
 
-def compute_bars(ordered, bpm, dur):
-    """(bar start seconds, bar index per note) for notes sorted by start; bars run on to `dur`."""
+def compute_bars(ordered, bpm, dur, beats=4):
+    """(bar start seconds, bar index per note) for notes sorted by start; bars of `beats` quarters run on to `dur`."""
     q = 60 / bpm
-    bar_len = 4 * q
+    bar_len = beats * q
     # Score bar numbers repeat on repeated sections: renumber bars sequentially in time order.
     seq, known, prev = [], {}, None
     for n in ordered:
@@ -147,8 +147,9 @@ def compute_bars(ordered, bpm, dur):
 
 def build_song(s, notes, dur):
     bpm = s["bpm"]
+    beats = s.get("beats", 4)  # quarters per bar (time signature beats/4)
     ordered = sorted(notes, key=lambda n: n["start"])
-    bars, seq = compute_bars(ordered, bpm, dur)
+    bars, seq = compute_bars(ordered, bpm, dur, beats)
     out = [
         {
             "start": n["start"],
@@ -167,7 +168,7 @@ def build_song(s, notes, dur):
     for p in sorted({n["phrase"] for n in out}):
         ns = [n for n in out if n["phrase"] == p]
         phrases.append({"index": p, "label": f"Phrase {p + 1}", "start": ns[0]["start"], "end": ns[-1]["end"]})
-    return {"id": s["id"], "bpm": bpm, "key": s["key"], "timeSig": [4, 4], "bars": bars, "notes": out, "phrases": phrases}
+    return {"id": s["id"], "bpm": bpm, "key": s["key"], "timeSig": [beats, 4], "bars": bars, "notes": out, "phrases": phrases}
 
 
 def main(argv=None):
@@ -218,7 +219,7 @@ def main(argv=None):
         song = build_song(s, notes, dur)
         stored = json.loads((root / "web" / "data" / f"{s['id']}.json").read_text(encoding="utf-8"))
         # stored sections win, as they are; else detect as sections.py would
-        song["sections"] = stored["sections"] if "sections" in stored else detect_for(notes, s["bpm"])
+        song["sections"] = stored["sections"] if "sections" in stored else detect_for(notes, s["bpm"], s.get("beats", 4))
         used = {n["role"] for n in song["notes"]}
         songs.append(
             {
