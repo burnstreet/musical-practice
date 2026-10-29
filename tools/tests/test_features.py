@@ -8,7 +8,7 @@ def test_pytest_bdd_parses_every_feature():
         "completeness": 2,
         "packing": 3,
         "phrase-derivation": 3,
-        "section-detection": 6,
+        "section-detection": 7,
         "stem-preparation": 1,
         "stored-sections": 5,
     }
