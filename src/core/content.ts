@@ -17,6 +17,8 @@ export const ROLE_IDS = [
   'kuh',
   'schaf',
   'chor',
+  'maenner',
+  'frauen',
 ] as const
 export type RoleId = (typeof ROLE_IDS)[number]
 
