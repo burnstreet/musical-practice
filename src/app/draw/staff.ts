@@ -409,18 +409,26 @@ export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: 
   return { s, startX, ...page }
 }
 
-/** (song time, x) of a page's start, each onset and its end, for `playheadX`; bars past the song's end (last page) continue at the last bar's length. */
+/**
+ * (song time, x) of a page's start, each onset and its end, for `playheadX`; bars past the song's end (last page) continue at the last bar's length.
+ * A note onset sits at its notes' sung start (singers drift off the bar grid); a rest at its place in the bar, kept between its neighbours.
+ */
 export function pagePoints(song: Song, content: ReturnType<typeof pageContent>, L: ReturnType<typeof measurePage>): [number, number][] {
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const nb = song.bars.length
   const lastLen = nb > 1 ? song.bars[nb - 1] - song.bars[nb - 2] : 2
   const barStart = (b: number) => song.bars[b] ?? song.bars[nb - 1] + (b - nb + 1) * lastLen
   const [first, count] = [content.bars[0], content.bars.length]
-  return [
-    [barStart(first), L.startX + L.barX[0]],
-    ...content.onsets.map(({ bar, beat }, k): [number, number] => [barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), L.startX + L.xs[k]]),
-    [barStart(first + count), L.startX + L.barX[count - 1] + L.barW[count - 1]],
-  ]
+  const [t0, t1] = [barStart(first), barStart(first + count)]
+  const sung = content.onsets.map(({ here }) => (here.length ? Math.min(...here.map((n) => n.start)) : null))
+  let prev = t0
+  const onsets = content.onsets.map(({ bar, beat }, k): [number, number] => {
+    const next = sung.slice(k).find((t) => t != null) ?? t1
+    const grid = Math.min(Math.max(barStart(bar) + (beat / barQ) * (barStart(bar + 1) - barStart(bar)), prev), next)
+    prev = sung[k] ?? grid
+    return [prev, L.startX + L.xs[k]]
+  })
+  return [[t0, L.startX + L.barX[0]], ...onsets, [t1, L.startX + L.barX[count - 1] + L.barW[count - 1]]]
 }
 
 /** Page split per song, canvas size, roles and font state; measuring every page each frame would be too slow. */

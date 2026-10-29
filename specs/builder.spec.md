@@ -76,10 +76,10 @@ Pure function `detect_sections(notes, bars)` plus a script that writes the resul
 - Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved via existing save path.
 - Phrase flag: button "Phrasenanfang" toggles `phraseStart` on the selected note. Piano roll draws a vertical marker at flagged notes.
 - Song JSON `roles` list stays derived: builder recomputes from notes.
-- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: the roll draws the same bar lines, numbered as on the staff (the roll stays linear in time, the staff is spaced by onsets). Pages follow the roll window with previous/next, as many bars as fit. Click on a phrase, a section or a staff note selects it and highlights its notes in the roll. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined by spaces. Each note sits in the grid bar nearest its start minus its beat. The view needs the bar grid from `/detect-sections` and the shared build (`./mp.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
+- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: one page of the staff is the roll window: the roll's bar lines sit under the staff's, numbered as on the staff, time runs linear inside each bar, and a seconds scale stays on top (the staff is spaced by onsets). A page holds the playhead and shows as many bars as fit; previous/next seek to the neighbouring page, so staff, bands and roll turn together. Zoom applies only without the staff view. Click on a phrase, a section or a staff note, or focus a row of the section list, selects it and highlights its notes in the roll; a selection with no note on the shown page turns the view to the bar of its first note. The section list sits in its own panel, visible as soon as a song is loaded (not only in edit mode); its bar fields stay disabled until the bar grid has arrived. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined by spaces. Each note sits in the grid bar nearest its start minus its beat; the staff's time signature and tempo use the song's beats per bar from `sources/config.json` (default 4), as the bar grid does. The view needs the bar grid from `/detect-sections` and the shared build (`./mp.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
 - Phrases stay editable only through `Phrasenanfang`.
 - Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the existing save path (`sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
-- Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
+- Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which first re-derives each note's `phrase` from the `phraseStart` flags (`derive_phrases`, as the builder does; no flags: stored phrases stay), then calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
   `[@test] ../tests/steps/editor.steps.ts`
 
 ```gherkin
@@ -168,6 +168,22 @@ Feature: Editor view
   Scenario: staff bars come from the bar grid
     Given bars every 2 s, a note at 3.98 s on beat 0 and a note at 5.45 s on beat 3
     Then the staff puts both notes in bar 3
+
+  Scenario: staff time signature from the song
+    Given a song in 3/4 with bars every 1.5 s and a note at 4.6 s on beat 2
+    Then the staff reads 3/4 at 120 bpm and puts the note in bar 3
+
+  Scenario: the roll runs on the staff's bar lines
+    Given staff bar lines at x 60, 300 and 540 for 0 s, 2 s and 4 s
+    Then 3 s is at x 420 on the roll and x 180 is 1 s
+
+  Scenario: a selection on another page turns to it
+    Given bars every 2 s, a page of bars 1 to 4 and selected notes in bars 6 and 7
+    Then the view turns to 10 s
+
+  Scenario: a selection on the page keeps the page
+    Given bars every 2 s, a page of bars 1 to 4 and selected notes in bars 3 and 6
+    Then the view stays on the page
 ```
 
 ## Completeness check (`pack.py`)

@@ -1,5 +1,6 @@
 import { expect } from 'vitest'
-import { phrasesOf, staffSong } from '../../src/editor/view'
+import { playheadX } from '../../src/app/draw/staff'
+import { phrasesOf, staffSong, timeAt, turnFor } from '../../src/editor/view'
 // @ts-expect-error plain JS module, no types
 import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart } from '../../web/edit-ops.js'
 import { steps } from '../gherkin'
@@ -140,6 +141,35 @@ export default steps(({ Given, When, Then }) => {
   Given(/^bars every 2 s, a note at ([\d.]+) s on beat (\d+) and a note at ([\d.]+) s on beat (\d+)$/, (ctx, s1, b1, s2, b2) => {
     const note = (start: string, beat: string) => ({ start: Number(start), end: Number(start) + 0.4, midi: 60, beat: Number(beat), dur: 1 })
     ctx.song = staffSong({ id: 't', notes: [note(s1, b1), note(s2, b2)] }, grid().bars)
+  })
+  Given(/^a song in (\d)\/4 with bars every ([\d.]+) s and a note at ([\d.]+) s on beat (\d+)$/, (ctx, beats, len, start, beat) => {
+    const bars = Array.from({ length: 10 }, (_, i) => i * Number(len))
+    const note = { start: Number(start), end: Number(start) + 0.4, midi: 60, beat: Number(beat), dur: 1 }
+    ctx.song = staffSong({ id: 't', notes: [note] }, bars, 'C', Number(beats))
+  })
+  Then(/^the staff reads (\d)\/4 at (\d+) bpm and puts the note in bar (\d+)$/, (ctx, beats, bpm, bar) => {
+    expect(ctx.song.timeSig).toEqual([Number(beats), 4])
+    expect(ctx.song.bpm).toBeCloseTo(Number(bpm))
+    expect(ctx.song.notes[0].bar + 1).toBe(Number(bar))
+  })
+  Given(/^staff bar lines at x (.+) for (.+)$/, (ctx, xs, ts) => {
+    const nums = (s: string) => s.match(/[\d.]+/g)!.map(Number)
+    ctx.points = nums(ts).map((t, i) => [t, nums(xs)[i]])
+  })
+  Then(/^([\d.]+) s is at x ([\d.]+) on the roll and x ([\d.]+) is ([\d.]+) s$/, (ctx, t, x, x2, t2) => {
+    expect(playheadX(ctx.points, Number(t))).toBeCloseTo(Number(x))
+    expect(timeAt(ctx.points, Number(x2))).toBeCloseTo(Number(t2))
+  })
+  Given(/^bars every 2 s, a page of bars (\d+) to (\d+) and selected notes in bars (\d+) and (\d+)$/, (ctx, from, to, b1, b2) => {
+    const note = (bar: string) => ({ start: (Number(bar) - 1) * 2 + 0.1, end: (Number(bar) - 1) * 2 + 0.5, midi: 60, beat: 0, dur: 1 })
+    ctx.song = staffSong({ id: 't', notes: [note('1'), note(b2), note(b1)] }, grid().bars)
+    ctx.turn = turnFor(ctx.song, { first: Number(from) - 1, count: Number(to) - Number(from) + 1 }, new Set([1, 2]))
+  })
+  Then(/^the view turns to ([\d.]+) s$/, (ctx, t) => {
+    expect(ctx.turn).toBe(Number(t))
+  })
+  Then(/^the view stays on the page$/, (ctx) => {
+    expect(ctx.turn).toBeNull()
   })
   Then(/^the staff puts both notes in bar (\d+)$/, (ctx, bar) => {
     expect(ctx.song.notes.map((n: any) => n.bar + 1)).toEqual([Number(bar), Number(bar)])
