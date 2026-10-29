@@ -123,7 +123,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
   function frame() {
     if (!isPlaying) return
     let t = voices.currentTime
-    if (loop && t >= loop.end) {
+    if (loop && prev < loop.end && t >= loop.end) {
       t = wrap(loop)
     } else {
       for (const n of notes) if (n.start > prev && n.start <= t) emit('enter', n)

@@ -54,6 +54,8 @@ def detect_sections(notes, bars):
     edges = [first] + [min(bars, key=lambda b: abs(b - ph[g[1]][1])) for g in groups[1:]] + [last]
     counts, out = {True: 0, False: 0}, []
     for g, start, end in zip(groups, edges, edges[1:]):
+        if end <= start:  # snapped onto its neighbour's edge: its phrases fall into the section before
+            continue
         counts[g[0]] += 1
         k = counts[g[0]]
         base = "Refrain" if g[0] else "Strophe"

@@ -18,6 +18,47 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   // phone layout: the practice screen must not be wider than the viewport
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(0)
+  // ... and fit the visible height, play row included, on common phone sizes (upright and sideways) and the desktop,
+  // with and without sections and with and without the note banner (the screen is set to each case)
+  const setCase = (sections: boolean, banner: boolean) =>
+    page.evaluate(
+      ([withSections, withBanner]) => {
+        // biome-ignore lint/suspicious/noExplicitAny: the screen's own state, reached through the shadow roots
+        const el = (document.querySelector('gu-app') as any).shadowRoot.querySelector('gu-practice')
+        el.loaded.song.sections = withSections
+          ? [
+              { name: 'Strophe 1', start: 0, end: 8 },
+              { name: 'Refrain', start: 8, end: 14 },
+              { name: 'Strophe 2', start: 14, end: 20 },
+            ]
+          : []
+        el.mic = !withBanner
+        return el.updateComplete
+      },
+      [sections, banner],
+    )
+  for (const [width, height] of [
+    [360, 740],
+    [390, 844],
+    [412, 915],
+    [844, 390],
+    [915, 412],
+    [1280, 800],
+  ]) {
+    await page.setViewportSize({ width, height })
+    for (const [sections, banner] of [
+      [false, false],
+      [false, true],
+      [true, false],
+      [true, true],
+    ]) {
+      await setCase(sections, banner)
+      const over = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)
+      expect(over, `${width}x${height} sections ${sections} banner ${banner}`).toBeLessThanOrEqual(0)
+    }
+  }
+  await setCase(false, false)
+  await page.setViewportSize({ width: 430, height: 900 })
 
   await page.getByRole('button', { name: 'Abspielen' }).click()
   await page.getByRole('button', { name: 'Weiter' }).click() // headphone sheet
