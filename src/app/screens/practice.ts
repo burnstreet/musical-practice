@@ -125,17 +125,6 @@ export class GuPractice extends LitElement {
     .roll { grid-area: roll; }
     .roll canvas { height: 188px; } /* rows plus the lyric strip at the bottom */
     @media (min-width: 960px) { .staff canvas { height: 136px; } .roll canvas { height: 236px; } }
-    /* phone turned sideways: staff and roll on the left, the controls beside them, all on one screen */
-    @media (orientation: landscape) and (max-height: 560px) {
-      :host { max-width: none; min-height: 100dvh; padding: 8px 16px; gap: 8px; column-gap: 12px; grid-template-columns: minmax(0, 1fr) 280px;
-        grid-template-areas: 'head head' 'note note' 'staff mode' 'staff readout' 'roll transport'; grid-template-rows: auto auto auto auto 1fr; }
-      header .round { width: 36px; height: 36px; }
-      .card { padding: 8px 10px 6px; }
-      .roll canvas { height: max(110px, calc(100dvh - 252px)); }
-      .transport { align-self: end; gap: 6px; }
-      .round { width: 44px; height: 44px; }
-      .main { width: 56px; height: 56px; }
-    }
     .readout { grid-area: readout; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
     .readout .line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .readout big { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; margin-right: 8px; }
@@ -187,6 +176,28 @@ export class GuPractice extends LitElement {
       .chip { flex: none; height: 32px; padding: 0 12px; font-size: 13px; }
       .round { width: 46px; height: 46px; }
       .main { width: 60px; height: 60px; }
+    }
+    /* small phone (360x740): a shorter staff, so sections plus the hint still fit */
+    @media (max-width: 959px) and (orientation: portrait) and (max-height: 760px) { .staff canvas { height: 96px; } }
+    /* phone turned sideways: staff and roll on the left, the controls beside them, all on one screen (the roll takes what the rows leave) */
+    @media (orientation: landscape) and (max-height: 560px) {
+      :host { max-width: none; min-height: 100dvh; padding: 6px 16px; gap: 6px; column-gap: 12px; grid-template-columns: minmax(0, 1fr) 320px;
+        grid-template-areas: 'head mode' 'note note' 'staff readout' 'roll transport'; grid-template-rows: auto auto auto minmax(96px, 1fr); }
+      header .round { width: 36px; height: 36px; }
+      .note { padding: 4px 16px; font-size: 13px; }
+      .mode { height: 36px; }
+      .card { padding: 8px 10px 6px; }
+      .staff canvas { height: 80px; }
+      .roll { position: relative; }
+      .roll canvas { position: absolute; inset: 8px 10px 6px; width: calc(100% - 20px); height: calc(100% - 14px); } /* not in the row's size */
+      .readout { padding: 8px 12px; gap: 4px; justify-content: center; }
+      .transport { gap: 6px; }
+      .repeat .line { min-height: 24px; }
+      .intro { height: 24px; }
+      .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      .chip { flex: none; height: 32px; padding: 0 10px; font-size: 13px; }
+      .round { width: 40px; height: 40px; }
+      .main { width: 52px; height: 52px; }
     }
   `
 
