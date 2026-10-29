@@ -82,6 +82,23 @@ export function keyFifths(key: string): number {
   return (MAJOR[minor ? key.slice(0, -1) : key] ?? 0) - (minor ? 3 : 0)
 }
 
+const shifts = new WeakMap<Song, number>()
+
+/**
+ * Semitones (0 or a multiple of 12) the staff writes a song above its sounding pitch: songs whose middle note lies
+ * below B3 are drawn as for a treble clef with an 8 underneath, so low voices stay on the lines.
+ */
+export function octaveShift(song: Song): number {
+  let shift = shifts.get(song)
+  if (shift === undefined) {
+    const midis = song.notes.map((n) => n.midi).sort((a, b) => a - b)
+    const median = midis.length ? midis[midis.length >> 1] : 64
+    shift = median < 59 ? 12 * Math.ceil((59 - median) / 12) : 0
+    shifts.set(song, shift)
+  }
+  return shift
+}
+
 /**
  * Treble staff position of a midi in a key: `step` 0 = bottom line E4, 2 per line.
  * `acc` = accidental to print ('n' = natural), '' when the key signature covers it.
@@ -374,7 +391,7 @@ export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: 
       bar,
       beat,
       label: content.lyric[k]?.syllable ? ctx.measureText(content.lyric[k].syllable).width : 0,
-      acc: here.some((n) => staffPos(n.midi, fifths).acc !== ''),
+      acc: here.some((n) => staffPos(n.midi + octaveShift(song), fifths).acc !== ''),
     })),
     {
       barQ: (song.timeSig[0] * 4) / song.timeSig[1],
@@ -426,6 +443,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   if (!ctx) return null
   const { song, roles, names, t } = state
   const fifths = keyFifths(song.key)
+  const shift = octaveShift(song)
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const mine = (n: Note) => roles.includes(n.role)
   const { w, h } = fit(ctx)
@@ -455,6 +473,12 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   ctx.textBaseline = 'alphabetic'
   ctx.font = `${48 * s}px ${MUSIC}`
   ctx.fillText('\u{1D11E}', 6 * s, y(0))
+  if (shift) {
+    ctx.font = `700 ${11 * s}px ${FONT}` // the "8" under the clef: written an octave above the sound
+    ctx.textAlign = 'center'
+    ctx.fillText('8', 15 * s, y(-2.5))
+    ctx.textAlign = 'left'
+  }
   ctx.font = `${16 * s}px ${MUSIC}`
   ctx.textBaseline = 'middle'
   const sig = fifths > 0 ? SHARP_STEPS : FLAT_STEPS
@@ -523,7 +547,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
 
   for (const n of notes) {
     const nx = x(n)
-    const { step, acc } = staffPos(n.midi, fifths)
+    const { step, acc } = staffPos(n.midi + shift, fifths)
     const ny = y(step)
     const { base, dot } = noteValue(n.dur)
     const up = step < 4
