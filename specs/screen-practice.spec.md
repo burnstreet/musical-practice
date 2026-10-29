@@ -110,11 +110,11 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 
 ## Upright phone
 
-- Portrait, width below 960 px (390x844, 412x915): the whole screen, play row included, fits the visible height (`100dvh`) with or without the hint, no page scroll. The chips stay on one line (32 px, scroll sideways when too narrow), the roll takes the height the other rows leave (at least 96 px). Checked in `e2e/smoke.e2e.ts`.
+- Portrait, width below 960 px (390x844, 412x915): the whole screen, play row included, fits the visible height (`100dvh`) with or without the hint, no page scroll. The chips stay on one line (32 px, scroll sideways when too narrow), the roll takes the height the other rows leave (at least 96 px). Up to 760 px height (360x740) the staff is 96 px instead of 112 px, so sections plus the hint still fit. Checked in `e2e/smoke.e2e.ts`.
 
 ## Sideways phone
 
-- Landscape with at most 560 px height: header on top, staff and piano roll on the left, mode, readout and transport in a 280 px column on the right, everything on one screen (the roll takes the remaining height, at least 110 px). Wider staff and roll show more bars and seconds ahead. The manifest allows any orientation.
+- Landscape with at most 560 px height (844x390, 915x412): the whole screen, play row included, fits the visible height (`100dvh`) with or without sections and with or without the hint, no page scroll. The mode button sits in the header row on the right, staff and piano roll on the left, readout and transport in a 320 px column on the right. The staff is 80 px high, the readout and transport are denser (chips 32 px on one line, 40 px buttons, 52 px main button), the roll takes the remaining height (at least 96 px). Wider staff and roll show more bars and seconds ahead. The manifest allows any orientation. Checked in `e2e/smoke.e2e.ts` together with the upright sizes and 1280x800.
 
 ## Cents readout
 
