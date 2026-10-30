@@ -79,7 +79,7 @@ Numbers refer to the grilling session of 2026-10-27.
 - Scope: singing only. Shell, vault, library, role selection reusable for dialog mode. (Q14)
 - Builder packs only songs with aligned score, roles, phrases, stems. Reports the rest. (Q15, Q31)
 - Phrases from DOCX line breaks matched to syllables; manual `phraseStart` flag wins. (Q17)
-- Roles painted in the existing web editor; score JSON is source of truth. MusicXML role-free. (Q18)
+- Roles painted in the existing web editor, or taken from MuseScore voices on MusicXML import (`--roles 1=anna,2=chor`); score JSON is source of truth. (Q18)
 - Staff: custom Canvas, treble clef only, key signature from score, accidentals outside key, real note values, rests, solid numbered bar lines, lyric-aware spacing with syllables on one row, pages of up to 2–4 bars by canvas width (fewer where the syllables need it), intro rests, a playhead line. Piano roll: playhead at 30 % width, 5–8 s window by width, lyric strip. Countdown to my entry. Sideways phone layout. No MusicXML shipped. (Q19, Q32)
 - Download: whole library after unlock, per-file blobs in IndexedDB, content-hash ids, re-download changed only. Public manifest carries sizes before unlock. (Q21, Q28)
 - Scoring per note: 100 ms onset grace, fold to nearest octave, hit = at least half of voiced frames within tolerance, unsung note = miss. Frames outside my notes ignored. (Q22)
