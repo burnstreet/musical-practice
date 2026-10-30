@@ -28,8 +28,8 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     selected = new Set(),
     drag = null,
     dirty = false
-  // roles (voices) -> colours
-  const ROLE_PALETTE = ['#2f6fed', '#d6453a', '#2a9d5c', '#b8860b', '#8e44ad', '#0e8a9b']
+  // roles (voices) -> colours, readable on the board blue (>= 4.5:1 on #17498C) and apart from the selection orange #F08C14
+  const ROLE_PALETTE = ['#A9D3F7', '#C8E05A', '#FFA69E', '#7FE0B5', '#D9B8F5', '#F59BC8']
   let roleColor = {},
     configRoles = null
   // sheet music (OpenSheetMusicDisplay)
@@ -50,6 +50,18 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
 
   const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
   const hexA = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`
+  // the precomputed spectrogram PNG is dark ink with alpha for the level; repaint it light for the dark roll
+  const lightInk = (img) => {
+    const c = document.createElement('canvas')
+    c.width = img.width
+    c.height = img.height
+    const x = c.getContext('2d')
+    x.drawImage(img, 0, 0)
+    x.globalCompositeOperation = 'source-in'
+    x.fillStyle = '#A9D3F7'
+    x.fillRect(0, 0, c.width, c.height)
+    return c
+  }
   const hzToMidi = (hz) => 69 + 12 * Math.log2(hz / 440)
   const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12)
   const win = () => ZOOMS[zoomIdx]
@@ -239,9 +251,9 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
         for (let r = 0; r < rows; r++) {
           const v = Math.max(0, Math.min(1, (db[f * rows + r] - gmax + RANGE) / RANGE))
           const o = (r * frames + f) * 4
-          id.data[o] = 20
-          id.data[o + 1] = 40
-          id.data[o + 2] = 90
+          id.data[o] = 169
+          id.data[o + 1] = 211
+          id.data[o + 2] = 247
           id.data[o + 3] = Math.round(v * v * 230)
         }
       ictx.putImageData(id, 0, 0)
@@ -294,7 +306,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function draw() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, W, H)
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle = '#17498C'
     ctx.fillRect(0, 0, W, H)
     const g = geom(),
       { t, t0, t1, x0, x1, rowH, xOf, yOf } = g,
@@ -304,10 +316,10 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       const pc = ((m % 12) + 12) % 12
       const black = [1, 3, 6, 8, 10].includes(pc)
       const y = yOf(m) - rowH / 2
-      ctx.fillStyle = black ? '#eef0f4' : '#fafbfc'
+      ctx.fillStyle = black ? '#15427F' : '#17498C'
       ctx.fillRect(LEFT, y, W - LEFT, rowH)
       if (pc === 0) {
-        ctx.fillStyle = '#c9cfdb'
+        ctx.fillStyle = '#3F78BF'
         ctx.fillRect(LEFT, y + rowH - 1, W - LEFT, 1)
       }
     }
@@ -323,6 +335,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     if (spec && $('specChk').checked) {
       const yTop = yOf(spec.hi + 0.5),
         yBot = yOf(spec.lo - 0.5)
+      ctx.globalAlpha = 0.7
       ctx.imageSmoothingEnabled = plotW / ((t1 - t0) / spec.hopS) < 1
       const pts = g.pts || [
         [t0, x0],
@@ -336,9 +349,9 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.restore()
 
     // time grid
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)'
+    ctx.strokeStyle = '#3F78BF'
     ctx.lineWidth = 1
-    ctx.fillStyle = '#8a91a3'
+    ctx.fillStyle = '#CFE0F5'
     ctx.font = '10px system-ui,sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
@@ -357,7 +370,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     }
     // bar lines of the view's bar grid, numbered as on the staff, so roll, staff and bands share one bar grid
     if (bars) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.45)'
+      ctx.strokeStyle = 'rgba(207,224,245,0.6)'
       ctx.textBaseline = 'bottom'
       bars.forEach((b, i) => {
         if (b < t0 || b >= t1) return
@@ -389,14 +402,14 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       ctx.fillRect(x, y, bw, bh)
       ctx.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1)
       if (bw > 26 && bh > 9) {
-        ctx.fillStyle = '#1d2330'
+        ctx.fillStyle = '#fff'
         ctx.textBaseline = 'middle'
         ctx.textAlign = 'left'
         ctx.font = `${Math.min(12, bh - 1)}px system-ui,sans-serif`
         ctx.fillText(n.name || midiName(n.midi), x + 3, y + bh / 2)
       }
       if (n.phraseStart) {
-        ctx.fillStyle = '#c0392b'
+        ctx.fillStyle = '#FF6F61'
         ctx.fillRect(x - 1, 0, 2, H)
       }
       if (n.lyric && bw > 10 && $('lyricChk').checked) {
@@ -427,13 +440,13 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
         y = yOf(m),
         c = Math.max(0, Math.min(1, p[i][2] || 0))
       if (prev >= 0 && p[i][0] - p[prev][0] <= hop * stride * 2.5 + 1e-6 && Math.abs(m - pitchMidi[prev]) < 3) {
-        ctx.strokeStyle = `rgba(214,69,40,${(0.12 + 0.88 * c).toFixed(2)})`
+        ctx.strokeStyle = `rgba(255,111,97,${(0.12 + 0.88 * c).toFixed(2)})`
         ctx.beginPath()
         ctx.moveTo(xOf(p[prev][0]), yOf(pitchMidi[prev]))
         ctx.lineTo(x, y)
         ctx.stroke()
       } else {
-        ctx.fillStyle = `rgba(214,69,40,${(0.12 + 0.88 * c).toFixed(2)})`
+        ctx.fillStyle = `rgba(255,111,97,${(0.12 + 0.88 * c).toFixed(2)})`
         ctx.fillRect(x - 1, y - 1, 2, 2)
       }
       prev = i
@@ -454,19 +467,19 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.restore()
 
     // y labels
-    ctx.fillStyle = '#fff'
+    ctx.fillStyle = '#17498C'
     ctx.fillRect(0, 0, LEFT, H)
-    ctx.fillStyle = '#4a5166'
+    ctx.fillStyle = '#CFE0F5'
     ctx.font = '11px system-ui,sans-serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
     for (let m = Math.ceil(lo); m <= hi; m++) if (m % 12 === 0) ctx.fillText(midiName(m), LEFT - 4, yOf(m))
-    ctx.fillStyle = '#c9cfdb'
+    ctx.fillStyle = '#3F78BF'
     ctx.fillRect(LEFT - 1, 0, 1, H)
 
     // playhead
     const px = Math.round(xOf(t)) + 0.5
-    ctx.strokeStyle = '#1d2330'
+    ctx.strokeStyle = '#fff'
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(px, 0)
@@ -653,7 +666,16 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       return
     }
     const names = Object.fromEntries((configRoles || []).map((r) => [r.id, r.name]))
-    page = viewMod.drawView(staffCtx, bandCtx, { song: staffSong, phrases, sections: song.sections || [], t: curTime(), selected, pick, names })
+    page = viewMod.drawView(staffCtx, bandCtx, {
+      song: staffSong,
+      phrases,
+      sections: song.sections || [],
+      t: curTime(),
+      selected,
+      pick,
+      names,
+      colours: roleColor,
+    })
     if (!page) return
     $('pageLbl').textContent = `Takt ${page.first + 1}–${page.first + page.count}`
     $('pagePrev').disabled = page.prev === null
@@ -1016,7 +1038,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
         $('specStatus').textContent = 'loading spectrogram…'
         img.onload = () => {
           if (song === s) {
-            spec = { img, frames: img.width, hopS: s.spec.hop_s, lo: s.spec.midi_lo, hi: s.spec.midi_hi }
+            spec = { img: lightInk(img), frames: img.width, hopS: s.spec.hop_s, lo: s.spec.midi_lo, hi: s.spec.midi_hi }
             $('specStatus').textContent = ''
           }
         }
