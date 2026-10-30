@@ -14,9 +14,9 @@ tools\.venv\Scripts\python.exe tools\<script>.py ...
 | `sources/text/` | Liedtexte (docx) und Notenblätter (pdf) | ignoriert |
 | `scores/` | Transkriptionen: `NN.abc` (Erstfassung von Hand), `NN.musicxml` (für MuseScore) | ignoriert |
 | `work/` | Zwischenergebnisse: `decoded/`, `subtracted/`, `pitch/`, `score/`, `edits/` | ignoriert |
-| `web/data/` | Was die Seite lädt: `NN*.json`, `NN_*.mp3`, `NN_spec.png`, `NN.musicxml`, `index.json` | nur `index.json` |
+| `web/data/` | Was der Editor lädt: `NN.json` (ein Lied je Eintrag in `sources/config.json`), `NN_*.mp3`, `NN_spec.png` | ignoriert |
 | `tools/` | Skripte | ja |
-| `web/` | Seite (`index.html`, `app.js`, `style.css`, `vendor/`) | ja |
+| `web/` | Editor (`index.html`, `app.js`, `edit-ops.js`, `style.css`) | ja |
 
 Alles unter `sources/`, `scores/` und die abgeleiteten Daten in `web/data/` sind
 urheberrechtlich geschützt und dürfen nur verschlüsselt ins Repo.
@@ -202,7 +202,7 @@ Ablauf: phrases → pack → `content/` committen → pushen.
    auf GitHub Pages (Einstellungen → Pages → Quelle: GitHub Actions).
 
 Lokal ansehen: `tools\.venv\Scripts\python.exe tools\serve.py` → http://localhost:8765/
-(Range-Requests, speichert Notenänderungen aus dem Editiermodus nach
+(Liederliste und Titel aus `sources/config.json`, Range-Requests, speichert Notenänderungen aus dem Editiermodus nach
 `web/data/<id>.json`, mit Zeitstempel-Kopie in `work/edits/`).
 
 ## Komplettlauf für ein neues Lied mit Noten-PDF
@@ -215,5 +215,4 @@ extract_pitch_nn.py NN work\subtracted\NN_vocals.wav "Titel" --method crepe --au
 score_from_pdf.py <pdf> work\score\NN_score.json --key-flats N       (oder abc_to_score.py / score_from_musicxml.py)
 align_score.py work\score\NN_score.json work\pitch\NN.json work\pitch\NN_aligned.json --bpm B --passes P --snap
 spectrogram.py work\subtracted\NN_vocals.wav web\data\NN_spec.png --json web\data\NN.json --range-db 35
-score_to_musicxml.py work\score\NN_score.json web\data\NN.musicxml
 ```

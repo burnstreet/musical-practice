@@ -60,6 +60,8 @@ export interface Note {
   bar: number
   beat: number
   dur: number
+  /** Spoken or rapped: rhythm and syllable only, `midi` ignored, never scored. */
+  spoken?: boolean
 }
 export interface Phrase {
   index: number
@@ -145,6 +147,7 @@ export function parseSong(input: unknown): Song {
     need(isObj(n) && isNum(n.start) && isNum(n.end) && n.end > n.start, 'notes')
     need(Number.isInteger(n.midi) && n.midi >= 36 && n.midi <= 96, 'notes')
     need(isStr(n.role) && isStr(n.syllable) && isNum(n.bar) && isNum(n.beat) && isNum(n.dur), 'notes')
+    need(n.spoken === undefined || typeof n.spoken === 'boolean', 'notes')
     need(i === 0 || n.start >= json.notes[i - 1].start, 'notes')
     need(Number.isInteger(n.phrase) && n.phrase >= 0 && n.phrase < json.phrases.length, 'phrase')
     used.add(n.phrase)

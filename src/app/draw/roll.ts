@@ -52,8 +52,9 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const x = (time: number) => ((time - t0) / (t1 - t0)) * w
   const notes = visibleNotes(song.notes, roles)
   const inView = notes.filter((n) => n.end > t0 && n.start < t1)
-  const mineInView = inView.filter((n) => roles.includes(n.role))
-  const [lo, hi] = rowRange((mineInView.length ? mineInView : inView).map((n) => n.midi))
+  const sungInView = inView.filter((n) => !n.spoken) // a spoken note has no pitch: no bar, no row, only its syllable
+  const mineInView = sungInView.filter((n) => roles.includes(n.role))
+  const [lo, hi] = rowRange((mineInView.length ? mineInView : sungInView).map((n) => n.midi))
   const rowH = h / (hi - lo + 1)
   const y = (midi: number) => (hi - midi + 0.5) * rowH // centre of the row
 
@@ -76,7 +77,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
     ctx.roundRect(x0, y(n.midi) - barH / 2, Math.max(0, x1 - x0), barH, Math.min(8, barH / 2))
   }
   ctx.lineWidth = 2
-  for (const n of inView.filter((n) => !roles.includes(n.role))) {
+  for (const n of sungInView.filter((n) => !roles.includes(n.role))) {
     rect(n, x(n.start), x(n.end))
     ctx.setLineDash([4, 4])
     ctx.globalAlpha = 0.12
@@ -159,7 +160,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
-  const mine = notes.filter((n) => roles.includes(n.role))
+  const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
   const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [

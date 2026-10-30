@@ -6,7 +6,7 @@ import type { PitchFrame } from './types'
 export class Session {
   private entered = new Map<number, PitchFrame[]>() // song note index -> frames, in order of entry
   private done: PassResult[] = []
-  /** My visible notes: a unison copy of another of my roles is not mine twice. */
+  /** My visible sung notes: a unison copy of another of my roles is not mine twice, a spoken note has no pitch to score. */
   private mine: Set<Note>
 
   constructor(
@@ -14,7 +14,7 @@ export class Session {
     private roles: RoleId[],
     private tol: Tolerance,
   ) {
-    this.mine = new Set(visibleNotes(song.notes, roles).filter((n) => roles.includes(n.role)))
+    this.mine = new Set(visibleNotes(song.notes, roles).filter((n) => roles.includes(n.role) && !n.spoken))
   }
 
   myNotes(): Note[] {
