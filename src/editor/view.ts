@@ -104,6 +104,8 @@ export interface View {
   names?: Record<string, string>
   /** A colour per role for notes, syllables and rests on the staff. */
   colours?: Record<string, string>
+  /** Bars per page (zoom); without it the player's split. */
+  bars?: number
 }
 export interface Page {
   first: number
@@ -134,6 +136,7 @@ export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRe
     t: v.t,
     frames: [],
     tolerance: 50,
+    bars: v.bars,
   })
   if (!shown) return null
   const [first, count] = shown
@@ -163,7 +166,7 @@ export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRe
 
   drawBands(bands, v, xOf, points[0][0], points.at(-1)![0], w)
 
-  const pages = staffPages(staff, song, [], w, h)
+  const pages = staffPages(staff, song, [], w, h, v.bars)
   const at = pages.findIndex(([f]) => f === first)
   const prev = at > 0 ? song.bars[pages[at - 1][0]] : null
   const next = at >= 0 && at < pages.length - 1 ? song.bars[pages[at + 1][0]] : null

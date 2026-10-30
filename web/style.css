@@ -46,7 +46,6 @@ canvas { display:block; width:100%; height:100%; cursor:pointer; }
 #staffCv { height:150px; cursor:pointer; }
 #bandCv { height:56px; cursor:pointer; }
 body.with-view #wrap { height:260px; min-height:0; }
-body.with-view #zoomIn, body.with-view #zoomOut, body.with-view #zoomLbl { display:none; } /* the roll shows the staff's page */
 #noteCard .noteMain { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 #noteBig { font-size:2.2rem; font-weight:600; line-height:1; }
 #noteInfo, #noteMeta, #sectState { color:#CFE0F5; font-size:.9rem; }
