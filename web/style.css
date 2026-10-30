@@ -10,8 +10,7 @@ button { cursor:pointer; }
 button:hover { border-color:var(--accent); }
 audio { width:100%; margin:10px 0 6px; }
 #stems { display:flex; gap:14px; flex-wrap:wrap; margin:4px 0; }
-#stems[hidden], #timerBar[hidden] { display:none; }
-#timerBar { margin:6px 0; display:flex; gap:10px; align-items:center; color:var(--muted); flex-wrap:wrap; }
+#stems[hidden] { display:none; }
 .toolbar { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
 .toolbar > #zoomIn, .toolbar > #zoomOut { width:34px; }
 .toolbar label { margin-left:10px; }
@@ -24,9 +23,6 @@ button:disabled { opacity:.5; cursor:default; }
 #legend { display:flex; gap:16px; flex-wrap:wrap; margin:4px 0; font-size:.9rem; }
 #legend[hidden] { display:none; }
 #legend i { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:5px; }
-body.with-sheet #wrap { height:calc(55vh - 160px); }
-#sheet { position:relative; background:#fff; color:#1d2330; border:1px solid var(--line); border-radius:8px; margin-top:10px; padding:6px; overflow:auto; height:calc(45vh - 110px); min-height:220px; }
-#sheet[hidden] { display:none; }
 #wrap { width:100%; height:calc(100vh - 260px); min-height:300px; background:var(--card); border-radius:24px; overflow:hidden; }
 canvas { display:block; width:100%; height:100%; cursor:pointer; }
 #readout { display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:8px; font-variant-numeric:tabular-nums; color:var(--muted); }
