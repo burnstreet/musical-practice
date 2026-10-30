@@ -8,6 +8,9 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
   const ZOOMS = [4, 6, 8, 12, 18, 30, 45, 60, 90, 120]
   let zoomIdx = 3
+  // with the staff view on, the roll runs on the staff page: zoom picks its bar count instead
+  const BAR_ZOOMS = [1, 2, 3, 4, 6, 8, 12, 16]
+  let barIdx = 3
   let song = null,
     entry = null,
     pitchMidi = null // pitchMidi: Float32Array (NaN = gap)
@@ -448,7 +451,12 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     $('viewHint').hidden = !hint
     $('viewHint').textContent = hint
     document.body.classList.toggle('with-view', !!staffSong)
+    zoomLabel()
     resize()
+  }
+  function zoomLabel() {
+    const n = BAR_ZOOMS[barIdx]
+    $('zoomLbl').textContent = staffSong ? `${n} ${n === 1 ? 'Takt' : 'Takte'}` : `${win()} s`
   }
   function drawView() {
     if (!staffSong) {
@@ -465,6 +473,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       pick,
       names,
       colours: roleColor,
+      bars: BAR_ZOOMS[barIdx],
     })
     if (!page) return
     $('pageLbl').textContent = `Takt ${page.first + 1}–${page.first + page.count}`
@@ -834,19 +843,22 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   }
 
   async function init() {
-    $('zoomLbl').textContent = `${win()} s`
+    zoomLabel()
     resize()
     window.addEventListener('resize', resize)
     audio.addEventListener('error', () => {
       if (song?.audio) $('status').textContent = `Audio file could not be loaded (${audio.getAttribute('src') || ''}).`
     })
+    // + shows more bars or seconds, − fewer
     $('zoomIn').onclick = () => {
-      zoomIdx = Math.max(0, zoomIdx - 1)
-      $('zoomLbl').textContent = `${win()} s`
+      if (staffSong) barIdx = Math.min(BAR_ZOOMS.length - 1, barIdx + 1)
+      else zoomIdx = Math.min(ZOOMS.length - 1, zoomIdx + 1)
+      zoomLabel()
     }
     $('zoomOut').onclick = () => {
-      zoomIdx = Math.min(ZOOMS.length - 1, zoomIdx + 1)
-      $('zoomLbl').textContent = `${win()} s`
+      if (staffSong) barIdx = Math.max(0, barIdx - 1)
+      else zoomIdx = Math.max(0, zoomIdx - 1)
+      zoomLabel()
     }
     $('editChk').onchange = () => setEditMode($('editChk').checked)
     $('saveBtn').onclick = save
