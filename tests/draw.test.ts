@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
+import { draw as drawRoll, foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   COLORS,
@@ -7,6 +7,7 @@ import {
   layoutBar,
   layoutPage,
   noteColour,
+  notePos,
   noteValue,
   octaveShift,
   type PageOnset,
@@ -44,6 +45,14 @@ describe('staff layout', () => {
     expect(octaveShift(song([43, 44, 45]))).toBe(24)
     expect(octaveShift(song([60, 62, 64, 65]))).toBe(0)
     expect(octaveShift(song([]))).toBe(0)
+  })
+
+  it('writes a spoken note on the middle line without accidental, and leaves it out of the octave shift', () => {
+    const notes = [55, 56, 57, 59, 62].map((midi) => ({ midi })) as Note[]
+    const song = { notes: [...notes, ...Array(9).fill({ midi: 71, spoken: true })] } as unknown as Song
+    expect(octaveShift(song)).toBe(12) // the sung median 57, not the spoken 71
+    expect(notePos({ midi: 61, spoken: true } as Note, song, 0)).toEqual({ step: 4, acc: '' })
+    expect(notePos({ midi: 61 } as Note, song, 0)).toEqual(staffPos(73, 0))
   })
 
   it('needs no accidental for pitches in the key', () => {
@@ -309,6 +318,40 @@ describe('staff playhead', () => {
     }
     const L = { startX: 0, xs: [10, 50, 90], barX: [0], barW: [100] } as unknown as Parameters<typeof pagePoints>[2]
     expect(pagePoints(song, content, L).map(([t]) => t)).toEqual([0, 0.1, 1, 1.9, 2])
+  })
+})
+
+/** A 2D context that records every method call; enough for the draw functions, which only call and set. */
+const recorder = () => {
+  const calls: [string, unknown[]][] = []
+  const canvas = { clientWidth: 400, clientHeight: 200, width: 0, height: 0 }
+  const ctx = new Proxy({ canvas } as Record<string | symbol, unknown>, {
+    get: (o, k) =>
+      k in o
+        ? o[k]
+        : (...a: unknown[]) => {
+            calls.push([String(k), a])
+            return k === 'measureText' ? { width: 10 } : undefined
+          },
+    set: (o, k, v) => {
+      o[k] = v
+      return true
+    },
+  }) as unknown as CanvasRenderingContext2D
+  return { ctx, calls }
+}
+
+describe('piano roll', () => {
+  it('draws no bar for a spoken note and sizes the rows by the sung notes, but shows its syllable', () => {
+    const n = (start: number, midi: number, syllable: string, spoken?: boolean) =>
+      ({ start, end: start + 1, midi, syllable, role: 'maria', phrase: 0, bar: 0, beat: start, dur: 1, spoken }) as Note
+    const song = { notes: [n(1, 60, 'la'), n(2, 71, 'rap', true)], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 }) // before both: no elapsed fill
+    expect(calls.filter(([k]) => k === 'roundRect')).toHaveLength(1)
+    const texts = calls.filter(([k]) => k === 'fillText').map(([, a]) => a[0])
+    expect(texts).toContain('rap')
+    expect(texts.length - 2).toBe(10) // row labels: 60 ± 2 padded to 10 rows; with the spoken 71 it would be 16
   })
 })
 
