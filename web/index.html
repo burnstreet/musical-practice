@@ -14,10 +14,6 @@
   </header>
   <audio id="audio" controls preload="auto"></audio>
   <div id="stems" hidden></div>
-  <div id="timerBar" hidden>
-    <button id="timerBtn">Play (timer)</button>
-    <span>No audio for this song; playhead runs on a timer.</span>
-  </div>
   <div class="toolbar">
     <button id="zoomOut" title="Zoom out">&minus;</button>
     <span id="zoomLbl"></span>
@@ -25,7 +21,6 @@
     <label><input type="checkbox" id="specChk" checked> Spectrogram (vocals)</label>
     <span id="specStatus" class="hint"></span>
     <label><input type="checkbox" id="lyricChk" checked> Text</label>
-    <label><input type="checkbox" id="sheetChk" checked> Noten</label>
     <label><input type="checkbox" id="editChk"> Edit notes</label>
     <span class="hint">Space: play/pause &middot; click roll: seek</span>
   </div>
@@ -51,7 +46,6 @@
       </section>
       <p id="viewHint" class="hint" hidden></p>
       <div id="wrap"><canvas id="roll"></canvas></div>
-      <div id="sheet" hidden></div>
     </div>
     <aside id="editorSide">
       <section id="noteCard" class="panel" hidden>
@@ -80,7 +74,6 @@
   </div>
   <div id="status"></div>
 </main>
-<script src="vendor/opensheetmusicdisplay.min.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
