@@ -18,6 +18,8 @@ export interface DrawState {
   repeat?: Marks | null
   /** A colour per role (the editor); roles without one, and the player, use accent for mine and other for the rest. */
   colours?: Partial<Record<RoleId, string>>
+  /** Bars per page, fixed (the editor's zoom); without it `staffPages` picks them. */
+  bars?: number
 }
 
 /** Colour of a note, syllable or rest: its role's colour when `colours` has one, else mine or other. */
@@ -448,14 +450,15 @@ export function pagePoints(song: Song, content: ReturnType<typeof pageContent>, 
 
 /** Page split per song, canvas size, roles and font state; measuring every page each frame would be too slow. */
 const pageCache = new WeakMap<Song, Map<string, [number, number][]>>()
-/** Pages of up to `barsPerPage` bars whose syllables fit on one row (fewer bars where they do not). */
-export function staffPages(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number): [number, number][] {
-  const key = `${w}|${h}|${roles.join()}|${globalThis.document?.fonts?.status}`
+/** Pages of up to `barsPerPage` bars whose syllables fit on one row (fewer bars where they do not); `fixed` bars each when given, squeezed if need be. */
+export function staffPages(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number, fixed?: number): [number, number][] {
+  const key = `${w}|${h}|${roles.join()}|${globalThis.document?.fonts?.status}|${fixed ?? ''}`
   const bySize = pageCache.get(song) ?? new Map<string, [number, number][]>()
   pageCache.set(song, bySize)
   let pages = bySize.get(key)
   if (!pages) {
-    pages = splitPages(song.bars.length, barsPerPage(w), (first, count) => measurePage(ctx, song, pageContent(song, roles, first, count), w, h / BASE).fits)
+    const fits = (first: number, count: number) => measurePage(ctx, song, pageContent(song, roles, first, count), w, h / BASE).fits
+    pages = splitPages(song.bars.length, fixed ?? barsPerPage(w), fixed ? () => true : fits)
     bySize.set(key, pages)
   }
   return pages
@@ -470,7 +473,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const mine = (n: Note) => roles.includes(n.role)
   const { w, h } = fit(ctx)
-  const shown = pageAt(staffPages(ctx, song, roles, w, h), song.bars, t)
+  const shown = pageAt(staffPages(ctx, song, roles, w, h, state.bars), song.bars, t)
   const [first, per] = shown
   const content = pageContent(song, roles, first, per)
   const { bars, notes, onsets, lyric } = content
