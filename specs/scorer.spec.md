@@ -27,6 +27,7 @@ export interface PassResult {
 export function foldCents(sungMidi: number, targetMidi: number): number        // (-600, 600]
 export function scoreNote(note: Note, frames: PitchFrame[], tol: Tolerance): NoteResult
 export function scorePass(song: Song, roles: RoleId[], framesByNote: Map<number, PitchFrame[]>, tol: Tolerance): PassResult
+export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null
 
 export class Session {
   constructor(song: Song, roles: RoleId[], tol: Tolerance)
@@ -154,7 +155,8 @@ Feature: Pass result
 - `frame` routes by `t` into the entered note whose `[start, end]` contains `t`, mine only. Frames before `enter` of that note dropped.
 - `enter` on an already entered note clears its frames (loop restart, seek back). Last entry wins.
 - `startPass` clears entered set and frames. `endPass` scores, appends, returns. Pass number = `passes().length`.
-- `myNotes` = my notes of `visibleNotes(song.notes, roles)`. `enter` ignores the dropped unison copies, so a duet note counts once.
+- `myNotes` = my notes of `visibleNotes(song.notes, roles)`, without spoken ones. `enter` ignores the dropped unison copies, so a duet note counts once, and spoken notes, so rap is never scored.
+- `liveDeviation` (cents readout) treats a spoken note like no note: null.
   `[@test] ../tests/steps/scorer.steps.ts`
 
 ```gherkin
@@ -178,4 +180,14 @@ Feature: Session
     Given a session for roles [maria, josef] with maria and josef both on note [1.0,2.0] midi 67
     When I start a pass, enter both copies, feed frames at 67, end the pass
     Then scoredNotes is 1 and myNotes has 1 note
+
+  Scenario: spoken notes never scored
+    Given a session for roles [maria] with a sung note and a spoken note
+    When I start a pass, enter both notes, feed frames inside both, end the pass
+    Then scoredNotes is 1 and myNotes has 1 note
+
+  Scenario: no live readout on a spoken note
+    Given a spoken maria note [1.0,2.0] and a frame at 1.5
+    When I take the live deviation at 1.5 for [maria]
+    Then there is no live deviation
 ```

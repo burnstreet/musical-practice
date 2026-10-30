@@ -13,16 +13,11 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     pitchMidi = null // pitchMidi: Float32Array (NaN = gap)
   let lo = 48,
     hi = 84
-  let noAudio = false,
-    timerPlaying = false,
-    timerT = 0,
-    timerStart = 0
   let W = 0,
     H = 0,
     dpr = 1
-  // spectrogram of the vocals stem: image with one column per frame, SUB rows per semitone
+  // spectrogram of the vocals stem (tools/spectrogram.py): image with one column per frame
   let spec = null // {img, frames, hopS, lo, hi}
-  const SUB = 3
   // editing
   let editMode = false,
     selected = new Set(),
@@ -32,9 +27,6 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   const ROLE_PALETTE = ['#A9D3F7', '#C8E05A', '#FFA69E', '#7FE0B5', '#D9B8F5', '#F59BC8']
   let roleColor = {},
     configRoles = null
-  // sheet music (OpenSheetMusicDisplay)
-  let osmd = null,
-    cursorPos = null
   // bars and sections view (staff shared with the player: web/lib/editor-view.js, built by ./mp.ps1 build)
   let viewMod = null,
     bars = null, // bar start seconds from the editor server
@@ -63,33 +55,18 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     return c
   }
   const hzToMidi = (hz) => 69 + 12 * Math.log2(hz / 440)
-  const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12)
   const win = () => ZOOMS[zoomIdx]
   const PLAY_FRAC = 1 / 3
   const LEFT = 40
 
   function curTime() {
-    if (noAudio) return timerPlaying ? timerT + (performance.now() - timerStart) / 1000 : timerT
     return audio.currentTime || 0
   }
   function seek(t) {
-    t = Math.max(0, t)
-    if (noAudio) {
-      timerT = t
-      timerStart = performance.now()
-    } else audio.currentTime = t
+    audio.currentTime = Math.max(0, t)
   }
   function toggle() {
-    if (noAudio) {
-      if (timerPlaying) {
-        timerT = curTime()
-        timerPlaying = false
-      } else {
-        timerStart = performance.now()
-        timerPlaying = true
-      }
-      $('timerBtn').textContent = timerPlaying ? 'Pause (timer)' : 'Play (timer)'
-    } else if (audio.paused) audio.play().catch(() => {})
+    if (audio.paused) audio.play().catch(() => {})
     else audio.pause()
   }
 
@@ -134,134 +111,6 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     } else {
       lo = 48
       hi = 84
-    }
-  }
-
-  // ---------- spectrogram ----------
-  function fft(re, im) {
-    // in-place radix-2
-    const n = re.length
-    for (let i = 1, j = 0; i < n; i++) {
-      let bit = n >> 1
-      for (; j & bit; bit >>= 1) j ^= bit
-      j ^= bit
-      if (i < j) {
-        let t = re[i]
-        re[i] = re[j]
-        re[j] = t
-        t = im[i]
-        im[i] = im[j]
-        im[j] = t
-      }
-    }
-    for (let len = 2; len <= n; len <<= 1) {
-      const ang = (-2 * Math.PI) / len,
-        wr = Math.cos(ang),
-        wi = Math.sin(ang)
-      for (let i = 0; i < n; i += len) {
-        let cr = 1,
-          ci = 0
-        for (let k = 0; k < len / 2; k++) {
-          const a = i + k,
-            b = a + len / 2
-          const xr = re[b] * cr - im[b] * ci,
-            xi = re[b] * ci + im[b] * cr
-          re[b] = re[a] - xr
-          im[b] = im[a] - xi
-          re[a] += xr
-          im[a] += xi
-          const t = cr * wr - ci * wi
-          ci = cr * wi + ci * wr
-          cr = t
-        }
-      }
-    }
-  }
-
-  async function buildSpectrogram(file, mySong) {
-    spec = null
-    $('specStatus').textContent = 'computing spectrogram…'
-    try {
-      const tStart = performance.now()
-      const ac = new (window.AudioContext || window.webkitAudioContext)()
-      const raw = await (await fetch(`data/${file}`)).arrayBuffer()
-      console.log('spec: fetched', file, raw.byteLength, 'bytes', Math.round(performance.now() - tStart), 'ms')
-      const ab = await ac.decodeAudioData(raw)
-      console.log('spec: decoded', ab.duration.toFixed(1), 's', Math.round(performance.now() - tStart), 'ms')
-      ac.close && ac.close()
-      if (song !== mySong) return
-      const ch = ab.getChannelData(0),
-        dec = Math.max(1, Math.floor(ab.sampleRate / 11025)),
-        sr = ab.sampleRate / dec
-      const n = Math.floor(ch.length / dec),
-        y = new Float32Array(n)
-      for (let i = 0; i < n; i++) {
-        let s = 0
-        for (let k = 0; k < dec; k++) s += ch[i * dec + k]
-        y[i] = s / dec
-      }
-      const N = 2048,
-        hop = Math.round(sr * 0.02),
-        hopS = hop / sr,
-        binHz = sr / N
-      const frames = Math.max(1, Math.floor((n - N) / hop))
-      const rows = (hi - lo + 1) * SUB
-      // bin range per sub-row (row 0 = top = highest pitch)
-      const bins = []
-      for (let r = 0; r < rows; r++) {
-        const m = hi + 0.5 - (r + 0.5) / SUB
-        const f0 = midiToHz(m - 0.5 / SUB),
-          f1 = midiToHz(m + 0.5 / SUB)
-        bins.push([Math.max(1, Math.floor(f0 / binHz)), Math.min(N / 2, Math.ceil(f1 / binHz))])
-      }
-      const win_ = new Float32Array(N)
-      for (let i = 0; i < N; i++) win_[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N)
-      const re = new Float32Array(N),
-        im = new Float32Array(N),
-        mag = new Float32Array(N / 2 + 1)
-      const db = new Float32Array(frames * rows)
-      let gmax = -1e9
-      for (let f = 0; f < frames; f++) {
-        const o = f * hop
-        for (let i = 0; i < N; i++) {
-          re[i] = y[o + i] * win_[i]
-          im[i] = 0
-        }
-        fft(re, im)
-        for (let k = 0; k <= N / 2; k++) mag[k] = re[k] * re[k] + im[k] * im[k]
-        for (let r = 0; r < rows; r++) {
-          let mx = 0
-          for (let k = bins[r][0]; k <= bins[r][1]; k++) if (mag[k] > mx) mx = mag[k]
-          const v = 10 * Math.log10(mx + 1e-12)
-          db[f * rows + r] = v
-          if (v > gmax) gmax = v
-        }
-        if (f % 400 === 0) {
-          await new Promise((res) => setTimeout(res, 0))
-          if (song !== mySong) return
-        }
-      }
-      const img = document.createElement('canvas')
-      img.width = frames
-      img.height = rows
-      const ictx = img.getContext('2d'),
-        id = ictx.createImageData(frames, rows)
-      const RANGE = 55
-      for (let f = 0; f < frames; f++)
-        for (let r = 0; r < rows; r++) {
-          const v = Math.max(0, Math.min(1, (db[f * rows + r] - gmax + RANGE) / RANGE))
-          const o = (r * frames + f) * 4
-          id.data[o] = 169
-          id.data[o + 1] = 211
-          id.data[o + 2] = 247
-          id.data[o + 3] = Math.round(v * v * 230)
-        }
-      ictx.putImageData(id, 0, 0)
-      spec = { img, frames, hopS, lo, hi }
-      console.log('spec: done', frames, 'frames x', rows, 'rows', Math.round(performance.now() - tStart), 'ms')
-      $('specStatus').textContent = ''
-    } catch (e) {
-      $('specStatus').textContent = `no spectrogram: ${e.message}`
     }
   }
 
@@ -487,10 +336,9 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.stroke()
 
     readout(t)
-    followSheet(t)
   }
 
-  // ---------- roles / sheet ----------
+  // ---------- roles ----------
   // dropdown: global config roles, else roles already in the song
   function fillRoleSel(s) {
     const opts = configRoles || [...new Set(s.notes.map((n) => n.role).filter(Boolean))].map((r) => ({ id: r, name: r }))
@@ -509,6 +357,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     })
     fillRoleSel(s)
     const box = $('legend')
+    const label = Object.fromEntries((configRoles || []).map((r) => [r.id, r.name]))
     box.textContent = ''
     box.hidden = names.length < 1
     names.forEach((r) => {
@@ -516,68 +365,9 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       const sw = document.createElement('i')
       sw.style.background = roleColor[r]
       sp.appendChild(sw)
-      sp.appendChild(document.createTextNode(r))
+      sp.appendChild(document.createTextNode(label[r] || r))
       box.appendChild(sp)
     })
-  }
-
-  async function loadSheet(s) {
-    const box = $('sheet')
-    box.textContent = ''
-    osmd = null
-    cursorPos = null
-    box.hidden = !s.sheet || !$('sheetChk').checked
-    document.body.classList.toggle('with-sheet', !box.hidden)
-    resize()
-    if (box.hidden || !window.opensheetmusicdisplay) return
-    try {
-      const o = new opensheetmusicdisplay.OpenSheetMusicDisplay(box, {
-        autoResize: true,
-        drawTitle: false,
-        drawPartNames: false,
-        followCursor: false,
-        drawingParameters: 'compact',
-      })
-      await o.load(`data/${s.sheet}`)
-      if (song !== s) return
-      o.render()
-      o.cursor.show()
-      osmd = o
-    } catch (e) {
-      box.textContent = `Noten konnten nicht geladen werden: ${e.message}`
-    }
-  }
-  // move the sheet cursor to the bar/beat of the note sounding at t
-  function followSheet(t) {
-    if (!osmd || !song) return
-    let cur = null
-    for (const n of song.notes) {
-      if (t >= n.start && t <= n.end) {
-        cur = n
-        break
-      }
-    }
-    if (!cur) return
-    const key = `${cur.bar}:${cur.beat}`
-    if (key === cursorPos) return
-    cursorPos = key
-    const c = osmd.cursor
-    c.reset()
-    for (let guard = 0; guard < 5000 && !c.iterator.EndReached; guard++) {
-      const mi = c.iterator.CurrentMeasureIndex,
-        beat = c.iterator.currentTimeStamp.RealValue * 4
-      if (mi > cur.bar || (mi === cur.bar && beat >= cur.beat - 1e-3)) break
-      c.next()
-    }
-    c.update()
-    // keep the cursor visible by scrolling the sheet box only, never the page
-    const box = $('sheet'),
-      el = c.cursorElement
-    if (el) {
-      const top = el.offsetTop - box.offsetTop,
-        bottom = top + el.offsetHeight
-      if (top < box.scrollTop || bottom > box.scrollTop + box.clientHeight) box.scrollTop = Math.max(0, top - 20)
-    }
   }
 
   function readout(t) {
@@ -611,7 +401,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function grid() {
     const n = bars.length
     const len = n > 1 ? bars[n - 1] - bars[n - 2] : 2
-    return { bars, end: Number.isFinite(audio.duration) && !noAudio ? audio.duration : bars[n - 1] + len }
+    return { bars, end: Number.isFinite(audio.duration) ? audio.duration : bars[n - 1] + len }
   }
   async function fetchDetect() {
     const id = entry.file.replace(/\.json$/, '')
@@ -1005,8 +795,6 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       s.pitch = s.pitch || []
       s.notes = s.notes || []
       audio.pause()
-      timerPlaying = false
-      timerT = 0
       song = s
       entry = en
       prepare()
@@ -1014,22 +802,14 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       drag = null
       dirty = false
       $('saveBtn').disabled = true
-      noAudio = !s.audio
-      $('timerBar').hidden = !noAudio
-      audio.style.display = noAudio ? 'none' : ''
-      $('timerBtn').textContent = 'Play (timer)'
       buildStems(s)
       buildRoles(s)
       pick = null
       loadGrid(s)
-      loadSheet(s)
-      if (!noAudio) audio.src = `data/${s.audio}`
+      if (s.audio) audio.src = `data/${s.audio}`
       else audio.removeAttribute('src')
       const startT = parseFloat(new URLSearchParams(location.search).get('t'))
-      if (startT > 0) {
-        if (noAudio) seek(startT)
-        else audio.addEventListener('loadedmetadata', () => seek(startT), { once: true })
-      }
+      if (startT > 0) audio.addEventListener('loadedmetadata', () => seek(startT), { once: true })
       spec = null
       $('specStatus').textContent = ''
       if (s.spec) {
@@ -1046,9 +826,6 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
           if (song === s) $('specStatus').textContent = `spectrogram image missing: ${s.spec.file}`
         }
         img.src = `data/${s.spec.file}`
-      } else {
-        const specFile = (s.stems && s.stems.vocals) || s.audio
-        if (specFile) buildSpectrogram(specFile, s)
       }
     } catch (e) {
       song = null
@@ -1061,7 +838,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     resize()
     window.addEventListener('resize', resize)
     audio.addEventListener('error', () => {
-      if (song && !noAudio) $('status').textContent = `Audio file could not be loaded (${audio.getAttribute('src') || ''}).`
+      if (song?.audio) $('status').textContent = `Audio file could not be loaded (${audio.getAttribute('src') || ''}).`
     })
     $('zoomIn').onclick = () => {
       zoomIdx = Math.max(0, zoomIdx - 1)
@@ -1071,11 +848,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       zoomIdx = Math.min(ZOOMS.length - 1, zoomIdx + 1)
       $('zoomLbl').textContent = `${win()} s`
     }
-    $('timerBtn').onclick = toggle
     $('editChk').onchange = () => setEditMode($('editChk').checked)
-    $('sheetChk').onchange = () => {
-      if (song) loadSheet(song)
-    }
     $('saveBtn').onclick = save
     $('roleBtn').onclick = () => {
       if (!song || !$('roleSel').value) return
@@ -1151,27 +924,19 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     } catch (e) {
       /* not built: refreshView shows the hint */
     }
+    // the songs of sources/config.json, titled as in the app; each is edited in web/data/<id>.json, the file pack reads
     try {
       const cfg = await (await fetch('config.json', { cache: 'no-store' })).json()
       configRoles = cfg.roles
-      cfgSongs = cfg.songs || []
+      cfgSongs = [...(cfg.songs || [])].sort((a, b) => a.number - b.number)
     } catch (e) {
-      /* no config: dropdown falls back to song roles */
-    }
-    let list = []
-    try {
-      const r = await fetch('data/index.json', { cache: 'no-store' })
-      list = await r.json()
-    } catch (e) {
-      $('status').textContent = `Could not load data/index.json: ${e.message}`
+      $('status').textContent = `Could not load config.json (sources/config.json via tools/serve.py): ${e.message}`
       return
     }
+    const list = cfgSongs.map((c) => ({ file: `${c.id}.json`, title: `Lied ${c.number} · ${c.title}` }))
     const sel = $('songSel')
     list.forEach((s, i) => {
-      const o = document.createElement('option')
-      o.value = i
-      o.textContent = s.title
-      sel.appendChild(o)
+      sel.appendChild(new Option(s.title, i))
     })
     sel.onchange = () => loadSong(list[sel.value])
     // ?s=08 selects the entry whose file is 08.json
