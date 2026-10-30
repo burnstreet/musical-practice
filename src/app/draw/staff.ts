@@ -16,6 +16,13 @@ export interface DrawState {
   tolerance: Tolerance
   /** Active repeat: everything outside start…end is dimmed; flags [time, label] mark it. Drawing only. */
   repeat?: Marks | null
+  /** A colour per role (the editor); roles without one, and the player, use accent for mine and other for the rest. */
+  colours?: Partial<Record<RoleId, string>>
+}
+
+/** Colour of a note, syllable or rest: its role's colour when `colours` has one, else mine or other. */
+export function noteColour(role: RoleId, mine: boolean, colours?: Partial<Record<RoleId, string>>): string {
+  return colours?.[role] ?? (mine ? COLORS.accent : COLORS.other)
 }
 
 export interface Marks {
@@ -312,9 +319,9 @@ export function splitPages(barCount: number, max: number, fits: (first: number, 
   return pages
 }
 
-/** The page holding the bar of song time `t`. */
+/** The page holding the bar of song time `t`; 1 ms early counts, as a seek to a bar start can land a hair before it. */
 export function pageAt(pages: [number, number][], bars: number[], t: number): [number, number] {
-  const bar = Math.max(0, bars.filter((b) => b <= t).length - 1)
+  const bar = Math.max(0, bars.filter((b) => b <= t + 0.001).length - 1)
   return pages.find(([first, count]) => bar < first + count) ?? pages[pages.length - 1]
 }
 
@@ -517,7 +524,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   })
 
   const x = (n: Note) => startX + L.xs[at(n)]
-  const colour = (n: Note) => (mine(n) ? COLORS.accent : COLORS.other)
+  const colour = (n: Note) => noteColour(n.role, mine(n), state.colours)
   const sounding = notes.filter((n) => n.start <= t && t < n.end)
   const current = sounding.find(mine) ?? sounding[0]
 
