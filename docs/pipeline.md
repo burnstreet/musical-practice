@@ -138,10 +138,12 @@ tools\.venv\Scripts\python.exe tools\score_to_musicxml.py work\score\03_score.js
 tools\.venv\Scripts\python.exe tools\score_from_musicxml.py scores\03.musicxml work\score\03_score.json
 ```
 
-Der Import nimmt die erste Stimme und bei Akkorden den höchsten Ton, fasst
+Der Import nimmt den ersten Part und bei Akkorden den höchsten Ton, fasst
 Bindebögen zusammen und liest Stafftext/Studierzeichen als Abschnittsnamen
-(`section`). Noten werden nach Rolle eingefärbt, wenn das Score-JSON `role`
-und `roles` enthält (siehe 5).
+(`section`). Jede Note behält ihre MuseScore-Stimme (`voice`); eine Pause fällt
+weg, solange eine andere Stimme singt. `--roles 1=anna,2=chor` setzt `role` aus
+der Stimme (Rollen-IDs aus `sources/config.json`). Noten werden nach Rolle
+eingefärbt, wenn das Score-JSON `role` und `roles` enthält (siehe 5).
 
 ## 4. Partitur an die Aufnahme ausrichten
 
