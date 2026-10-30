@@ -102,6 +102,8 @@ export interface View {
   /** Selected band item, outlined. */
   pick?: { kind: 'phrase' | 'section'; index: number } | null
   names?: Record<string, string>
+  /** A colour per role for notes, syllables and rests on the staff. */
+  colours?: Record<string, string>
 }
 export interface Page {
   first: number
@@ -124,7 +126,15 @@ export const BAND = { phrase: [2, 26], section: [30, 54] } as const
 export function drawView(staff: CanvasRenderingContext2D | null, bands: CanvasRenderingContext2D | null, v: View): Page | null {
   if (!staff || !bands) return null
   const { song } = v
-  const shown = draw(staff, { song, roles: [], names: (v.names ?? {}) as Partial<Record<RoleId, string>>, t: v.t, frames: [], tolerance: 50 })
+  const shown = draw(staff, {
+    song,
+    roles: [],
+    names: (v.names ?? {}) as Partial<Record<RoleId, string>>,
+    colours: v.colours as Partial<Record<RoleId, string>> | undefined,
+    t: v.t,
+    frames: [],
+    tolerance: 50,
+  })
   if (!shown) return null
   const [first, count] = shown
   const w = staff.canvas.clientWidth

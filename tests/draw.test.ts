@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { draw as drawRoll, foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
+  COLORS,
   keyFifths,
   layoutBar,
   layoutPage,
+  noteColour,
   notePos,
   noteValue,
   octaveShift,
@@ -265,7 +267,18 @@ describe('staff pages', () => {
     expect(pageAt(pages, bars, -5)).toEqual([0, 2])
     expect(pageAt(pages, bars, 3.9)).toEqual([0, 2])
     expect(pageAt(pages, bars, 4)).toEqual([2, 1])
+    // a seek to a bar start lands a hair before it (audio time rounding): still that bar's page
+    expect(pageAt(pages, bars, 3.999999)).toEqual([2, 1])
     expect(pageAt(pages, bars, 9)).toEqual([3, 2])
+  })
+})
+
+describe('note colour', () => {
+  it('takes the role colour when given, else accent for mine and other for the rest', () => {
+    expect(noteColour('anna', false, { anna: '#123456' })).toBe('#123456')
+    expect(noteColour('anna', true, { anna: '#123456' })).toBe('#123456')
+    expect(noteColour('anna', true, { mutter: '#123456' })).toBe(COLORS.accent)
+    expect(noteColour('anna', false)).toBe(COLORS.other)
   })
 })
 
