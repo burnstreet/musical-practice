@@ -259,6 +259,14 @@ export default steps(({ Given, When, Then }) => {
     })
     ctx.result = s.endPass()
   })
+  Given(/^a session for roles \[maria\] with note 0 \[1.0,2.0\] tied to note 1 \[3.0,4.0\]$/, (ctx) => {
+    ctx.song = song([{}, {}])
+    ctx.song.notes[0].tie = true
+    ctx.session = new Session(ctx.song, ['maria'], 50)
+  })
+  Then(/^the scored note spans (\d+) to (\d+)$/, (ctx, a, b) => {
+    expect([ctx.result.notes[0].note.start, ctx.result.notes[0].note.end]).toEqual([+a, +b])
+  })
   Given(/^a spoken maria note \[1.0,2.0\] and a frame at 1.5$/, (ctx) => {
     ctx.song = song([{}])
     ctx.song.notes[0].spoken = true

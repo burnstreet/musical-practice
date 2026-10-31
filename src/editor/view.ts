@@ -21,6 +21,8 @@ export interface RawNote {
   beat?: number
   dur?: number
   spoken?: boolean
+  slur?: boolean
+  tie?: boolean
 }
 export interface RawSong {
   id: string
@@ -71,6 +73,8 @@ export function staffSong(raw: RawSong, bars: number[], key = 'C', beats = 4): S
     beat: n.beat ?? 0,
     dur: n.dur ?? 1,
     spoken: n.spoken,
+    slur: n.slur,
+    tie: n.tie,
   }))
   return { id: raw.id, bpm: 60 / quarter, key, timeSig: [beats, 4], bars, notes, phrases: [], sections: [] }
 }

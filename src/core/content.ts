@@ -62,6 +62,10 @@ export interface Note {
   dur: number
   /** Spoken or rapped: rhythm and syllable only, `midi` ignored, never scored. */
   spoken?: boolean
+  /** A slur starts here: the staff draws an arc to the next note of the same role. */
+  slur?: boolean
+  /** Tied to the next note of the same role (same pitch): drawn with an arc, scored together as one note. */
+  tie?: boolean
 }
 export interface Phrase {
   index: number
@@ -148,6 +152,8 @@ export function parseSong(input: unknown): Song {
     need(Number.isInteger(n.midi) && n.midi >= 36 && n.midi <= 96, 'notes')
     need(isStr(n.role) && isStr(n.syllable) && isNum(n.bar) && isNum(n.beat) && isNum(n.dur), 'notes')
     need(n.spoken === undefined || typeof n.spoken === 'boolean', 'notes')
+    need(n.slur === undefined || typeof n.slur === 'boolean', 'notes')
+    need(n.tie === undefined || typeof n.tie === 'boolean', 'notes')
     need(i === 0 || n.start >= json.notes[i - 1].start, 'notes')
     need(Number.isInteger(n.phrase) && n.phrase >= 0 && n.phrase < json.phrases.length, 'phrase')
     used.add(n.phrase)
@@ -176,6 +182,35 @@ export function visibleNotes(notes: Note[], roles: RoleId[]): Note[] {
     seen.add(key)
     return true
   })
+}
+
+/**
+ * Index of the note a tie or slur of `notes[i]` leads to, -1 if none: the later note of its role whose start is nearest
+ * to its end. Not simply the next one, as aligned notes can overlap and a later note may start first.
+ */
+export function arcTarget(notes: Note[], i: number): number {
+  let best = -1
+  const gap = (k: number) => Math.abs(notes[k].start - notes[i].end)
+  for (let k = i + 1; k < notes.length; k++) if (notes[k].role === notes[i].role && (best < 0 || gap(k) < gap(best))) best = k
+  return best
+}
+
+/**
+ * The notes with every tie chain joined for scoring: its first note spans to the chain's end (`dur` summed), `tiedIn`
+ * holds the indices of the notes tied into it. Indices and order kept.
+ */
+export function joinTies(notes: Note[]): { notes: Note[]; tiedIn: Set<number> } {
+  const out = [...notes]
+  const tiedIn = new Set<number>()
+  // backwards, so a chain's middle note already reaches the chain's end when its head takes it over
+  for (let i = notes.length - 1; i >= 0; i--) {
+    if (!notes[i].tie) continue
+    const j = arcTarget(notes, i)
+    if (j < 0 || notes[j].midi !== notes[i].midi) continue
+    out[i] = { ...notes[i], end: out[j].end, dur: notes[i].dur + out[j].dur }
+    tiedIn.add(j)
+  }
+  return { notes: out, tiedIn }
 }
 
 export function roleSpans(notes: Note[], roles: RoleId[]): Span[] {
