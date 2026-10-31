@@ -3,6 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import align_score  # noqa: E402
+import numpy as np  # noqa: E402
 
 
 def note(section, pass_, start, lyrics):
@@ -74,3 +75,35 @@ def test_grid_lays_a_pass_on_the_score_tempo_at_its_median_offset():
     ]
     align_score.grid(notes, bpm=120, beats_per_bar=4)
     assert [(n["start"], n["end"]) for n in notes] == [(10.0, 10.5), (10.5, 11.0), (12.0, 13.0)]
+
+
+def test_spoken_frames_cost_the_same_against_any_audio():
+    seq = [{"midi": 64, "dur": 1.0}, {"midi": 71, "dur": 1.0, "spoken": True}, {"midi": None, "dur": 1.0}]
+    score, _ = align_score.score_frames(seq, bpm=600)  # 10 frames per note
+    audio = np.array([64.0, 70.0, np.nan, 52.3])
+    C = align_score.cost_matrix(score, audio)
+    assert C[0, 0] == 0 and C[0, 2] == 1  # sung: pitch counts, a gap is worst
+    assert len(set(C[10].tolist())) == 1  # spoken: no pitch, no preference
+    assert C[20, 2] == 0  # rest against a gap
+
+
+def test_spoken_note_keeps_its_flag_and_is_never_snapped():
+    seq = [{"midi": 71, "name": "B4", "bar": 1, "beat": 0.0, "dur": 1.0, "spoken": True}]
+    wp = np.array([(f, f) for f in range(10)])
+    t_audio = np.arange(20) * 0.01
+    sung = np.full(20, 60.0)  # spoken syllables do have a pitch, far from the slash's B4
+    (n,) = align_score.notes_from_path(seq, [(0, 10)], wp, t_audio, sung, snap=True)
+    assert n["spoken"] is True and n["midi"] == 71 and "snapped" not in n
+
+
+def test_grid_anchors_on_sung_notes_when_a_pass_has_spoken_ones():
+    # 120 bpm; DTW cannot place rap (no pitch), so the spoken notes' times are off and must not move the anchor
+    notes = [
+        {"bar": 1, "beat": 0.0, "dur": 1.0, "start": 3.0, "end": 3.2, "spoken": True},
+        {"bar": 1, "beat": 1.0, "dur": 1.0, "start": 3.1, "end": 3.3, "spoken": True},
+        {"bar": 1, "beat": 2.0, "dur": 1.0, "start": 3.2, "end": 3.4, "spoken": True},
+        {"bar": 2, "beat": 0.0, "dur": 1.0, "start": 2.0, "end": 2.5},
+        {"bar": 2, "beat": 1.0, "dur": 1.0, "start": 2.5, "end": 3.0},
+    ]
+    align_score.grid(notes, bpm=120, beats_per_bar=4)
+    assert [n["start"] for n in notes] == [0.0, 0.5, 1.0, 2.0, 2.5]

@@ -413,6 +413,40 @@ export default steps(({ Given, When, Then }) => {
     world(ctx)
     settings.set({ roles: [role as any], mode: 'others' })
   })
+  /** A rapped line at 12.0-13.0 for `role`: two spoken notes in a phrase of their own. */
+  const rap = (ctx: any, role: Note['role']) => {
+    world(ctx)
+    ctx.data.meta.roles.push(role)
+    ctx.data.song.notes.push({ ...note(71, 12, 12.5, role, 2, 'la'), spoken: true }, { ...note(71, 12.5, 13, role, 2, 'li'), spoken: true })
+    ctx.data.song.phrases.push({ index: 2, label: 'p2', start: 12, end: 13 })
+  }
+  Given(/^roles \[chor\] selected for song "08", whose chor notes are all spoken$/, (ctx) => {
+    rap(ctx, 'chor')
+    settings.set({ roles: ['chor'], mode: 'others' })
+  })
+  Then(/^the hint "([^"]+)" is visible, no mic button, mode is others$/, async (ctx, hint) => {
+    await screen(ctx)
+    expect(text(ctx.el)).toContain(hint)
+    expect(byLabel(ctx.el, 'Mikrofon aktiv') ?? byLabel(ctx.el, 'Mikrofon aus')).toBeNull()
+    expect(ctx.calls).not.toContain('pitch.start')
+    expect(ctx.mode).toBe('others')
+  })
+  When(/^I press play and then pause$/, async (ctx) => {
+    await play(ctx)
+    await pause(ctx)
+  })
+  Then(/^the route stays "([^"]+)"$/, (_ctx, route) => {
+    expect(location.hash).toBe(route)
+  })
+  Given(/^my spoken note sounds at 12\.0$/, (ctx) => {
+    rap(ctx, 'maria')
+  })
+  Then(/^at ([\d.]+) the readout shows "([^"]+)" and "([^"]+)"$/, async (ctx, t, big, s) => {
+    await screen(ctx)
+    await tick(ctx, +t)
+    expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(big)
+    expect(text(ctx.el)).toContain(s)
+  })
   Then(/^the hint "([^"]+)" is visible, no mic button, mode is all$/, async (ctx, hint) => {
     await screen(ctx)
     expect(text(ctx.el)).toContain(hint)

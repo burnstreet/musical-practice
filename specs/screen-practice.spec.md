@@ -41,11 +41,14 @@ Strings:
 | mic | aria `Mikrofon aktiv` / `Mikrofon aus` |
 | micDenied | `Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.` |
 | noPart | `Deine Rolle singt hier nicht. Nur Zuhören.` |
+| rapOnly | `Deine Rolle rappt hier: Text und Rhythmus, ohne Bewertung.` |
+| rapNow | `Rap · ohne Bewertung` |
 
 ## Setup
 
 - On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start(engine.time, engine.latency)` only when the song has notes for the selected roles.
 - No notes for my roles: `noPart` hint, mic indicator hidden, mode forced `all`. With `features.results` on, pause goes to songs.
+- Only spoken notes for my roles (rap, see content format): `rapOnly` hint, no mic, mic indicator hidden, mode from settings (`nur für andere` mutes my rap as it mutes singing). Pause stays on practice, also with `features.results` on: there is nothing to score.
 - `pitch.start` returns `denied` or `unsupported`: `micDenied` banner, mic button shows off state, playback allowed, results disabled.
 - Leaving: `engine.unload`, `pitch.stop`, `history.record` with session passes.
 
@@ -121,7 +124,7 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 ## Cents readout
 
 - Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here).
-- Shows sung note name (no octave, as everywhere), `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the cents text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s.
+- Shows sung note name (no octave, as everywhere), `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the cents text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s. While a spoken note of mine sounds: `noTarget` and `rapNow` in the cents text slot.
 - Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at cents clamped ±100 only while a voiced frame exists.
 - Mic indicator in the transport row: small status icon, no button styling.
 
@@ -226,6 +229,17 @@ Feature: Practice screen
   Scenario: role without notes
     Given roles [esel] selected for song "08"
     Then the hint "Deine Rolle singt hier nicht. Nur Zuhören." is visible, no mic button, mode is all
+
+  Scenario: role that only raps
+    Given roles [chor] selected for song "08", whose chor notes are all spoken
+    Then the hint "Deine Rolle rappt hier: Text und Rhythmus, ohne Bewertung." is visible, no mic button, mode is others
+    Given the results screen is enabled
+    When I press play and then pause
+    Then the route stays "#/practice/08"
+
+  Scenario: rap shows no target
+    Given my spoken note sounds at 12.0
+    Then at 12.5 the readout shows "–" and "Rap · ohne Bewertung"
 
   Scenario: tempo cycles
     When I tap tempo three times
