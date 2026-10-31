@@ -1,4 +1,4 @@
-import { type Note, type RoleId, type Song, visibleNotes } from './content'
+import { joinTies, type Note, type RoleId, type Song, visibleNotes } from './content'
 import { type PassResult, scorePass, type Tolerance } from './scorer'
 import type { PitchFrame } from './types'
 
@@ -6,15 +6,18 @@ import type { PitchFrame } from './types'
 export class Session {
   private entered = new Map<number, PitchFrame[]>() // song note index -> frames, in order of entry
   private done: PassResult[] = []
-  /** My visible sung notes: a unison copy of another of my roles is not mine twice, a spoken note has no pitch to score. */
+  /** My visible sung notes: a unison copy of another of my roles is not mine twice, a spoken note has no pitch to score, a tie chain is one note. */
   private mine: Set<Note>
+  private song: Song
 
   constructor(
-    private song: Song,
+    song: Song,
     private roles: RoleId[],
     private tol: Tolerance,
   ) {
-    this.mine = new Set(visibleNotes(song.notes, roles).filter((n) => roles.includes(n.role) && !n.spoken))
+    const { notes, tiedIn } = joinTies(song.notes)
+    this.song = { ...song, notes }
+    this.mine = new Set(visibleNotes(notes, roles).filter((n) => roles.includes(n.role) && !n.spoken && !tiedIn.has(notes.indexOf(n))))
   }
 
   myNotes(): Note[] {
