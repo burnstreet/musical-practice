@@ -1,8 +1,12 @@
 name: Pages
 
+# The app moved to a site per production (built by the production's own repo).
+# This project path only redirects there and retires the old service worker.
+
 on:
   push:
     branches: [main]
+    paths: [redirect/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -22,17 +26,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 26
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - name: Copy encrypted content
-        run: if [ -d content ]; then cp -r content dist/content; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: redirect
       - id: deployment
         uses: actions/deploy-pages@v4

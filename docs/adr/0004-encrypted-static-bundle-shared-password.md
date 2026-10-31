@@ -8,3 +8,4 @@ The material is copyrighted and private to the cast, but the app must be static 
 - A password change means a new salt, a new key id and a full re-download on every device.
 - The manifest must stay free of titles and lyrics; those live in the encrypted library file.
 - The same vault serves the planned dialog trainer.
+- ADR 0007: the bundle is built and deployed by the production's private content repo into a public site repo; the engine repo holds no bundle.

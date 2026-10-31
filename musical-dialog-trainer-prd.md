@@ -3,7 +3,7 @@
 Companion to [musical-pitch-trainer-prd.md](musical-pitch-trainer-prd.md). Same app, same vault, second practice mode.
 
 ## Problem Statement
-Besides the songs, the musical has a spoken script ("Anna im Weihnachtsland.docx", about 370 paragraphs, 15+ speaking roles, 10 scenes with song cues). A cast member learning their lines has nobody to feed them cues outside of rehearsals. Reading the script alone does not train the timing of listening for the cue and coming in. Some cast members play more than one role.
+Besides the songs, a musical has a spoken script (in the first production: a DOCX of about 370 paragraphs, 15+ speaking roles, 10 scenes with song cues). A cast member learning their lines has nobody to feed them cues outside of rehearsals. Reading the script alone does not train the timing of listening for the cue and coming in. Some cast members play more than one role.
 
 ## Solution
 A dialog practice mode inside the existing PWA. The user picks their role(s). The app speaks every other role's lines with a synthetic voice (one voice per character, pre-rendered at build time), shows the user's own lines, and waits until the user has finished speaking before it continues. "Finished speaking" is detected by on-device voice activity detection (speech start, then silence), with a tap as fallback. No speech-to-text, no cloud, works offline like the songs.
@@ -28,7 +28,7 @@ UI will be german, to be designed with claude design.
 - **Platform:** same PWA as the pitch trainer (currently plain HTML/JS in `web/`; all APIs below are browser APIs and work equally from Blazor via JS interop).
 - **Script format (`script.json`):** scenes, each with an ordered list of items. Item types: `line` (`speaker`, `text`, `audio` ref, `durationMs`), `direction` (stage direction, display only), `song` (`songId`, display plus link), `scene` header. Consecutive paragraphs of the same speaker are merged into one item; long narrator paragraphs may be split at sentence boundaries into several items so skipping is granular. The cast list from the document header is kept as `roles` with display names.
 - **Script parser (tools, Python):** `python-docx` paragraph walk. Heuristics, derived from the document:
-  - `^(Erzähler 1|Erzähler 2|Anna|Mutter|...):\s*(.+)` starts a line; speaker names are matched against the cast list from the header.
+  - `^(Speaker 1|Speaker 2|...):\s*(.+)` starts a line; speaker names are matched against the cast list from the header.
   - Paragraphs after a narrator line with no prefix continue the narrator until the next prefixed paragraph.
   - `^Szene \d+` is a scene header, `^Lied \d+:` a song cue, everything else at scene level is a stage direction.
   - Output is reviewed by hand; the JSON (not the DOCX) is the source of truth afterwards, so manual fixes are not lost on rebuild. A `script.overrides.json` for text corrections and pronunciation hints (e.g. names) is applied before rendering.

@@ -1,5 +1,7 @@
-/** Shared IndexedDB open: database `gu` v3 with stores `vault`, `files`, `meta`, `history`. Upgrade keeps existing stores. */
-export function openDb(name = 'gu'): Promise<IDBDatabase> {
+import { production } from '../production'
+
+/** Shared IndexedDB open: database named by the production's storageId, v3 with stores `vault`, `files`, `meta`, `history`. Upgrade keeps existing stores. */
+export function openDb(name = production.storageId): Promise<IDBDatabase> {
   return new Promise((res, rej) => {
     const r = indexedDB.open(name, 3)
     r.onupgradeneeded = () => {
