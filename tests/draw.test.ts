@@ -69,6 +69,14 @@ describe('staff layout', () => {
     expect(staffPos(65, 2)).toEqual({ step: 1, acc: 'n' }) // F natural in D
   })
 
+  it('spells a black key by the nearer side of the circle of fifths', () => {
+    expect(staffPos(63, 0)).toEqual({ step: 0, acc: 'b' }) // Eb in C, not D#
+    expect(staffPos(70, 0)).toEqual({ step: 4, acc: 'b' }) // Bb in C
+    expect(staffPos(61, 0)).toEqual({ step: -2, acc: '#' }) // C# in C
+    expect(staffPos(66, -1)).toEqual({ step: 1, acc: '#' }) // F# in F, not Gb
+    expect(staffPos(68, 0)).toEqual({ step: 2, acc: '#' }) // G#/Ab tie: sharp in C
+  })
+
   it('flips the page every 4 bars on a wide staff, every 2 on a narrow one', () => {
     const bars = [0, 2, 4, 6, 8, 10]
     expect(pageOf(bars, 0, 4)).toBe(0)

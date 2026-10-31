@@ -34,3 +34,4 @@ Bars are MusicXML measure numbers (1-based), beats from the bar start in quarter
 | Song | Settings | Form (section:role, sung order) | Phrase starts (bar, beat) |
 |---|---|---|---|
 | 04 | `--bpm 113 --snap` | `Refrain:anna,Strophe:anna,Refrain:chor,Strophe:anna,Refrain:chor,Strophe 3:anna,Refrain:chor,Refrain:chor` | (1,.5) (2,3.5) (5,.5) (7,.5) (9,.5) (11,.5) (13,.5) (15,.5) (17,.5) (20,.5) (22,.5) (24,.5) (26,.5) |
+| 06 | `--bpm 80` (no snap: score checked by ear, the few snaps were intonation) | `Strophe:chor,Refrain:chor,Strophe:onkel,Refrain:chor,Strophe:onkel,Refrain:chor,Strophe:onkel,Refrain:chor` | (1,0) (3,0) (5,0) (6,0) (7,0) (sung text has elisions, DOCX does not match) |
