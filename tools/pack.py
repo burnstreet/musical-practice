@@ -162,6 +162,8 @@ def build_song(s, notes, dur):
             "beat": n["beat"],
             "dur": n["dur"],
             **({"spoken": True} if n.get("spoken") else {}),
+            **({"slur": True} if n.get("slur") else {}),
+            **({"tie": True} if n.get("tie") else {}),
         }
         for n, i in zip(ordered, seq)
     ]
