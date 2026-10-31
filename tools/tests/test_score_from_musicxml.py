@@ -55,6 +55,23 @@ VERSES = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+# 4/4 with a pickup: measure 0 holds one eighth (implicit, incomplete), measure 1 starts on the downbeat
+PICKUP = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>S</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="0" implicit="yes">
+      <attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type></note>
+    </measure>
+    <measure number="1">
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>
+"""
+
+
 def run(tmp_path, *extra, xml=XML):
     src, dst = tmp_path / "s.musicxml", tmp_path / "s.json"
     src.write_text(xml, encoding="utf-8")
@@ -84,6 +101,11 @@ def test_verse_lines_and_tied_notes_kept_as_written(tmp_path):
         (1, 3.0, 1.0, "li", ["li", "lo"]),
         (2, 0.0, 1.0, None, [None, None]),
     ]
+
+
+def test_pickup_beat_counts_from_the_full_bar_start(tmp_path):
+    got = [(n["bar"], n["beat"]) for n in run(tmp_path, xml=PICKUP)]
+    assert got == [(0, 3.5), (1, 0.0)]
 
 
 def test_tie_and_slur_flags_point_to_the_next_note(tmp_path):
