@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { draw as drawRoll, foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
+  beamGroups,
+  beamTips,
   COLORS,
   draw as drawStaff,
   keyFifths,
@@ -252,6 +254,100 @@ describe('lyric-aware page layout', () => {
     expect(r.barW[1]).toBeGreaterThan(0)
     check(onsets, 400, r)
   })
+
+  it('leaves room for the hyphen after a syllable whose word goes on', () => {
+    // sixteenths take their minimum: 30 + 4 without a hyphen, 10 more with one
+    const onsets = [{ ...on(0, 0, 30), hyphen: 10 }, on(0, 0.25, 30), on(0, 0.5, 30)]
+    const r = layoutPage([0], onsets, { ...opts, width: 150 })
+    expect(r.xs[1] - r.xs[0]).toBeCloseTo(30 + opts.sep + 10)
+    expect(r.xs[2] - r.xs[1]).toBeCloseTo(30 + opts.sep)
+  })
+})
+
+describe('beams', () => {
+  const n = (beat: number, dur: number, role = 'chor', bar = 0) =>
+    ({ start: bar * 4 + beat, end: bar * 4 + beat + dur, midi: 67, syllable: 'la', role, phrase: 0, bar, beat, dur }) as Note
+  const beats = (groups: Note[][]) => groups.map((g) => g.map((x) => x.beat))
+
+  it('beams back-to-back eighths of one beat', () => {
+    expect(beats(beamGroups([n(0, 0.5), n(0.5, 0.5), n(1, 0.5), n(1.5, 0.5), n(2, 1)]))).toEqual([
+      [0, 0.5],
+      [1, 1.5],
+    ])
+  })
+  it('beams a dotted eighth with its sixteenth and four sixteenths together', () => {
+    expect(beats(beamGroups([n(0, 0.75), n(0.75, 0.25), n(1, 0.25), n(1.25, 0.25), n(1.5, 0.25), n(1.75, 0.25)]))).toEqual([
+      [0, 0.75],
+      [1, 1.25, 1.5, 1.75],
+    ])
+  })
+  it('leaves a lone eighth, eighths across a beat, a rest or a bar line, and quarters unbeamed', () => {
+    expect(beamGroups([n(0, 1), n(1, 0.5), n(2.5, 0.5), n(3, 1)])).toEqual([]) // lone eighths
+    expect(beamGroups([n(0.5, 0.5), n(1, 0.5)])).toEqual([]) // across beats 1 and 2
+    expect(beamGroups([n(0, 0.25), n(0.5, 0.5)])).toEqual([]) // a sixteenth rest between
+    expect(beamGroups([n(3.5, 0.5), n(0, 0.5, 'chor', 1)])).toEqual([])
+    expect(beamGroups([n(0, 1), n(1, 1)])).toEqual([])
+  })
+  it('beams each role on its own', () => {
+    const g = beamGroups([n(0, 0.5, 'anna'), n(0, 0.5, 'chor'), n(0.5, 0.5, 'anna'), n(0.5, 0.5, 'chor')])
+    expect(g.map((x) => x.map((y) => y.role))).toEqual([
+      ['anna', 'anna'],
+      ['chor', 'chor'],
+    ])
+  })
+
+  it('lays a flat beam over heads on one line', () => {
+    expect(
+      beamTips(
+        [
+          [0, 100],
+          [20, 100],
+          [40, 100],
+        ],
+        true,
+        28,
+        24,
+      ),
+    ).toEqual([72, 72, 72])
+    expect(
+      beamTips(
+        [
+          [0, 100],
+          [20, 100],
+        ],
+        false,
+        28,
+        24,
+      ),
+    ).toEqual([128, 128])
+  })
+  it('limits the slope to 1/4 and keeps the shortest stem at its minimum', () => {
+    // rising a lot over 10 px: slope −1/4, the beam moved up until the high head's stem is 24 long
+    expect(
+      beamTips(
+        [
+          [0, 100],
+          [10, 60],
+        ],
+        true,
+        28,
+        24,
+      ),
+    ).toEqual([38.5, 36])
+    // a middle head higher than both ends pushes the beam up
+    expect(
+      beamTips(
+        [
+          [0, 100],
+          [10, 70],
+          [20, 100],
+        ],
+        true,
+        28,
+        24,
+      ),
+    ).toEqual([46, 46, 46])
+  })
 })
 describe('staff pages', () => {
   it('fill up to the most bars, fewer where the syllables do not fit on one row', () => {
@@ -388,6 +484,52 @@ describe('staff arcs', () => {
     const notes = [n(3, { tie: true }), n(0, {}, 1), n(1, {}, 1)]
     expect(arcs(notes, 0)).toBe(1)
     expect(arcs(notes, 4.5)).toBe(1)
+  })
+})
+
+describe('staff beams', () => {
+  const n = (beat: number, dur: number) => ({ start: beat, end: beat + dur, midi: 67, syllable: '', role: 'chor', phrase: 0, bar: 0, beat, dur }) as Note
+  /** Flag curves (no slurs or ties here) and fills (heads, dots, beams) drawn before the first note, one bar per page. */
+  const drawn = (notes: Note[]) => {
+    const song = { id: 'x', key: 'C', timeSig: [4, 4], bars: [0, 4], notes, phrases: [], sections: [] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawStaff(ctx, { song, roles: ['chor'], names: {}, t: -1, frames: [], tolerance: 50, bars: 1 })
+    return { flags: calls.filter(([k]) => k === 'bezierCurveTo').length, fills: calls.filter(([k]) => k === 'fill').length }
+  }
+  it('draws two eighths of one beat with one beam and no flags', () => {
+    expect(drawn([n(0, 0.5), n(0.5, 0.5)])).toEqual({ flags: 0, fills: 2 + 1 }) // 2 heads, 1 beam
+  })
+  it('keeps the flags of eighths across a beat', () => {
+    expect(drawn([n(0.5, 0.5), n(1, 0.5)])).toEqual({ flags: 2, fills: 2 })
+  })
+  it('gives a dotted eighth and its sixteenth a beam and a stub', () => {
+    expect(drawn([n(0, 0.75), n(0.75, 0.25)])).toEqual({ flags: 0, fills: 2 + 1 + 2 }) // 2 heads, dot, beam, stub
+  })
+  it('gives neighbouring sixteenths one second beam', () => {
+    expect(drawn([n(0, 0.5), n(0.5, 0.25), n(0.75, 0.25)])).toEqual({ flags: 0, fills: 3 + 2 }) // 3 heads, beam, second beam
+  })
+})
+
+describe('staff hyphens', () => {
+  const n = (beat: number, syllable: string, bar = 0) =>
+    ({ start: bar * 4 + beat, end: bar * 4 + beat + 1, midi: 67, syllable, role: 'chor', phrase: 0, bar, beat, dur: 1 }) as Note
+  /** Texts and their x on the page at `t`, one bar per page. */
+  const texts = (notes: Note[], t = 0) => {
+    const song = { id: 'x', key: 'C', timeSig: [4, 4], bars: [0, 4, 8], notes, phrases: [], sections: [] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawStaff(ctx, { song, roles: ['chor'], names: {}, t, frames: [], tolerance: 50, bars: 1 })
+    return calls.filter(([k]) => k === 'fillText').map(([, a]) => [a[0], a[1]] as [string, number])
+  }
+  it('draws a syllable without its hyphen and the hyphen between it and the next syllable', () => {
+    const got = texts([n(0, 'Nie-'), n(2, 'mand')])
+    const x = (s: string) => got.find(([t]) => t === s)![1]
+    expect(got.map(([t]) => t)).not.toContain('Nie-')
+    expect(x('-')).toBeGreaterThan(x('Nie'))
+    expect(x('-')).toBeLessThan(x('mand'))
+  })
+  it('draws the hyphen after the syllable when the word goes on on the next page', () => {
+    const got = texts([n(3, 'Hir-'), n(0, 'ten', 1)])
+    expect(got.map(([t]) => t)).toEqual(expect.arrayContaining(['Hir', '-']))
   })
 })
 
