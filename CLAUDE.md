@@ -6,7 +6,7 @@ Use `./mp.ps1 <command>` (PowerShell 7, repo root) for every common operation in
 - A husky pre-commit hook runs `./mp.ps1 precommit -Staged` (Biome on staged files via lint-staged, Ruff, tsc, vitest, pytest). Run `./mp.ps1 precommit -Full` yourself to include the Playwright e2e test. Fix formatting with `./mp.ps1 format`. Never skip the hook with `--no-verify`.
 - Tool versions are pinned in `mise.toml` (node 26, python 3.12, ffmpeg). Do not install other versions or create other venvs.
 - This repo is the engine only and public: no song data, no production names or role lists in code. Songs live in a private production repo next to this one (e.g. `../weihnachtsmusical-2026-content`, with its own CLAUDE.md); its `mp.ps1` forwards here with `-Content`, so `serve`, `pack` and `tool <name>` run with the production as working directory. See ADR 0007.
-- Packing content (in the production repo; its CI does this on push): `./mp.ps1 pack --root pack-root --out <dir> --strict`. Needs `PITCH_PASSWORD`; never write the password into files, commits, logs or memory.
+- Packing content (in the production repo; its CI does this on push): `./mp.ps1 pack --out <dir> --strict` (packs the editor's `web/data/` as it is). Needs `PITCH_PASSWORD`; never write the password into files, commits, logs or memory.
 
 ## Agent skills
 

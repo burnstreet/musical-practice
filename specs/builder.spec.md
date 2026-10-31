@@ -11,7 +11,7 @@ targets:
 
 # Builder
 
-Admin runs locally, or the production repo's CI runs `pack`. All paths are relative to the content root: the working directory (`./mp.ps1 -Content <production repo>` sets it; `pack --root` overrides it). Inputs: aligned song JSON (`web/data/NN.json`, output of `align_score.py`), stems in `web/data/`, Demucs output in `work/separated/`, lyrics DOCX in `sources/text/`, config `sources/config.json`. Output: `content/` (manifest + encrypted blobs) and a report.
+Admin runs locally, or the production repo's CI runs `pack`. All paths are relative to the content root: the working directory (`./mp.ps1 -Content <production repo>` sets it; `pack --root` overrides it). Inputs: aligned song JSON (`web/data/NN.json`, output of `align_score.py`), stems in `web/data/` (the files the editor shows, no separate pack copy), lyrics DOCX in `sources/text/`, config `sources/config.json`. Output: `content/` (manifest + encrypted blobs) and a report.
 
 ```
 python tools/phrases.py NN              # phrase index per note, from DOCX
@@ -28,7 +28,7 @@ Config `sources/config.json` (in the private production repo):
 }
 ```
 
-`backing`: `playback` (aligned playback file) or `demucs` (`work/separated/NN_backing.mp3`). `playbackOffsetSec` from `align_check.py`: positive = playback starts later than mix.
+`backing`: `playback` (aligned playback file `web/data/NN_playback.mp3`) or `demucs` (the editor's no-vocals stem `web/data/NN_no_vocals.mp3`, from Demucs or subtraction). `playbackOffsetSec` from `align_check.py`: positive = playback starts later than mix.
 
 ## Phrases (`tools/phrases.py`)
 
@@ -228,9 +228,9 @@ Feature: Completeness
 
 ## Stems
 
-- Voices = full mix, re-encoded mono 128 kbps if source differs.
+- Voices = full mix `web/data/NN_mix.mp3`, re-encoded mono 128 kbps if source differs.
 - Backing `playback`: trim or pad playback by `playbackOffsetSec` so sample 0 aligns with mix, cut or pad to mix length.
-- Backing `demucs`: take `work/separated/NN_backing.mp3` as is, check length.
+- Backing `demucs`: take `web/data/NN_no_vocals.mp3` as is, check length.
   `[@test] ../tools/tests/steps_pack.py`
 
 ```gherkin
@@ -239,6 +239,11 @@ Feature: Stem preparation
     Given mix of 10.0 s and playback of 10.3 s with playbackOffsetSec 0.3
     When I run pack
     Then the backing stem is 10.0 s and its sample 0 equals playback sample at 0.3 s
+
+  Scenario: no-vocals stem as backing
+    Given song 08 with backing demucs and a no-vocals stem at 880 Hz
+    When I run pack
+    Then the backing stem is 10.0 s at 880 Hz
 ```
 
 ## Packing

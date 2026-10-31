@@ -28,7 +28,7 @@ All commands put the mise tools on PATH when mise is installed, so the pinned ve
 
 This repo is the engine: app, editor, tools. Each production (a musical) has two more repos next to it:
 
-- a private content repo with the songs in plain text (`sources/`, `scores/`, `web/data/`, `pack-root/`), `production.json`, `public/` (logo, icons), `salt`, `engine.ref` (engine tag to build with) and a small `mp.ps1` that calls this one with `-Content`;
+- a private content repo with the songs in plain text (`sources/`, `scores/`, `web/data/`), `production.json`, `public/` (logo, icons), `salt`, `engine.ref` (engine tag to build with) and a small `mp.ps1` that calls this one with `-Content`;
 - a public site repo whose `gh-pages` branch holds only the built app and the encrypted bundle, pushed by the content repo's CI.
 
 First production: `weihnachtsmusical-2026` (site https://burnstreet.github.io/weihnachtsmusical-2026/). Publishing: `docs/pipeline.md`, section 7. Decision: `docs/adr/0007-engine-content-site-split.md`.
