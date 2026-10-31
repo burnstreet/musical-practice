@@ -1,4 +1,4 @@
-import { type Note, type RoleId, type Song, visibleNotes } from '../../core/content'
+import { arcTarget, type Note, type RoleId, type Song, visibleNotes } from '../../core/content'
 import type { Tolerance } from '../../core/scorer'
 import type { PitchFrame } from '../../core/types'
 
@@ -632,6 +632,31 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
       ctx.fillText(GLYPH[acc], nx - 13 * s, ny)
       ctx.textBaseline = 'alphabetic'
     }
+  }
+
+  // Ties and slurs: an arc to the next note of the same role, below the heads when the stem points up, else above;
+  // over a page turn the arc runs out at the page end and comes in at the next page's start
+  ctx.lineWidth = 1.5 * s
+  const all = visibleNotes(song.notes, roles)
+  const follow = (n: Note) => all[arcTarget(all, all.indexOf(n))] as Note | undefined
+  const [pageL, pageR] = [startX, startX + L.barX.at(-1)! + L.barW.at(-1)!]
+  const arc = (n: Note, x0: number, x1: number, a: number, b: number) => {
+    const dir = a < 4 ? 1 : -1
+    const [y0, y1] = [y(a) + dir * 6 * s, y(b) + dir * 6 * s]
+    ctx.strokeStyle = colour(n)
+    ctx.beginPath()
+    ctx.moveTo(x0, y0)
+    ctx.bezierCurveTo(x0 + (x1 - x0) / 3, y0 + dir * 6 * s, x1 - (x1 - x0) / 3, y1 + dir * 6 * s, x1, y1)
+    ctx.stroke()
+  }
+  for (const n of all) {
+    const next = n.slur || n.tie ? follow(n) : undefined
+    const [from, to] = [notes.includes(n), next && notes.includes(next)]
+    if (!next || (!from && !to)) continue
+    const [a, b] = [notePos(n, song, fifths).step, notePos(next, song, fifths).step]
+    if (from && to) arc(n, x(n) + 6 * s, x(next) - 6 * s, a, b)
+    else if (from) arc(n, x(n) + 6 * s, pageR, a, a)
+    else arc(n, pageL, x(next) - 6 * s, b, b)
   }
 
   // Rests, faint in the colour of their voice; a whole-bar rest hangs from the fourth line, centred in the bar

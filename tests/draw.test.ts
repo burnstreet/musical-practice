@@ -3,6 +3,7 @@ import { draw as drawRoll, foldToTargetOctave, lyricXs, rollWindow, rowRange } f
 import {
   barsPerPage,
   COLORS,
+  draw as drawStaff,
   keyFifths,
   layoutBar,
   layoutPage,
@@ -19,7 +20,7 @@ import {
   splitPages,
   staffPos,
 } from '../src/app/draw/staff'
-import type { Note, Song } from '../src/core/content'
+import { arcTarget, type Note, type Song } from '../src/core/content'
 
 describe('staff layout', () => {
   it('reads the key signature from song.key', () => {
@@ -352,6 +353,33 @@ describe('piano roll', () => {
     const texts = calls.filter(([k]) => k === 'fillText').map(([, a]) => a[0])
     expect(texts).toContain('rap')
     expect(texts.length - 2).toBe(10) // row labels: 60 ± 2 padded to 10 rows; with the spoken 71 it would be 16
+  })
+})
+
+describe('staff arcs', () => {
+  const n = (beat: number, flags: Partial<Note> = {}, bar = 0) =>
+    ({ start: bar * 4 + beat, end: bar * 4 + beat + 1, midi: 67, syllable: 'la', role: 'chor', phrase: 0, bar, beat, dur: 1, ...flags }) as Note
+  /** Arcs drawn on the page at `t`, one bar per page. */
+  const arcs = (notes: Note[], t = 0) => {
+    const song = { id: 'x', key: 'C', timeSig: [4, 4], bars: [0, 4, 8], notes, phrases: [], sections: [] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawStaff(ctx, { song, roles: ['chor'], names: {}, t, frames: [], tolerance: 50, bars: 1 })
+    return calls.filter(([k]) => k === 'bezierCurveTo').length // quarters: no flags, so every curve is an arc
+  }
+  it('draws one arc from a slur or tie note to the next note of its role', () => {
+    expect(arcs([n(0, { slur: true }), n(1), n(2)])).toBe(1)
+    expect(arcs([n(0, { tie: true }), n(1), n(2)])).toBe(1)
+    expect(arcs([n(0), n(1), n(2)])).toBe(0)
+  })
+  it('leads an arc to the note starting at its end, not to an overlapping note that starts earlier', () => {
+    const [tie, early, cont] = [n(0, { tie: true }), n(0.5), n(1)]
+    expect(arcTarget([tie, early, cont], 0)).toBe(2)
+    expect(arcTarget([tie], 0)).toBe(-1)
+  })
+  it('runs a tie over a page turn out at the page end and in at the next page start', () => {
+    const notes = [n(3, { tie: true }), n(0, {}, 1), n(1, {}, 1)]
+    expect(arcs(notes, 0)).toBe(1)
+    expect(arcs(notes, 4.5)).toBe(1)
   })
 })
 
