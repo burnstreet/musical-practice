@@ -67,6 +67,13 @@ export default steps(({ Given, When, Then }) => {
   Given(/^a library JSON with roles \[maria\] and a song with roles \[maria, ghost\]$/, (ctx) => {
     ctx.json = { roles: [{ id: 'maria', name: 'Maria', sings: true }], songs: [song('01', 1, ['maria', 'ghost'])] }
   })
+  Given(/^a library JSON with roles \[onkel\] and a song with roles \[onkel\]$/, (ctx) => {
+    ctx.json = { roles: [{ id: 'onkel', name: 'Onkel', sings: true }], songs: [song('06', 6, ['onkel'])] }
+  })
+  Then(/^the library has role onkel$/, (ctx) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result.roles.map((r: any) => r.id)).toEqual(['onkel'])
+  })
   Given(/^a library JSON with songs numbered 3, 1, 2$/, (ctx) => {
     ctx.json = { roles: [{ id: 'maria', name: 'Maria', sings: true }], songs: [song('c', 3), song('a', 1), song('b', 2)] }
   })
