@@ -9,8 +9,10 @@ and the search repeated for further passes (verse/chorus sung several times).
 Output: the pitch JSON with its `notes` replaced by the score notes with
 start/end times from the audio (fields bar, beat, dur, lyric, pass kept).
 
+The n-th occurrence of a section in time takes verse n of the notes' `lyrics`.
+
 Usage: python tools/align_score.py <score.json> <pitch.json> <out.json>
-         [--bpm 90] [--passes 2] [--repeat-bars 9-12]
+         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid]
 """
 
 import argparse
@@ -103,9 +105,12 @@ def notes_from_path(seq, spans, wp, t_audio, audio_midi=None, snap=False):
             "beat": n["beat"],
             "dur": n["dur"],
             "lyric": n.get("lyric"),
+            "lyrics": n.get("lyrics"),
             "section": n.get("section"),
             "role": n.get("role"),
             "repeat": n.get("repeat", False),
+            **({"slur": True} if n.get("slur") else {}),
+            **({"tie": True} if n.get("tie") else {}),
         }
         if snap and audio_midi is not None:
             sung = audio_midi[a0:a1]
@@ -121,6 +126,31 @@ def notes_from_path(seq, spans, wp, t_audio, audio_midi=None, snap=False):
                     note["snapped"] = True
         out.append(note)
     return out
+
+
+def grid(notes, bpm, beats_per_bar):
+    """Lay one pass on the score tempo, anchored at the median DTW offset (strict-tempo backing tracks)."""
+    spb = 60.0 / bpm
+    first = min(n["bar"] for n in notes)
+    beat = {id(n): (n["bar"] - first) * beats_per_bar + n["beat"] for n in notes}
+    t0 = float(np.median([n["start"] - beat[id(n)] * spb for n in notes]))
+    for n in notes:
+        n["start"] = round(t0 + beat[id(n)] * spb, 3)
+        n["end"] = round(n["start"] + n["dur"] * spb, 3)
+
+
+def apply_verses(notes):
+    """The n-th time a section is sung (in time order) takes verse n of `lyrics`; the last verse repeats."""
+    starts = {}
+    for n in sorted(notes, key=lambda n: n["start"]):
+        starts.setdefault((n["section"], n["pass"]), len([k for k in starts if k[0] == n["section"]]))
+    for sec in {n["section"] for n in notes}:
+        sec_notes = [n for n in notes if n["section"] == sec and n.get("lyrics")]
+        last = max((i for n in sec_notes for i, ly in enumerate(n["lyrics"]) if ly), default=0)
+        for n in sec_notes:
+            n["lyric"] = n["lyrics"][min(starts[(sec, n["pass"])], last)]
+    for n in notes:
+        n.pop("lyrics", None)
 
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -140,6 +170,7 @@ def main():
     ap.add_argument("--repeat-bars", default="", help="e.g. 9-12 (bars played twice), comma separated")
     ap.add_argument("--max-cost", type=float, default=0.3, help="stop searching a section above this mean cost")
     ap.add_argument("--snap", action="store_true", help="replace a note's pitch by the sung one when they differ")
+    ap.add_argument("--grid", action="store_true", help="lay each pass on --bpm instead of the DTW note times")
     args = ap.parse_args()
 
     score = json.loads(Path(args.score).read_text(encoding="utf-8"))
@@ -176,6 +207,8 @@ def main():
             notes = notes_from_path(sec_seq, sec_spans, wp, t_audio, audio_midi, snap=args.snap)
             for n in notes:
                 n["pass"] = k
+            if args.grid:
+                grid(notes, args.bpm, score.get("beats_per_bar", 4))
             bpm_est = sung_beats / max(t_audio[a1] - t_audio[a0], 1e-3) * 60
             snapped = sum(1 for n in notes if n.get("snapped"))
             print(
@@ -186,6 +219,7 @@ def main():
             all_notes += notes
 
     all_notes.sort(key=lambda n: n["start"])
+    apply_verses(all_notes)
     pitch["notes"] = all_notes
     pitch["score"] = {"source": Path(args.score).name, "bpm_guess": args.bpm, "repeats": repeats}
     if score.get("roles"):

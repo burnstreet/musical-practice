@@ -157,6 +157,7 @@ Feature: Pass result
 - `startPass` clears entered set and frames. `endPass` scores, appends, returns. Pass number = `passes().length`.
 - `myNotes` = my notes of `visibleNotes(song.notes, roles)`, without spoken ones. `enter` ignores the dropped unison copies, so a duet note counts once, and spoken notes, so rap is never scored.
 - `liveDeviation` (cents readout) treats a spoken note like no note: null.
+- A tie chain (`tie`, see content-format) is one note: its first note spans to the chain's end and takes the frames of the whole chain; `enter` ignores the notes tied into it.
   `[@test] ../tests/steps/scorer.steps.ts`
 
 ```gherkin
@@ -185,6 +186,12 @@ Feature: Session
     Given a session for roles [maria] with a sung note and a spoken note
     When I start a pass, enter both notes, feed frames inside both, end the pass
     Then scoredNotes is 1 and myNotes has 1 note
+
+  Scenario: tied notes scored as one
+    Given a session for roles [maria] with note 0 [1.0,2.0] tied to note 1 [3.0,4.0]
+    When I start a pass, enter both notes, feed frames inside both, end the pass
+    Then scoredNotes is 1 and myNotes has 1 note
+    And the scored note spans 1 to 4
 
   Scenario: no live readout on a spoken note
     Given a spoken maria note [1.0,2.0] and a frame at 1.5
