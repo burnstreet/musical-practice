@@ -23,7 +23,7 @@ import numpy as np
 from scipy import signal
 from scipy.ndimage import median_filter
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path.cwd()  # content root (mp.ps1 -Content sets the working directory)
 OUT = ROOT / "work" / "pitch"
 
 SR = 22050

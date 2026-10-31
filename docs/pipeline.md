@@ -1,49 +1,52 @@
 # Pipeline: von Aufnahme und Noten zur Übungsseite
 
-Alle Befehle laufen aus dem Projektordner mit dem venv-Python:
+Die Lieder einer Produktion liegen in einem eigenen, privaten Repo (Content-Root,
+z. B. `weihnachtsmusical-2026-content` neben diesem Repo). Alle Befehle laufen dort;
+dessen `mp.ps1` reicht an das `mp.ps1` der Engine weiter und setzt den Content-Root
+als Arbeitsverzeichnis:
 
 ```
-tools\.venv\Scripts\python.exe tools\<script>.py ...
+./mp.ps1 tool <script> ...
 ```
 
 ## Ordner
 
 | Ordner | Inhalt | Git |
 |---|---|---|
-| `sources/audio/Musik`, `sources/audio/Playback` | Vollmix und Playback als MP3, Dateiname beginnt mit `NN ` | ignoriert |
-| `sources/text/` | Liedtexte (docx) und Notenblätter (pdf) | ignoriert |
-| `scores/` | Transkriptionen: `NN.abc` (Erstfassung von Hand), `NN.musicxml` (für MuseScore) | ignoriert |
-| `work/` | Zwischenergebnisse: `decoded/`, `subtracted/`, `pitch/`, `score/`, `edits/` | ignoriert |
-| `web/data/` | Was der Editor lädt: `NN.json` (ein Lied je Eintrag in `sources/config.json`), `NN_*.mp3`, `NN_spec.png` | ignoriert |
-| `tools/` | Skripte | ja |
-| `web/` | Editor (`index.html`, `app.js`, `edit-ops.js`, `style.css`) | ja |
+| `sources/audio/Musik`, `sources/audio/Playback` | Vollmix und Playback als MP3, Dateiname beginnt mit `NN ` | Produktion |
+| `sources/text/` | Liedtexte (docx) und Notenblätter (pdf) | Produktion |
+| `scores/` | Transkriptionen: `NN.abc` (Erstfassung von Hand), `NN.musicxml` (für MuseScore) | Produktion |
+| `work/` | Zwischenergebnisse: `decoded/`, `subtracted/`, `pitch/`, `score/`, `edits/` | Produktion, ignoriert |
+| `web/data/` | Was der Editor lädt: `NN.json` (ein Lied je Eintrag in `sources/config.json`), `NN_*.mp3`, `NN_spec.png` | Produktion |
+| `tools/` | Skripte | Engine |
+| `web/` | Editor (`index.html`, `app.js`, `edit-ops.js`, `style.css`) | Engine |
 
 Alles unter `sources/`, `scores/` und die abgeleiteten Daten in `web/data/` sind
-urheberrechtlich geschützt und dürfen nur verschlüsselt ins Repo.
+urheberrechtlich geschützt: Sie liegen nur im privaten Produktions-Repo, öffentlich
+nur verschlüsselt (ADR 0006, 0007).
 
 ## 1. Audio: Gesang aus dem Mix holen
 
 ### 1a. Ausrichtung prüfen
 
 ```
-tools\.venv\Scripts\python.exe tools\align_check.py          # alle Lieder
-tools\.venv\Scripts\python.exe tools\align_check.py 04 08    # nur diese
+./mp.ps1 tool align_check          # alle Lieder
+./mp.ps1 tool align_check 04 08    # nur diese
 ```
 
 Dekodiert nach `work/decoded/NN_mix.wav` und `NN_pb.wav`, bestimmt den
 Sample-Versatz per Kreuzkorrelation, prüft Drift und Restenergie, schreibt
-`work/align_report.json`. Ergebnis bisher: 01, 03, 04, 07, 08, 09, 10 sauber
-ausgerichtet; 06 leichter Drift; 02 anderes Master; 05 andere Aufnahme.
+`work/align_report.json`.
 
 ### 1b. Subtraktion (nur bei sauberer Ausrichtung)
 
 ```
-tools\.venv\Scripts\python.exe tools\subtract_vocals.py 08
+./mp.ps1 tool subtract_vocals 08
 ```
 
 Zieht das Playback mit per-Frequenz angepasster Verstärkung vom Mix ab.
-Ergebnis `work/subtracted/08_vocals.wav` und `08_backing.wav`. Für 02 und 05
-(nicht ausgerichtet) stattdessen Demucs (`htdemucs`) verwenden.
+Ergebnis `work/subtracted/08_vocals.wav` und `08_backing.wav`. Für Lieder, deren
+Playback nicht sauber ausgerichtet ist, stattdessen Demucs (`htdemucs`) verwenden.
 
 ### 1c. MP3s für die Seite
 
@@ -60,12 +63,12 @@ Zwei Tracker, gleiche Ausgabe (`work/pitch/<id>.json` plus Kontrollbild `.png`,
 
 ```
 # neuronale Tracker, empfohlen (CREPE genauer, FCPE schneller)
-tools\.venv\Scripts\python.exe tools\extract_pitch_nn.py 04 work\subtracted\04_vocals.wav "Titel" ^
+./mp.ps1 tool extract_pitch_nn 04 work\subtracted\04_vocals.wav "Titel" ^
     --method crepe --audio 04_mix.mp3 --stem-file vocals=04_vocals.mp3 --stem-file no_vocals=04_no_vocals.mp3 ^
     --mix work\decoded\04_mix.wav --fmin E2 --highpass 90 --fold-octaves
 
 # klassisch (pYIN), gleiche Optionen ohne --method/--fold-octaves
-tools\.venv\Scripts\python.exe tools\extract_pitch.py 04 work\subtracted\04_vocals.wav "Titel" ...
+./mp.ps1 tool extract_pitch 04 work\subtracted\04_vocals.wav "Titel" ...
 ```
 
 Wichtige Optionen:
@@ -90,7 +93,7 @@ mit `bar`, `beat`, `dur` (in Vierteln), `midi`, `name`, optional `lyric`,
 ### 3a. Vektor-PDF (Finale/Maestro-Font), z. B. 08
 
 ```
-tools\.venv\Scripts\python.exe tools\score_from_pdf.py "sources\text\08 ....pdf" work\score\08_score.json --key-flats 1
+./mp.ps1 tool score_from_pdf "sources\text\08 ....pdf" work\score\08_score.json --key-flats 1
 ```
 
 Liest Notenköpfe, Balken, Bögen, Taktstriche und Textsilben direkt aus den
@@ -122,7 +125,7 @@ bei 60 dpi. Vorgehen:
    Dauern `2`, `/2`, `3/2`, Bindebögen `-`, Pausen `z`, Taktstriche,
    `%% section NAME` für Abschnitte, die in der Aufnahme mehrfach vorkommen.
 
-3. Umwandeln: `tools\.venv\Scripts\python.exe tools\abc_to_score.py scores\03.abc work\score\03_score.json`
+3. Umwandeln: `./mp.ps1 tool abc_to_score scores\03.abc work\score\03_score.json`
 4. Korrigieren in MuseScore, siehe 3c.
 
 Alternative für bessere Scans (≥ 300 dpi): Audiveris (Open Source OMR)
@@ -132,10 +135,10 @@ erzeugt MusicXML, das direkt über 3c einlesbar ist.
 
 ```
 # Score-JSON -> MusicXML zum Bearbeiten
-tools\.venv\Scripts\python.exe tools\score_to_musicxml.py work\score\03_score.json scores\03.musicxml --key Eb --title "..." --bpm 110
+./mp.ps1 tool score_to_musicxml work\score\03_score.json scores\03.musicxml --key Eb --title "..." --bpm 110
 
 # in MuseScore öffnen, korrigieren, Text eingeben, als MusicXML exportieren, dann zurück:
-tools\.venv\Scripts\python.exe tools\score_from_musicxml.py scores\03.musicxml work\score\03_score.json
+./mp.ps1 tool score_from_musicxml scores\03.musicxml work\score\03_score.json
 ```
 
 Der Import nimmt den ersten Part und bei Akkorden den höchsten Ton, fasst
@@ -156,7 +159,7 @@ zur nächsten Note derselben Rolle.
 ## 4. Partitur an die Aufnahme ausrichten
 
 ```
-tools\.venv\Scripts\python.exe tools\align_score.py work\score\08_score.json work\pitch\08.json work\pitch\08_aligned.json ^
+./mp.ps1 tool align_score work\score\08_score.json work\pitch\08.json work\pitch\08_aligned.json ^
     --bpm 93 --repeat-bars 9-12 --passes 2 --snap
 ```
 
@@ -171,12 +174,12 @@ erhalten). Die Ausgabe druckt pro Durchlauf Kosten und impliziertes Tempo:
 - Kosten 0.2–0.3: Erstfassung mit Fehlern, in MuseScore nachbessern.
 
 Findet ein Abschnitt auch Blöcke eines anderen (Strophe frisst Refrain),
-`--max-cost` senken, bis jeder Block beim richtigen Abschnitt landet (03: 0.23).
+`--max-cost` senken, bis jeder Block beim richtigen Abschnitt landet.
 `--grid` legt jeden Durchlauf ins Partiturtempo (`--bpm`), verankert am Median
 der DTW-Zeiten; für Playbacks mit festem Tempo, wenn DTW Phrasenanfänge zu spät
-setzt (03).
+setzt.
 
-Kontrollbild: `tools\.venv\Scripts\python.exe tools\plot_aligned.py work\pitch\08_aligned.json work\pitch\08_aligned.png 20 40`
+Kontrollbild: `./mp.ps1 tool plot_aligned work\pitch\08_aligned.json work\pitch\08_aligned.png 20 40`
 (blau Partitur, rot gesnappt, orange Gesang).
 
 ## 5. Rollen (wer singt was)
@@ -193,7 +196,7 @@ Die Ausrichtung reicht `role` durch; Seite und MusicXML färben danach
 ## 6. Spektrogramm
 
 ```
-tools\.venv\Scripts\python.exe tools\spectrogram.py work\subtracted\08_vocals.wav web\data\08_spec.png --json web\data\08.json --range-db 35
+./mp.ps1 tool spectrogram work\subtracted\08_vocals.wav web\data\08_spec.png --json web\data\08.json --range-db 35
 ```
 
 Rendert den Gesangsstem auf dem Halbtonraster als PNG und trägt `spec` in
@@ -201,23 +204,24 @@ die genannten Song-JSONs ein.
 
 ## 7. Veröffentlichen auf der Seite
 
-Ablauf: phrases → pack → `content/` committen → pushen.
+Ablauf: phrases → nach `pack-root/` übernehmen → im Produktions-Repo committen → pushen.
 
-1. Phrasen vergeben (schreibt `web/data/NN.json` neu):
-   `tools\.venv\Scripts\python.exe tools\phrases.py NN`
-2. Verschlüsselt packen (Passwort nur in der Umgebung, nie committen):
-   `$env:PITCH_PASSWORD="..."; tools\.venv\Scripts\python.exe tools\pack.py`
-   Optionen: `--strict` (unvollständige Lieder brechen ab), `--out content`,
-   `--new-salt` (neuer Salt, alle Nutzer müssen neu entsperren). Unvollständige
-   Lieder landen in `content/report.txt` und werden nicht gepackt.
-3. `content/` committen. Nur verschlüsselt: `sources/`, `scores/` und
-   `web/data/*.json` sind gitignored. `content/salt` ist öffentlich (steht auch
-   im Manifest) und darf committet werden.
-4. Auf `main` pushen. Der Workflow `.github/workflows/pages.yml` baut mit
-   Node 26, kopiert `content/` nach `dist/content/` und veröffentlicht `dist/`
-   auf GitHub Pages (Einstellungen → Pages → Quelle: GitHub Actions).
+1. Phrasen vergeben (schreibt `web/data/NN.json` neu): `./mp.ps1 tool phrases NN`
+2. Die geänderten `web/data/NN.json` in den Pack-Stand `pack-root/` des
+   Produktions-Repos übernehmen (dort steht, was gepackt wird) und committen.
+3. Auf `main` des Produktions-Repos pushen. Dessen Workflow checkt die Engine in
+   der Version aus `engine.ref` aus, baut mit `MP_PRODUCTION` (Titel, Logo,
+   Icons, `storageId`), packt mit dem Actions-Secret `PITCH_PASSWORD` und dem
+   committeten `salt` und pusht `dist/` auf den Branch `gh-pages` des öffentlichen
+   Site-Repos (ADR 0007).
 
-Lokal ansehen: `tools\.venv\Scripts\python.exe tools\serve.py` → http://localhost:8765/
+Lokal packen zum Prüfen (Passwort wird abgefragt, nie gespeichert):
+`./mp.ps1 pack --root pack-root --out <ordner> --strict`. Optionen: `--strict`
+(unvollständige Lieder brechen ab), `--new-salt` (neuer Salt, alle Nutzer müssen
+neu entsperren; danach `salt` im Produktions-Repo ersetzen). Unvollständige Lieder
+landen in `report.txt` und werden nicht gepackt.
+
+Lokal ansehen: `./mp.ps1 serve` → http://localhost:8765/
 (Liederliste und Titel aus `sources/config.json`, Range-Requests, speichert Notenänderungen aus dem Editiermodus nach
 `web/data/<id>.json`, mit Zeitstempel-Kopie in `work/edits/`).
 

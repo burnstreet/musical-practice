@@ -1,7 +1,8 @@
 import { Workbox } from 'workbox-window'
+import { production } from '../production'
 import type { SwControl } from './context'
 
-const UPDATED = 'gu.sw-updated'
+const UPDATED = `${production.storageId}.sw-updated`
 
 /**
  * Real worker control. A worker that installed during an earlier run is still waiting at this launch:

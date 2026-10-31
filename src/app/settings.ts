@@ -1,6 +1,7 @@
 import type { Mode } from '../core/audio-engine'
 import type { RoleId } from '../core/content'
 import type { Tolerance } from '../core/scorer'
+import { production } from '../production'
 
 export type Route = '#/start' | '#/songs' | `#/practice/${string}` | `#/results/${string}`
 
@@ -16,7 +17,7 @@ export interface Settings {
   micDeviceId: string
 }
 
-const KEY = 'gu.settings'
+const KEY = `${production.storageId}.settings`
 const DEFAULTS: Settings = { tolerance: 50, delayMs: null, headphoneSheetSeen: false, installHintSeen: false, roles: [], mode: 'all', micDeviceId: '' }
 
 export const settings = {
