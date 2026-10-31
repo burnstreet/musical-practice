@@ -10,9 +10,11 @@ Output: the pitch JSON with its `notes` replaced by the score notes with
 start/end times from the audio (fields bar, beat, dur, lyric, pass kept).
 
 The n-th occurrence of a section in time takes verse n of the notes' `lyrics`.
+--form lists the sections in sung order (optionally with a role per block); it
+replaces --passes and fails when the blocks are found in another order.
 
 Usage: python tools/align_score.py <score.json> <pitch.json> <out.json>
-         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid]
+         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid] [--form "Refrain:anna,Strophe,..."]
 """
 
 import argparse
@@ -23,6 +25,7 @@ import librosa
 import numpy as np
 
 HOP_S = 0.01
+FORM_MARGIN = 100  # frames (1 s) around a found block when --form aligns it again
 
 
 def expand(notes, repeat_ranges):
@@ -153,6 +156,31 @@ def apply_verses(notes):
         n.pop("lyrics", None)
 
 
+def parse_form(text):
+    """'Refrain:anna, Strophe, ...' -> [("Refrain", "anna"), ("Strophe", None), ...]: sections in sung order, optional role."""
+    form = []
+    for item in text.split(","):
+        sec, _, role = item.strip().partition(":")
+        form.append((sec.strip(), role.strip() or None))
+    return form
+
+
+def apply_form(notes, form):
+    """Check the found blocks (section, pass) in time order against the form; give each block its form role."""
+    first = {}
+    for n in notes:
+        key = (n["section"], n["pass"])
+        first[key] = min(first.get(key, n["start"]), n["start"])
+    blocks = sorted(first, key=first.get)
+    found = [sec for sec, _ in blocks]
+    if found != [sec for sec, _ in form]:
+        raise SystemExit(f"found order {', '.join(found)} != form {', '.join(sec for sec, _ in form)}")
+    role = {block: r for block, (_, r) in zip(blocks, form)}
+    for n in notes:
+        if role[(n["section"], n["pass"])]:
+            n["role"] = role[(n["section"], n["pass"])]
+
+
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
@@ -171,7 +199,14 @@ def main():
     ap.add_argument("--max-cost", type=float, default=0.3, help="stop searching a section above this mean cost")
     ap.add_argument("--snap", action="store_true", help="replace a note's pitch by the sung one when they differ")
     ap.add_argument("--grid", action="store_true", help="lay each pass on --bpm instead of the DTW note times")
+    ap.add_argument(
+        "--form",
+        default="",
+        help="sections in sung order with optional role, e.g. 'Refrain:anna,Strophe:anna,Refrain:chor'; "
+        "sets the passes per section and checks the found order",
+    )
     args = ap.parse_args()
+    form = parse_form(args.form) if args.form else None
 
     score = json.loads(Path(args.score).read_text(encoding="utf-8"))
     pitch = json.loads(Path(args.pitch).read_text(encoding="utf-8"))
@@ -193,32 +228,62 @@ def main():
         if not sections or sections[-1][0] != s:
             sections.append((s, []))
         sections[-1][1].append(n)
+    passes = {s: args.passes for s, _ in sections}
+    if form:
+        unknown = {f for f, _ in form} - set(passes)
+        if unknown:
+            raise SystemExit(f"form names sections not in the score: {', '.join(sorted(unknown))}")
+        passes = {s: sum(1 for f, _ in form if f == s) for s in passes}
 
     masked = np.zeros(len(audio_midi), dtype=bool)
-    all_notes = []
+    found = []  # (section, notes, pass, warping path, cost)
     for sec_name, sec_seq in sections:
-        sec_midi, sec_spans = score_frames(sec_seq, args.bpm)
-        sung_beats = sum(n["dur"] for n in sec_seq)
-        for k in range(args.passes):
+        sec_midi, _ = score_frames(sec_seq, args.bpm)
+        for k in range(passes[sec_name]):
             wp, cost = align_pass(sec_midi, audio_midi, masked)
             a0, a1 = wp[0, 1], wp[-1, 1]
             if cost > args.max_cost or masked[a0 : a1 + 1].mean() > 0.3:
                 break
-            notes = notes_from_path(sec_seq, sec_spans, wp, t_audio, audio_midi, snap=args.snap)
-            for n in notes:
-                n["pass"] = k
-            if args.grid:
-                grid(notes, args.bpm, score.get("beats_per_bar", 4))
-            bpm_est = sung_beats / max(t_audio[a1] - t_audio[a0], 1e-3) * 60
-            snapped = sum(1 for n in notes if n.get("snapped"))
-            print(
-                f"{sec_name or 'score'} #{k}: audio {t_audio[a0]:.1f}-{t_audio[a1]:.1f}s, mean cost {cost:.3f}, "
-                f"{len(notes)} notes, implied tempo {bpm_est:.0f} bpm" + (f", {snapped} snapped" if args.snap else "")
-            )
             masked[a0 : a1 + 1] = True
-            all_notes += notes
+            found.append((sec_name, sec_seq, k, wp, cost))
+
+    if form:
+        # the search finds the blocks, but near-identical sections (Strophe / Strophe 3) can swap them;
+        # so each block, in time order, is aligned again inside its window with the section the form names
+        if len(found) != len(form):
+            raise SystemExit(f"found {len(found)} blocks, the form has {len(form)}")
+        seqs = dict(sections)
+        realigned, count = [], {}
+        for (got, _, _, wp, _), (sec_name, _) in zip(sorted(found, key=lambda f: f[3][0, 1]), form):
+            if got != sec_name:
+                print(f"block at {t_audio[wp[0, 1]]:.1f}s: search found {got}, form says {sec_name}")
+            window = np.ones(len(audio_midi), dtype=bool)
+            window[max(wp[0, 1] - FORM_MARGIN, 0) : wp[-1, 1] + 1 + FORM_MARGIN] = False
+            wp, cost = align_pass(score_frames(seqs[sec_name], args.bpm)[0], audio_midi, window)
+            count[sec_name] = count.get(sec_name, -1) + 1
+            realigned.append((sec_name, seqs[sec_name], count[sec_name], wp, cost))
+        found = realigned
+
+    all_notes = []
+    for sec_name, sec_seq, k, wp, cost in found:
+        _, sec_spans = score_frames(sec_seq, args.bpm)
+        a0, a1 = wp[0, 1], wp[-1, 1]
+        notes = notes_from_path(sec_seq, sec_spans, wp, t_audio, audio_midi, snap=args.snap)
+        for n in notes:
+            n["pass"] = k
+        if args.grid:
+            grid(notes, args.bpm, score.get("beats_per_bar", 4))
+        bpm_est = sum(n["dur"] for n in sec_seq) / max(t_audio[a1] - t_audio[a0], 1e-3) * 60
+        snapped = sum(1 for n in notes if n.get("snapped"))
+        print(
+            f"{sec_name or 'score'} #{k}: audio {t_audio[a0]:.1f}-{t_audio[a1]:.1f}s, mean cost {cost:.3f}, "
+            f"{len(notes)} notes, implied tempo {bpm_est:.0f} bpm" + (f", {snapped} snapped" if args.snap else "")
+        )
+        all_notes += notes
 
     all_notes.sort(key=lambda n: n["start"])
+    if form:
+        apply_form(all_notes, form)
     apply_verses(all_notes)
     pitch["notes"] = all_notes
     pitch["score"] = {"source": Path(args.score).name, "bpm_guess": args.bpm, "repeats": repeats}
