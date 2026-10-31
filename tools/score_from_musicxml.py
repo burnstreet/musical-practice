@@ -39,6 +39,7 @@ def main():
     notes, section = [], None
     for m in part.getElementsByClass(stream.Measure):
         bar = m.measureNumber
+        pad = float(m.paddingLeft or 0)  # a pickup bar's beats count from the full bar start
         for el in m.recurse():
             if isinstance(el, (expressions.TextExpression, expressions.RehearsalMark)):
                 section = el.content
@@ -46,7 +47,7 @@ def main():
             if isinstance(el, chord.Chord):
                 el = max(el.notes, key=lambda n: n.pitch.midi)
             if isinstance(el, note.Rest):
-                rest = {"bar": bar, "beat": float(el.offset), "dur": float(el.quarterLength), "midi": None, "name": None}
+                rest = {"bar": bar, "beat": pad + float(el.offset), "dur": float(el.quarterLength), "midi": None, "name": None}
                 notes.append({**rest, "voice": voice, "section": section})
             elif isinstance(el, note.Note):
                 if el.tie is not None and el.tie.type in ("stop", "continue") and notes:
@@ -63,7 +64,7 @@ def main():
                 notes.append(
                     {
                         "bar": bar,
-                        "beat": float(el.offset),
+                        "beat": pad + float(el.offset),
                         "dur": float(el.quarterLength),
                         "midi": midi,
                         "name": name,
