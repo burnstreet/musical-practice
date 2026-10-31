@@ -91,8 +91,8 @@ def check_song(root, cfg_roles, s, work):
     gap = next((p for p in range(max(used)) if p not in used), None)
     if gap is not None:
         return f"{nid}: rule 3, phrase {gap} missing", None
-    mix = data / f"{nid}.mp3"
-    back = data / f"{nid}_playback.mp3" if s["backing"] == "playback" else root / "work" / "separated" / f"{nid}_backing.mp3"
+    mix = data / f"{nid}_mix.mp3"
+    back = data / (f"{nid}_playback.mp3" if s["backing"] == "playback" else f"{nid}_no_vocals.mp3")
     for f in (mix, back):
         if not f.exists():
             return f"{nid}: rule 4, {f.name} missing", None

@@ -61,7 +61,7 @@ notes = [
     for i in range(18)
 ]
 (data / "90.json").write_text(json.dumps({"notes": notes}), encoding="utf-8")
-sine_mp3(data / "90.mp3", 20, 330)
+sine_mp3(data / "90_mix.mp3", 20, 330)
 sine_mp3(data / "90_playback.mp3", 20, 220)
 roles = [{"id": "maria", "name": "Maria", "sings": True}, {"id": "chor", "name": "Chor", "sings": True}]
 song = {"id": "90", "number": 90, "title": "E2E Testlied", "backing": "playback", "bpm": 60, "key": "A", "playbackOffsetSec": 0.0}
