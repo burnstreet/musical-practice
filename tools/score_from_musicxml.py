@@ -3,7 +3,8 @@ used by align_score.py. Takes the first part; chords use their top note; text
 expressions / rehearsal marks become section names.
 Each note keeps its MuseScore voice; --roles maps voices to role ids. A rest is
 dropped while another voice sings (filler rest). With several lyric lines
-(verses) each note also gets `lyrics`, one entry per verse. Tied notes stay
+(verses) each note also gets `lyrics`, one entry per verse. A syllable whose
+word goes on ends in "-". Tied notes stay
 notes of their own: `tie: true` marks a note tied to the next one (scored as one
 note), `slur: true` a note slurred to the next one (the staff draws the arc).
 
@@ -54,7 +55,8 @@ def main():
                         prev["tie"] = True  # kept as notes of their own, so the staff writes them as notated
                 # shortcut: a slur over n notes becomes n-1 arcs note to note; fine for the two-note slurs we have
                 slur = any(isinstance(sp, spanner.Slur) and not sp.isLast(el) for sp in el.getSpannerSites())
-                verses = {ly.number: ly.text for ly in el.lyrics}
+                # a syllable whose word goes on ends in "-" (Nie- mand), so the app can join and hyphenate words
+                verses = {ly.number: ly.text + ("-" if ly.syllabic in ("begin", "middle") else "") for ly in el.lyrics}
                 lyric = verses.get(1) or None
                 midi = el.pitch.midi
                 name = el.pitch.name.replace("-", "b") + str(el.pitch.octave)

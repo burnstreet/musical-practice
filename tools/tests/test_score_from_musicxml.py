@@ -13,9 +13,9 @@ XML = """<?xml version="1.0" encoding="UTF-8"?>
     <measure number="1">
       <attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
       <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type>
-        <lyric number="1"><text>la</text></lyric></note>
+        <lyric number="1"><syllabic>begin</syllabic><text>la</text></lyric></note>
       <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>
-        <lyric number="1"><text>li</text></lyric></note>
+        <lyric number="1"><syllabic>end</syllabic><text>li</text></lyric></note>
     </measure>
     <measure number="2">
       <note><rest measure="yes"/><duration>3</duration><voice>1</voice></note>
@@ -65,6 +65,10 @@ def run(tmp_path, *extra, xml=XML):
 def test_voice_per_note_and_filler_rest_dropped(tmp_path):
     got = [(n["bar"], n["beat"], n["midi"], n["voice"]) for n in run(tmp_path)]
     assert got == [(1, 0.0, 60, "1"), (1, 2.0, 62, "1"), (2, 0.0, None, "2"), (2, 1.0, 62, "2")]
+
+
+def test_syllable_of_a_word_that_goes_on_ends_in_a_hyphen(tmp_path):
+    assert [n.get("lyric") for n in run(tmp_path)] == ["la-", "li", None, "lo"]
 
 
 def test_roles_from_voices(tmp_path):

@@ -23,7 +23,7 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   const setCase = (sections: boolean, banner: boolean) =>
     page.evaluate(
       ([withSections, withBanner]) => {
-        // biome-ignore lint/suspicious/noExplicitAny: the screen's own state, reached through the shadow roots
+        // the screen's own state, reached through the shadow roots
         const el = (document.querySelector('gu-app') as any).shadowRoot.querySelector('gu-practice')
         el.loaded.song.sections = withSections
           ? [
