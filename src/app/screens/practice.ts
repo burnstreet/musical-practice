@@ -217,8 +217,10 @@ export class GuPractice extends LitElement {
   declare pointA: number | null
   /** The section of the Abschnitt repeat. */
   private section: Section | null = null
-  /** The role set has notes in this song; otherwise listen only (`noPart` hint). */
+  /** The role set has notes to score in this song; otherwise listen only (`noPart` hint) or rap (`rapsHere`). */
   singsHere = false
+  /** The role set only raps here: spoken notes, shown and muted like singing, never scored (`rapOnly` hint). */
+  rapsHere = false
   session!: Session
   /** Pitch frames of the last 1.5 s, oldest first. */
   frames: PitchFrame[] = []
@@ -290,7 +292,8 @@ export class GuPractice extends LitElement {
     if (!back) await engine.load(loaded, s.roles)
     this.session = back?.session ?? new Session(loaded.song, s.roles, s.tolerance)
     this.singsHere = this.session.myNotes().length > 0
-    this.setMode(this.singsHere ? s.mode : 'all', false)
+    this.rapsHere = !this.singsHere && loaded.song.notes.some((n) => s.roles.includes(n.role))
+    this.setMode(this.singsHere || this.rapsHere ? s.mode : 'all', false)
     // Results may have set a drill repeat and tempo on the engine.
     this.tempo = engine.tempo()
     this.repeat = engine.loop()
@@ -338,7 +341,7 @@ export class GuPractice extends LitElement {
     engine.pause()
     const passed = this.mic && this.session.endPass() // history still gets the pass
     if (!features.results) return
-    if (!this.singsHere) route('#/songs')
+    if (!this.singsHere && !this.rapsHere) route('#/songs')
     else if (passed) route(`#/results/${this.songId}`)
   }
 
@@ -500,8 +503,11 @@ export class GuPractice extends LitElement {
   /** Big note, target label, cents text and meter position. */
   private readout() {
     const s = getContext().settings.get()
-    const d = liveDeviation(this.loaded!.song, s.roles, this.heard(), this.frames, s.tolerance)
-    if (!d) return { big: '–', label: '', text: entryCountdown(this.loaded!.song, s.roles, this.heard(), this.tempo), cents: null }
+    const { song } = this.loaded!
+    const t = this.heard()
+    const d = liveDeviation(song, s.roles, t, this.frames, s.tolerance)
+    const rap = song.notes.some((n) => n.spoken && s.roles.includes(n.role) && n.start <= t && t < n.end)
+    if (!d) return { big: '–', label: '', text: rap ? 'Rap · ohne Bewertung' : entryCountdown(song, s.roles, t, this.tempo), cents: null }
     const dir = d.cents > 0 ? 'zu hoch' : 'zu tief'
     const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
     return {
@@ -545,13 +551,15 @@ export class GuPractice extends LitElement {
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>
     ${
-      !this.singsHere
-        ? html`<p class="note" role="status">Deine Rolle singt hier nicht. Nur Zuhören.</p>`
-        : !this.mic
-          ? html`<p class="note" role="alert">Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.</p>`
-          : ''
+      this.rapsHere
+        ? html`<p class="note" role="status">Deine Rolle rappt hier: Text und Rhythmus, ohne Bewertung.</p>`
+        : !this.singsHere
+          ? html`<p class="note" role="status">Deine Rolle singt hier nicht. Nur Zuhören.</p>`
+          : !this.mic
+            ? html`<p class="note" role="alert">Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.</p>`
+            : ''
     }
-    <button class="mode" ?disabled=${!this.singsHere} @click=${() => this.setMode(MODES[this.mode][1])}><span>Voicetrack</span><b>${MODES[this.mode][0]}${CHEVRON}</b></button>
+    <button class="mode" ?disabled=${!this.singsHere && !this.rapsHere} @click=${() => this.setMode(MODES[this.mode][1])}><span>Voicetrack</span><b>${MODES[this.mode][0]}${CHEVRON}</b></button>
     <section class="card staff">
       <div class="legend"><span><i></i>Meine Stimme · ${mine}</span><span><i class="other"></i>Andere</span></div>
       <canvas></canvas>
