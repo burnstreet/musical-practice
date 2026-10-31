@@ -487,6 +487,29 @@ describe('staff arcs', () => {
   })
 })
 
+describe('staff beams', () => {
+  const n = (beat: number, dur: number) => ({ start: beat, end: beat + dur, midi: 67, syllable: '', role: 'chor', phrase: 0, bar: 0, beat, dur }) as Note
+  /** Flag curves (no slurs or ties here) and fills (heads, dots, beams) drawn before the first note, one bar per page. */
+  const drawn = (notes: Note[]) => {
+    const song = { id: 'x', key: 'C', timeSig: [4, 4], bars: [0, 4], notes, phrases: [], sections: [] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawStaff(ctx, { song, roles: ['chor'], names: {}, t: -1, frames: [], tolerance: 50, bars: 1 })
+    return { flags: calls.filter(([k]) => k === 'bezierCurveTo').length, fills: calls.filter(([k]) => k === 'fill').length }
+  }
+  it('draws two eighths of one beat with one beam and no flags', () => {
+    expect(drawn([n(0, 0.5), n(0.5, 0.5)])).toEqual({ flags: 0, fills: 2 + 1 }) // 2 heads, 1 beam
+  })
+  it('keeps the flags of eighths across a beat', () => {
+    expect(drawn([n(0.5, 0.5), n(1, 0.5)])).toEqual({ flags: 2, fills: 2 })
+  })
+  it('gives a dotted eighth and its sixteenth a beam and a stub', () => {
+    expect(drawn([n(0, 0.75), n(0.75, 0.25)])).toEqual({ flags: 0, fills: 2 + 1 + 2 }) // 2 heads, dot, beam, stub
+  })
+  it('gives neighbouring sixteenths one second beam', () => {
+    expect(drawn([n(0, 0.5), n(0.5, 0.25), n(0.75, 0.25)])).toEqual({ flags: 0, fills: 3 + 2 }) // 3 heads, beam, second beam
+  })
+})
+
 describe('staff hyphens', () => {
   const n = (beat: number, syllable: string, bar = 0) =>
     ({ start: bar * 4 + beat, end: bar * 4 + beat + 1, midi: 67, syllable, role: 'chor', phrase: 0, bar, beat, dur: 1 }) as Note
