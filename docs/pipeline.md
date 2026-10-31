@@ -56,6 +56,11 @@ ffmpeg -i work\subtracted\08_vocals.wav  -b:a 128k web\data\08_vocals.mp3
 ffmpeg -i work\subtracted\08_backing.wav -b:a 128k web\data\08_no_vocals.mp3
 ```
 
+`pack` nimmt genau diese Dateien: `NN_mix.mp3` als Stimmen, `NN_no_vocals.mp3`
+als Begleitung (Song mit `backing: demucs`). Die Begleitung muss so lang sein wie
+der Mix (±20 ms); Demucs-Stems sind etwas länger, also beim Kodieren mit
+`-t <Mix-Dauer>` kürzen.
+
 ## 2. Tonhöhe des Gesangs
 
 Zwei Tracker, gleiche Ausgabe (`work/pitch/<id>.json` plus Kontrollbild `.png`,
@@ -213,11 +218,11 @@ die genannten Song-JSONs ein.
 
 ## 7. Veröffentlichen auf der Seite
 
-Ablauf: phrases → nach `pack-root/` übernehmen → im Produktions-Repo committen → pushen.
+Ablauf: phrases → im Produktions-Repo committen → pushen. Gepackt wird, was der
+Editor zeigt und speichert (`web/data/`), es gibt keine eigene Pack-Kopie.
 
 1. Phrasen vergeben (schreibt `web/data/NN.json` neu): `./mp.ps1 tool phrases NN`
-2. Die geänderten `web/data/NN.json` in den Pack-Stand `pack-root/` des
-   Produktions-Repos übernehmen (dort steht, was gepackt wird) und committen.
+2. Die geänderten `web/data/` im Produktions-Repo committen.
 3. Auf `main` des Produktions-Repos pushen. Dessen Workflow checkt die Engine in
    der Version aus `engine.ref` aus, baut mit `MP_PRODUCTION` (Titel, Logo,
    Icons, `storageId`), packt mit dem Actions-Secret `PITCH_PASSWORD` und dem
@@ -225,7 +230,7 @@ Ablauf: phrases → nach `pack-root/` übernehmen → im Produktions-Repo commit
    Site-Repos (ADR 0007).
 
 Lokal packen zum Prüfen (Passwort wird abgefragt, nie gespeichert):
-`./mp.ps1 pack --root pack-root --out <ordner> --strict`. Optionen: `--strict`
+`./mp.ps1 pack --out <ordner> --strict`. Optionen: `--strict`
 (unvollständige Lieder brechen ab), `--new-salt` (neuer Salt, alle Nutzer müssen
 neu entsperren; danach `salt` im Produktions-Repo ersetzen). Unvollständige Lieder
 landen in `report.txt` und werden nicht gepackt.

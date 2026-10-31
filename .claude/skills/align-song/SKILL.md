@@ -25,4 +25,4 @@ Tools: `./mp.ps1 tool <name> [args]` in the production repo runs `tools/<name>.p
 
 5. **Phrases**: `./mp.ps1 tool phrases NN`. When the song's DOCX holds only scans (no text), set `phraseStart: true` first on every note at the row's phrase starts (bar, beat), then run `phrases`. Done when every note has `phrase` and `role`.
 
-Packing is a separate request: the production's CI packs on push; locally `./mp.ps1 pack` after syncing `web/data/NN.json` into `pack-root/`.
+Packing is a separate request: the production's CI packs on push; locally `./mp.ps1 pack`. Both read `web/data/` as written here.
