@@ -1,26 +1,8 @@
 export type { PitchFrame } from './types'
 
-export const ROLE_IDS = [
-  'erzaehler1',
-  'erzaehler2',
-  'anna',
-  'mutter',
-  'engel',
-  'benjamin',
-  'roemer',
-  'hirte',
-  'josef',
-  'wirt',
-  'weihnachtsmann',
-  'maria',
-  'esel',
-  'kuh',
-  'schaf',
-  'chor',
-  'maenner',
-  'frauen',
-] as const
-export type RoleId = (typeof ROLE_IDS)[number]
+// Role ids are defined by the production (builder config), not by the app.
+export type RoleId = string
+const ROLE_ID = /^[a-z][a-z0-9_-]*$/
 
 export interface Manifest {
   format: 1 | 2
@@ -129,8 +111,7 @@ export function parseManifest(json: unknown): Manifest {
 export function parseLibrary(input: unknown): Library {
   const json = input as Record<string, any>
   need(isObj(input) && Array.isArray(json.roles) && Array.isArray(json.songs), 'library')
-  const known = new Set<string>(ROLE_IDS)
-  for (const r of json.roles) need(isObj(r) && known.has(r.id) && isStr(r.name) && typeof r.sings === 'boolean', 'roles')
+  for (const r of json.roles) need(isObj(r) && isStr(r.id) && ROLE_ID.test(r.id) && isStr(r.name) && typeof r.sings === 'boolean', 'roles')
   const inLibrary = new Set<string>(json.roles.map((r: Role) => r.id))
   for (const s of json.songs) {
     need(isObj(s) && isStr(s.id) && isNum(s.number) && isStr(s.title) && isNum(s.durationSec), 'songs')
