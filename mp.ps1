@@ -6,6 +6,8 @@ param(
   [string]$Command = 'help',
   [switch]$Full,
   [switch]$Staged,
+  # Content root (a production repo): serve, pack and tool run there; dev, build and preview use its production.json.
+  [string]$Content = '',
   [Parameter(ValueFromRemainingArguments)] [string[]]$Rest = @()
 )
 
@@ -13,6 +15,15 @@ $ErrorActionPreference = 'Stop'
 $venvBin = Join-Path $PSScriptRoot 'tools/.venv/Scripts'
 $venvPython = Join-Path $venvBin 'python.exe'
 $py = if (Test-Path $venvPython) { $venvPython } else { 'python' }
+$contentRoot = if ($Content) { (Resolve-Path $Content).Path } else { $PSScriptRoot }
+if ($Content) { $env:MP_PRODUCTION = $contentRoot }
+
+# Run a script block with the content root as working directory (the tools read their data from there).
+function InContent {
+  param([scriptblock]$Block)
+  Push-Location $contentRoot
+  try { & $Block } finally { Pop-Location }
+}
 
 # Run a native command; stop the script on the first non-zero exit code.
 function Step {
@@ -114,7 +125,7 @@ function Pack {
   }
   try {
     if (-not $env:PITCH_PASSWORD) { throw 'PITCH_PASSWORD is empty' }
-    Step $py (@('tools/pack.py') + $Rest)
+    InContent { Step $py (@((Join-Path $PSScriptRoot 'tools/pack.py')) + $Rest) }
   }
   finally {
     if ($own) { Remove-Item Env:PITCH_PASSWORD -ErrorAction SilentlyContinue }
@@ -136,8 +147,12 @@ Usage: ./mp.ps1 <command> [args]
   lint        Biome check + Ruff check + Ruff format --check
   format      Biome check --write + Ruff check --fix + Ruff format
   precommit   lint, tsc, vitest, pytest (add -Full to also run e2e; -Staged = git hook: Biome only on staged files via lint-staged)
-  pack [args] tools/pack.py, args passed through, e.g. --root work/pack-root --out content --strict
-              prompts for PITCH_PASSWORD if it is not set (never printed or stored)
+  serve [port]      editor (tools/serve.py) with song data from the content root
+  tool <name> [args] tools/<name>.py in the content root, e.g. tool align_check 04
+  pack [args]       tools/pack.py in the content root, args passed through, e.g. --root pack-root --out content --strict
+                    prompts for PITCH_PASSWORD if it is not set (never printed or stored)
+
+  -Content <path>   content root (production repo); default: this folder. A production repo's own mp.ps1 passes it.
 '@
 }
 
@@ -170,6 +185,14 @@ try {
       if ($Full) { Step npm @('run', 'e2e') }
     }
     'pack' { Pack }
+    'serve' { InContent { Step $py (@((Join-Path $PSScriptRoot 'tools/serve.py')) + $Rest) } }
+    'tool' {
+      if (-not $Rest) { throw 'usage: tool <name> [args]' }
+      $script = Join-Path $PSScriptRoot "tools/$($Rest[0]).py"
+      if (-not (Test-Path $script)) { throw "no such tool: $script" }
+      $env:PYTHONUTF8 = '1' # song titles and lyrics on a Windows console
+      InContent { Step $py (@($script) + @($Rest | Select-Object -Skip 1)) }
+    }
     default { Help; throw "unknown command: $Command" }
   }
 }
@@ -179,5 +202,6 @@ catch {
 }
 finally {
   $env:PATH = $oldPath
+  if ($Content) { Remove-Item Env:MP_PRODUCTION -ErrorAction SilentlyContinue }
   Pop-Location
 }

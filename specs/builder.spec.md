@@ -11,15 +11,15 @@ targets:
 
 # Builder
 
-Admin runs locally. Inputs: aligned song JSON (`web/data/NN.json`, output of `align_score.py`), stems in `web/data/`, Demucs output in `work/separated/`, lyrics DOCX in `sources/text/`, config `sources/config.json`. Output: `content/` (manifest + encrypted blobs) and a report.
+Admin runs locally, or the production repo's CI runs `pack`. All paths are relative to the content root: the working directory (`./mp.ps1 -Content <production repo>` sets it; `pack --root` overrides it). Inputs: aligned song JSON (`web/data/NN.json`, output of `align_score.py`), stems in `web/data/`, Demucs output in `work/separated/`, lyrics DOCX in `sources/text/`, config `sources/config.json`. Output: `content/` (manifest + encrypted blobs) and a report.
 
 ```
 python tools/phrases.py NN              # phrase index per note, from DOCX
 python tools/sections.py NN             # sections of a song, written into web/data/NN.json
-python tools/pack.py [--strict] [--out content]   # password from env PITCH_PASSWORD
+python tools/pack.py [--strict] [--out content] [--root .]   # password from env PITCH_PASSWORD
 ```
 
-Config `sources/config.json` (gitignored):
+Config `sources/config.json` (in the private production repo):
 
 ```json
 {

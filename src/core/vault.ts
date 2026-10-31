@@ -25,7 +25,7 @@ export interface VaultStore {
 
 const REC = 'current'
 
-/** Default store: IndexedDB database `gu`, object store `vault`, one record under key "current". */
+/** Default store: the production's IndexedDB database (openDb), object store `vault`, one record under key "current". */
 export function idbStore(): VaultStore {
   const tx = <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T>) => withStore(openDb, 'vault', mode, f)
   return {

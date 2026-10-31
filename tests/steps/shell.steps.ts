@@ -2,6 +2,7 @@ import { expect } from 'vitest'
 import type { ShellDeps } from '../../src/app/context'
 import type { GuApp } from '../../src/app/shell'
 import type { VaultState } from '../../src/core/vault'
+import { production } from '../../src/production'
 import { steps } from '../gherkin'
 import '../../src/app/shell'
 
@@ -139,7 +140,7 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^settings\.tolerance is (\d+) after reload$/, async (_ctx, n) => {
     const { settings } = await import('../../src/app/settings')
-    expect(JSON.parse(localStorage.getItem('gu.settings')!).tolerance).toBe(+n)
+    expect(JSON.parse(localStorage.getItem(`${production.storageId}.settings`)!).tolerance).toBe(+n)
     expect(settings.get().tolerance).toBe(+n)
   })
   Given(/^unlocked with songs stored$/, (ctx) => {

@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path.cwd()  # content root (mp.ps1 -Content sets the working directory)
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
