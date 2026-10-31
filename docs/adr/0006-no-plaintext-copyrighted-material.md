@@ -7,3 +7,4 @@ Recordings, lyrics, scores and everything derived from them (syllables, note lis
 - Test fixtures use made-up syllables. Design placeholders use public-domain text.
 - Role names are character names from the script and may appear in tracked files.
 - The builder config with titles lives under `sources/`, gitignored.
+- Amended by ADR 0007: the plaintext now lives, versioned, in the production's private content repo; the public repos (engine, site) hold no plaintext.

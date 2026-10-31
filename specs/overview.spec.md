@@ -1,6 +1,6 @@
 ---
 name: Overview
-description: Pitch trainer PWA for the cast of the Weihnachtsmusical 2026. Problem, solution, user stories, decisions, module seams, design deltas, device checklist.
+description: Pitch trainer PWA for the cast of a musical production (first: a Christmas musical 2026). Problem, solution, user stories, decisions, module seams, design deltas, device checklist.
 targets:
   - ../src/**/*
   - ../tools/pack.py

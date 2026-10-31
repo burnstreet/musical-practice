@@ -13,7 +13,7 @@ Strings:
 
 | id | text |
 |---|---|
-| kicker | `Weihnachtsmusical 2026` |
+| kicker | `kicker` from the production (`src/production.ts`); hidden when empty |
 | title | `Gemeinsam üben` |
 | subtitle | `Lieder zum Mitsingen mit Tonhöhen-Feedback` |
 | label | `Passwort` |

@@ -15,7 +15,7 @@ _Avoid_: Maintainer, editor (that is a tool)
 ## Content
 
 **Song**:
-One number of the musical, identified by its two-digit id (`01`–`10`). Has a recording, a score and a set of roles.
+One number of the musical, identified by its two-digit id (e.g. `08`). Has a recording, a score and a set of roles.
 _Avoid_: Track, piece, title
 
 **Recording**:
