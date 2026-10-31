@@ -11,7 +11,7 @@ from pathlib import Path
 
 from phrases import norm
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path.cwd()  # content root (mp.ps1 -Content sets the working directory)
 
 
 def _phrases(notes):

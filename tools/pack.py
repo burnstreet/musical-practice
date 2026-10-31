@@ -179,7 +179,7 @@ def main(argv=None):
     ap.add_argument("--strict", action="store_true")
     ap.add_argument("--out", default="content")
     ap.add_argument("--new-salt", action="store_true")
-    ap.add_argument("--root", default=str(Path(__file__).resolve().parent.parent))
+    ap.add_argument("--root", default=".")  # content root
     a = ap.parse_args(argv)
     password = os.environ.get("PITCH_PASSWORD")
     if not password:

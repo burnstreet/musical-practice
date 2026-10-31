@@ -18,13 +18,17 @@ All commands put the mise tools on PATH when mise is installed, so the pinned ve
 - `test` / `pytest` / `e2e`: Vitest, Python tests, Playwright
 - `lint` / `format`: Biome + Ruff check, or fix
 - `precommit [-Full]`: lint, tsc, vitest, pytest (`-Full` adds e2e); stops at the first failure
-- `pack [args]`: `tools/pack.py` with the venv Python; prompts for `PITCH_PASSWORD` if unset
+- `pack [args]`: `tools/pack.py` in the content root; prompts for `PITCH_PASSWORD` if unset
+- `serve [port]`: the editor (`tools/serve.py`) with song data from the content root
+- `tool <name> [args]`: any `tools/<name>.py` in the content root
 
-## Admin flow (publish content)
+`-Content <path>` names the content root (a production repo); without it, this folder. `dev`, `build` and `preview` then use the production's `production.json` and `public/` (title, logo, icons, storage id).
 
-1. `python tools/phrases.py NN` (phrases per song)
-2. `PITCH_PASSWORD=... python tools/pack.py` (encrypts into `content/`)
-3. Commit `content/` (encrypted only) and push to `main`.
+## Productions
 
-The `pages.yml` workflow builds the app, copies `content/` into `dist/content/` and deploys to GitHub Pages. Details: `docs/pipeline.md`, section 7.
+This repo is the engine: app, editor, tools. Each production (a musical) has two more repos next to it:
 
+- a private content repo with the songs in plain text (`sources/`, `scores/`, `web/data/`, `pack-root/`), `production.json`, `public/` (logo, icons), `salt`, `engine.ref` (engine tag to build with) and a small `mp.ps1` that calls this one with `-Content`;
+- a public site repo whose `gh-pages` branch holds only the built app and the encrypted bundle, pushed by the content repo's CI.
+
+First production: `weihnachtsmusical-2026` (site https://burnstreet.github.io/weihnachtsmusical-2026/). Publishing: `docs/pipeline.md`, section 7. Decision: `docs/adr/0007-engine-content-site-split.md`.

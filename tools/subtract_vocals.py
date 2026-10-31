@@ -19,7 +19,7 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path.cwd()  # content root (mp.ps1 -Content sets the working directory)
 DECODED = ROOT / "work" / "decoded"
 OUT = ROOT / "work" / "subtracted"
 SR = 44100

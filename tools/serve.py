@@ -1,6 +1,8 @@
-"""Static server for web/ with HTTP Range support (audio seeking) and a save
-endpoint for note edits made in the viewer.
+"""Static server for the editor in web/ with HTTP Range support (audio seeking)
+and a save endpoint for note edits made in the viewer. Song data comes from the
+content root (the current directory; `mp.ps1 -Content` sets it).
 
+GET  /data/<file>       -> web/data/<file> under the content root
 GET  /config.json       -> sources/config.json (404 when absent)
 POST /detect-sections   -> body {"id", "notes"}: {sections, bars}: the sections the builder
                            detects for those notes (phrases re-derived from their phraseStart
@@ -17,17 +19,26 @@ import sys
 import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from phrases import derive_phrases
 from RangeHTTPServer import RangeRequestHandler
 from sections import bar_grid, detect_sections, song_beats, song_bpm
 
-ROOT = Path(__file__).resolve().parent.parent
-WEB = ROOT / "web"
-EDITS = ROOT / "work" / "edits"
+ROOT = Path.cwd()  # content root
+WEB = Path(__file__).resolve().parent.parent / "web"  # editor code, in the engine
 
 
 class Handler(RangeRequestHandler):
+    def translate_path(self, path):
+        if not urlsplit(path).path.startswith("/data/"):
+            return super().translate_path(path)
+        own, self.directory = self.directory, str(ROOT / "web")
+        try:
+            return super().translate_path(path)
+        finally:
+            self.directory = own
+
     def do_GET(self):
         if self.path == "/config.json":  # lives outside web/ (gitignored)
             cfg = ROOT / "sources" / "config.json"
@@ -58,9 +69,10 @@ class Handler(RangeRequestHandler):
         except Exception as e:  # noqa: BLE001
             self.send_error(400, f"bad json: {e}")
             return
-        dst = WEB / "data" / name
-        EDITS.mkdir(parents=True, exist_ok=True)
-        backup = EDITS / f"{dst.stem}-{time.strftime('%Y%m%d-%H%M%S')}.json"
+        dst = ROOT / "web" / "data" / name
+        edits = ROOT / "work" / "edits"
+        edits.mkdir(parents=True, exist_ok=True)
+        backup = edits / f"{dst.stem}-{time.strftime('%Y%m%d-%H%M%S')}.json"
         backup.write_bytes(body)
         dst.write_bytes(body)
         out = json.dumps({"ok": True, "saved": str(dst.relative_to(ROOT)), "backup": str(backup.relative_to(ROOT))}).encode()
@@ -91,7 +103,7 @@ class Handler(RangeRequestHandler):
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
     srv = ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Handler, directory=str(WEB)))
-    print(f"serving {WEB} at http://localhost:{port}/")
+    print(f"serving {WEB} with data from {ROOT} at http://localhost:{port}/")
     srv.serve_forever()
 
 

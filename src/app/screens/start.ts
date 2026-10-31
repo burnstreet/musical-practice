@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit'
 import type { Manifest } from '../../core/content'
+import { production } from '../../production'
 import { getContext } from '../context'
 
 const eye = html`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`
@@ -103,9 +104,9 @@ export class GuStart extends LitElement {
     const size = this.mb !== null ? `Nach dem Entsperren werden etwa ${this.mb} MB geladen. Am besten im WLAN.` : 'Zum ersten Entsperren brauchst du Internet.'
     return html`<div class="wrap">
       <div class="head">
-        <img class="logo" src="logo.png" alt="LKG Radeland" />
+        <img class="logo" src="logo.png" alt=${production.logoAlt} />
         <div>
-          <div class="kicker">Weihnachtsmusical 2026</div>
+          ${production.kicker ? html`<div class="kicker">${production.kicker}</div>` : ''}
           <h1>Gemeinsam üben</h1>
           <div class="sub">Lieder zum Mitsingen mit Tonhöhen-Feedback</div>
         </div>
