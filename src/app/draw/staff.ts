@@ -119,7 +119,8 @@ export function notePos(n: Note, song: Song, fifths: number): ReturnType<typeof 
 /**
  * Treble staff position of a midi in a key: `step` 0 = bottom line E4, 2 per line.
  * `acc` = accidental to print ('n' = natural), '' when the key signature covers it.
- * shortcut: black keys spelled sharp in sharp keys, flat otherwise (no E#/Cb); upgrade if a song in F#/Gb shows up.
+ * A black key takes the spelling nearer the key on the circle of fifths (Eb and F# in C), a tie sharp in sharp keys
+ * and in C, flat otherwise. shortcut: no E#/Cb; upgrade if a song in F#/Gb shows up.
  */
 export function staffPos(midi: number, fifths: number): { step: number; acc: '' | '#' | 'b' | 'n' } {
   const pc = ((midi % 12) + 12) % 12
@@ -130,7 +131,9 @@ export function staffPos(midi: number, fifths: number): { step: number; acc: '' 
   let acc: '' | '#' | 'b' | 'n'
   if (i >= 0) acc = keyAcc(LETTERS[i]) ? 'n' : ''
   else {
-    const alt = fifths >= 0 ? '#' : 'b'
+    // sharp spelling sits at (pc·7) mod 12 on the circle, the flat one 12 lower; the key's diatonic middle at fifths + 2
+    const d = ((pc * 7) % 12) - fifths - 2
+    const alt = d < 6 || (d === 6 && fifths >= 0) ? '#' : 'b'
     i = NATURAL.indexOf(alt === '#' ? pc - 1 : pc + 1)
     acc = keyAcc(LETTERS[i]) === alt ? '' : alt
   }
