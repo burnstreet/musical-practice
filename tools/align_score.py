@@ -26,6 +26,8 @@ import numpy as np
 
 HOP_S = 0.01
 FORM_MARGIN = 100  # frames (1 s) around a found block when --form aligns it again
+SPOKEN = -1.0  # score frame of a spoken (rapped) note: rhythm only, no pitch
+SPOKEN_COST = 0.25  # the same against any audio frame, so the sung notes around it place it
 
 
 def expand(notes, repeat_ranges):
@@ -42,7 +44,7 @@ def expand(notes, repeat_ranges):
 
 
 def score_frames(seq, bpm):
-    """Frame-wise midi (nan for rests) at HOP_S, plus each note's frame span."""
+    """Frame-wise midi (nan for rests, SPOKEN for rap) at HOP_S, plus each note's frame span."""
     spb = 60.0 / bpm
     t = 0.0
     frames, spans = [], []
@@ -50,7 +52,7 @@ def score_frames(seq, bpm):
         f0 = int(round(t / HOP_S))
         t += n["dur"] * spb
         f1 = int(round(t / HOP_S))
-        frames += [n["midi"] if n["midi"] is not None else np.nan] * (f1 - f0)
+        frames += [SPOKEN if n.get("spoken") else n["midi"] if n["midi"] is not None else np.nan] * (f1 - f0)
         spans.append((f0, f1))
     return np.array(frames, dtype=float), spans
 
@@ -64,6 +66,7 @@ def cost_matrix(score_midi, audio_midi, unvoiced_cost=1.0, max_semitones=3.0):
     C = np.where(sv & av, d, np.where(sv | av, unvoiced_cost, 0.0))
     # a rest in the score against singing is worse than singing against a gap
     C = np.where(~sv & av, unvoiced_cost * 0.5, C)
+    C = np.where(score_midi[:, None] == SPOKEN, SPOKEN_COST, C)
     return C.astype(np.float32)
 
 
@@ -114,8 +117,9 @@ def notes_from_path(seq, spans, wp, t_audio, audio_midi=None, snap=False):
             "repeat": n.get("repeat", False),
             **({"slur": True} if n.get("slur") else {}),
             **({"tie": True} if n.get("tie") else {}),
+            **({"spoken": True} if n.get("spoken") else {}),
         }
-        if snap and audio_midi is not None:
+        if snap and audio_midi is not None and not n.get("spoken"):
             sung = audio_midi[a0:a1]
             sung = sung[np.isfinite(sung)]
             if len(sung) >= max(5, 0.4 * (a1 - a0)):
@@ -132,11 +136,12 @@ def notes_from_path(seq, spans, wp, t_audio, audio_midi=None, snap=False):
 
 
 def grid(notes, bpm, beats_per_bar):
-    """Lay one pass on the score tempo, anchored at the median DTW offset (strict-tempo backing tracks)."""
+    """Lay one pass on the score tempo, anchored at the median DTW offset of its sung notes (strict-tempo backing tracks)."""
     spb = 60.0 / bpm
     first = min(n["bar"] for n in notes)
     beat = {id(n): (n["bar"] - first) * beats_per_bar + n["beat"] for n in notes}
-    t0 = float(np.median([n["start"] - beat[id(n)] * spb for n in notes]))
+    anchors = [n for n in notes if not n.get("spoken")] or notes  # DTW cannot place rap, it has no pitch
+    t0 = float(np.median([n["start"] - beat[id(n)] * spb for n in anchors]))
     for n in notes:
         n["start"] = round(t0 + beat[id(n)] * spb, 3)
         n["end"] = round(n["start"] + n["dur"] * spb, 3)
