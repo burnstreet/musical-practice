@@ -154,7 +154,7 @@ def build_song(s, notes, dur):
         {
             "start": n["start"],
             "end": n["end"],
-            "midi": n["midi"],
+            "midi": 71 if n.get("spoken") else n["midi"],  # a spoken note has no pitch; 71 is the middle line
             "syllable": n.get("syllable") or n.get("lyric") or "",
             "role": n["role"],
             "phrase": n["phrase"],

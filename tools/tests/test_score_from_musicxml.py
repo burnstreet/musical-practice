@@ -55,6 +55,25 @@ VERSES = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+# 4/4, a rapped bar: two slash noteheads (rhythm only), then a sung note
+RAP = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>S</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type>
+        <notehead>slash</notehead><lyric number="1"><text>la</text></lyric></note>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type>
+        <notehead>slash</notehead><lyric number="1"><text>li</text></lyric></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>half</type>
+        <lyric number="1"><text>lo</text></lyric></note>
+    </measure>
+  </part>
+</score-partwise>
+"""
+
+
 def run(tmp_path, *extra, xml=XML):
     src, dst = tmp_path / "s.musicxml", tmp_path / "s.json"
     src.write_text(xml, encoding="utf-8")
@@ -89,3 +108,8 @@ def test_verse_lines_and_tied_notes_kept_as_written(tmp_path):
 def test_tie_and_slur_flags_point_to_the_next_note(tmp_path):
     got = [(n.get("tie", False), n.get("slur", False)) for n in run(tmp_path, xml=VERSES)]
     assert got == [(True, False), (False, True), (True, False), (False, False)]
+
+
+def test_slash_notehead_is_a_spoken_note(tmp_path):
+    got = [(n["lyric"], n.get("spoken", False)) for n in run(tmp_path, xml=RAP)]
+    assert got == [("la", True), ("li", True), ("lo", False)]

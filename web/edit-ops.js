@@ -12,6 +12,15 @@ export function togglePhraseStart(notes, selected) {
   })
 }
 
+// Rap: all selected notes become spoken (shown, never scored), or none when all already are.
+export function toggleSpoken(notes, selected) {
+  const off = [...selected].every((i) => notes[i].spoken)
+  selected.forEach((i) => {
+    if (off) delete notes[i].spoken
+    else notes[i].spoken = true
+  })
+}
+
 // Section ops return a new sorted list or throw an Error the editor shows.
 // grid = {bars: bar start seconds, end: song end}; bar numbers are 1-based and inclusive.
 function place(sections, grid, skip, name, from, to) {
