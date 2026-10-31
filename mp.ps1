@@ -149,7 +149,7 @@ Usage: ./mp.ps1 <command> [args]
   precommit   lint, tsc, vitest, pytest (add -Full to also run e2e; -Staged = git hook: Biome only on staged files via lint-staged)
   serve [port]      editor (tools/serve.py) with song data from the content root
   tool <name> [args] tools/<name>.py in the content root, e.g. tool align_check 04
-  pack [args]       tools/pack.py in the content root, args passed through, e.g. --root pack-root --out content --strict
+  pack [args]       tools/pack.py in the content root, args passed through, e.g. --out content --strict
                     prompts for PITCH_PASSWORD if it is not set (never printed or stored)
 
   -Content <path>   content root (production repo); default: this folder. A production repo's own mp.ps1 passes it.

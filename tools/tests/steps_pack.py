@@ -60,7 +60,7 @@ def make_song(ctx, song_notes=None, mix=10.0, playback=10.0, offset=0.0):
     root = ctx["root"]
     data = root / "web" / "data"
     (data / "08.json").write_text(json.dumps({"notes": song_notes or notes()}, ensure_ascii=False), encoding="utf-8")
-    sine(data / "08.mp3", mix)
+    sine(data / "08_mix.mp3", mix)
     sine(data / "08_playback.mp3", playback, 220)  # differs from the mix, else both stems share one file id
     song = {"id": "08", "number": 8, "title": "Test", "backing": "playback", "bpm": 60, "key": "F", "playbackOffsetSec": offset}
     (root / "sources" / "config.json").write_text(json.dumps({"roles": ROLES, "songs": [song]}), encoding="utf-8")
@@ -123,6 +123,16 @@ def _(ctx, mix, pb, off):
         "128k",
         str(data / "08_playback.mp3"),
     )
+
+
+@given(parsers.parse("song 08 with backing demucs and a no-vocals stem at {freq:d} Hz"))
+def _(ctx, freq):
+    make_song(ctx)
+    root = ctx["root"]
+    sine(root / "web" / "data" / "08_no_vocals.mp3", 10.0, freq)
+    cfg = json.loads((root / "sources" / "config.json").read_text(encoding="utf-8"))
+    cfg["songs"][0]["backing"] = "demucs"
+    (root / "sources" / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
 
 
 @given(parsers.parse('one complete song and PITCH_PASSWORD "{pw}"'))
@@ -189,6 +199,17 @@ def _(ctx, sec, at, tmp_path):
     head = s[2000:22000]  # skip codec warm-up, 20000 samples = 0.45 s
     crossings = sum(1 for a, b in zip(head, head[1:]) if (a < 0) != (b < 0))
     assert abs(crossings / (len(head) / 44100) / 2 - 880) < 20  # 880 Hz, not the 440 Hz lead-in
+
+
+@then(parsers.parse("the backing stem is {sec:f} s at {freq:d} Hz"))
+def _(ctx, sec, freq, tmp_path):
+    out = tmp_path / "backing.mp3"
+    out.write_bytes(decrypt_file(ctx, library(ctx)["songs"][0]["files"]["backing"]))
+    s = pcm(out)
+    assert abs(len(s) / 44100 - sec) < 0.02
+    head = s[2000:22000]
+    crossings = sum(1 for a, b in zip(head, head[1:]) if (a < 0) != (b < 0))
+    assert abs(crossings / (len(head) / 44100) / 2 - freq) < 20
 
 
 @then("manifest.json lists songCount 1 and 4 files")
