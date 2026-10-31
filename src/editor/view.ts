@@ -6,7 +6,7 @@ import { BASE, COLORS, draw, FONT, measurePage, pageContent, pagePoints, playhea
 export { playheadX }
 
 import { nearestBar } from '../app/repeat'
-import type { Note, RoleId, Section, Song } from '../core/content'
+import { joinSyllables, type Note, type RoleId, type Section, type Song } from '../core/content'
 
 /** A note as the editor JSON holds it (web/data/NN.json). */
 export interface RawNote {
@@ -54,7 +54,7 @@ export function phrasesOf(notes: RawNote[]): BandPhrase[] {
     const p = out.at(-1)!
     p.notes.push(i)
     p.end = Math.max(p.end, n.end)
-    p.text = [p.text, words(n)].filter(Boolean).join(' ')
+    p.text = joinSyllables([p.text, words(n)])
   }
   return out
 }
