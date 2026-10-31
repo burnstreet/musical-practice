@@ -94,7 +94,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     song.pitch.forEach((p, i) => {
       const v = p[1] ? hzToMidi(p[1]) : NaN
       pitchMidi[i] = v
-      if (!isNaN(v)) mids.push(v)
+      if (!Number.isNaN(v)) mids.push(v)
     })
     const sung = song.notes.filter((n) => !n.spoken) // a spoken note's midi is no pitch
     sung.forEach((n) => {
@@ -290,7 +290,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.lineCap = 'round'
     for (let i = i0; i < i1; i += stride) {
       const m = pitchMidi[i]
-      if (isNaN(m)) {
+      if (Number.isNaN(m)) {
         prev = -1
         continue
       }
@@ -576,7 +576,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     $('noteCard').hidden = !song
     $('sectState').textContent = bars ? '' : gridState
     const box = $('sectList')
-    const list = (song && song.sections) || []
+    const list = song?.sections || []
     const num = (value, label) =>
       el('input', { type: 'number', min: 1, max: bars ? bars.length : '', value, ariaLabel: label, disabled: !bars, placeholder: bars ? '' : '…' })
     const rows = list.map((s, i) => {
@@ -655,7 +655,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function shiftSelected(dt, part) {
     selected.forEach((i) => {
       const n = song.notes[i],
-        o = drag && drag.orig ? drag.orig.get(i) : { start: n.start, end: n.end }
+        o = drag?.orig ? drag.orig.get(i) : { start: n.start, end: n.end }
       if (part !== 'end') n.start = Math.max(0, Math.round((o.start + dt) * 1000) / 1000)
       if (part !== 'start') n.end = Math.max(n.start + 0.02, Math.round((o.end + dt) * 1000) / 1000)
       n.edited = true
@@ -796,7 +796,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       audio.removeEventListener('loadedmetadata', restore)
       try {
         audio.currentTime = t
-      } catch (e) {}
+      } catch (_e) {}
       if (wasPlaying) audio.play().catch(() => {})
     }
     audio.addEventListener('loadedmetadata', restore)
@@ -947,7 +947,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     $('pageNext').onclick = () => page && page.next !== null && seek(page.next)
     try {
       viewMod = await import('./lib/editor-view.js')
-    } catch (e) {
+    } catch (_e) {
       /* not built: refreshView shows the hint */
     }
     // the songs of sources/config.json, titled as in the app; each is edited in web/data/<id>.json, the file pack reads

@@ -62,7 +62,10 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.strokeStyle = COLORS.line
   ctx.lineWidth = 1
   ctx.beginPath()
-  for (let r = 0; r <= hi - lo + 1; r++) ctx.moveTo(34, r * rowH), ctx.lineTo(w, r * rowH)
+  for (let r = 0; r <= hi - lo + 1; r++) {
+    ctx.moveTo(34, r * rowH)
+    ctx.lineTo(w, r * rowH)
+  }
   ctx.stroke()
   ctx.fillStyle = COLORS.muted
   ctx.font = `${Math.min(11, rowH * 0.7)}px ${FONT}`
