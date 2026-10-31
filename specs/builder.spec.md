@@ -75,6 +75,7 @@ Pure function `detect_sections(notes, bars)` plus a script that writes the resul
 
 - Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved via existing save path.
 - Phrase flag: button "Phrasenanfang" toggles `phraseStart` on the selected note. Piano roll draws a vertical marker at flagged notes.
+- Rap flag: button "Rap" sets `spoken` on every selected note, or removes it when all of them have it (content format: shown, never scored). The piano roll draws a spoken note as a dashed outline without fill, labelled `Rap`; its midi (no pitch) does not widen the roll's pitch range. The note card shows `Rap` instead of a note name and `ohne Bewertung` with the role (`teils Rap` when only some selected notes are spoken).
 - Song JSON `roles` list stays derived: builder recomputes from notes.
 - Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: one page of the staff is the roll window: the roll's bar lines sit under the staff's, numbered as on the staff, time runs linear inside each bar, and a seconds scale stays on top (the staff is spaced by onsets). A page holds the playhead and shows the bar count the zoom picks (1, 2, 3, 4, 6, 8, 12 or 16, default 4; squeezed where its syllables do not fit); previous/next seek to the neighbouring page, so staff, bands and roll turn together. Without the staff view the zoom picks the roll window in seconds. Click on a phrase, a section or a staff note, or focus a row of the section list, selects it and highlights its notes in the roll; a selection with no note on the shown page turns the view to the bar of its first note. The section list sits in its own panel, visible as soon as a song is loaded (not only in edit mode); its bar fields stay disabled until the bar grid has arrived. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined into words (`joinSyllables`: a syllable ending in `-` runs on into the next, others get a space). Each note sits in the grid bar nearest its start minus its beat; the staff's time signature and tempo use the song's beats per bar from `sources/config.json` (default 4), as the bar grid does. The view needs the bar grid from `/detect-sections` and the shared build (`./mp.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
 - Phrases stay editable only through `Phrasenanfang`.
@@ -95,6 +96,13 @@ Feature: Editor role painting
     Then note 3 has phraseStart true
     When I press "Phrasenanfang" again
     Then note 3 has no phraseStart
+
+  Scenario: mark rap
+    Given notes 2-3 selected, note 3 already spoken
+    When I press "Rap"
+    Then notes 2 and 3 are spoken and notes 1 and 4 are not
+    When I press "Rap" again
+    Then no note is spoken
 
 Feature: Editor sections
   Scenario: add a section by bar numbers

@@ -7,6 +7,7 @@ dropped while another voice sings (filler rest). With several lyric lines
 word goes on ends in "-". Tied notes stay
 notes of their own: `tie: true` marks a note tied to the next one (scored as one
 note), `slur: true` a note slurred to the next one (the staff draws the arc).
+A slash notehead (rap) gives `spoken: true`.
 
 Usage: python tools/score_from_musicxml.py <in.musicxml> <out.json> [--roles 1=anna,2=chor]
 """
@@ -73,6 +74,7 @@ def main():
                         "voice": voice,
                         "section": section,
                         **({"slur": True} if slur else {}),
+                        **({"spoken": True} if el.notehead == "slash" else {}),  # rap: rhythm only, never scored
                     }
                 )
     # several verse lines: every note gets `lyrics`, verse n at index n-1 (align_score picks one per pass)

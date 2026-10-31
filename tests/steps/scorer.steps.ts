@@ -24,7 +24,7 @@ const frames = (midis: (number | null)[], from = 1.1, to = 2.0): PitchFrame[] =>
     return { t, at: t, midi, clarity: 0.9, rms: 0.1 }
   })
 const times = (n: number, midi: number | null) => Array<number | null>(n).fill(midi)
-const value = (v: string) => (v === 'null' ? null : v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v)
+const value = (v: string) => (v === 'null' ? null : v === 'true' ? true : v === 'false' ? false : Number.isNaN(+v) ? v : +v)
 
 /** Song fixture: note i spans [1+2i, 2+2i], midi 67, phrase and role as given. */
 const song = (spec: { phrase?: number; role?: RoleId; syllable?: string }[]): Song => {
