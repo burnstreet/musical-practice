@@ -2,8 +2,10 @@ import { expect } from 'vitest'
 import { playheadX } from '../../src/app/draw/staff'
 import { phrasesOf, staffSong, timeAt, turnFor } from '../../src/editor/view'
 // @ts-expect-error plain JS module, no types
-import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart } from '../../web/edit-ops.js'
+import * as ops from '../../web/edit-ops.js'
 import { steps } from '../gherkin'
+
+const { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart, toggleSpoken } = ops
 
 // 20 bars of 2 s; the song ends with the last bar unless a step says otherwise
 const grid = (end = 40) => ({ bars: Array.from({ length: 20 }, (_, i) => i * 2), end })
@@ -43,6 +45,20 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^note 3 has no phraseStart$/, (ctx) => {
     expect('phraseStart' in ctx.song.notes[2]).toBe(false)
+  })
+
+  Given(/^notes 2-3 selected, note 3 already spoken$/, (ctx) => {
+    ctx.song = { notes: [0, 1, 2, 3].map((i) => ({ midi: 60 + i, ...(i === 2 ? { spoken: true } : {}) })) }
+    ctx.selected = new Set([1, 2])
+  })
+  When(/^I press "Rap"(?: again)?$/, (ctx) => {
+    toggleSpoken(ctx.song.notes, ctx.selected)
+  })
+  Then(/^notes 2 and 3 are spoken and notes 1 and 4 are not$/, (ctx) => {
+    expect(ctx.song.notes.map((n: any) => n.spoken === true)).toEqual([false, true, true, false])
+  })
+  Then(/^no note is spoken$/, (ctx) => {
+    expect(ctx.song.notes.some((n: any) => 'spoken' in n)).toBe(false)
   })
 
   // sections

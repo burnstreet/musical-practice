@@ -1,4 +1,4 @@
-import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart } from './edit-ops.js'
+import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart, toggleSpoken } from './edit-ops.js'
 
 ;(() => {
   const $ = (id) => document.getElementById(id)
@@ -44,6 +44,8 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     bandCtx = $('bandCv').getContext('2d')
 
   const midiName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1)
+  // a spoken (rapped) note has no pitch to name
+  const noteName = (n) => (n.spoken ? 'Rap' : n.name || midiName(n.midi))
   const hexA = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`
   // the precomputed spectrogram PNG is dark ink with alpha for the level; repaint it light for the dark roll
   const lightInk = (img) => {
@@ -92,9 +94,10 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     song.pitch.forEach((p, i) => {
       const v = p[1] ? hzToMidi(p[1]) : NaN
       pitchMidi[i] = v
-      if (!isNaN(v)) mids.push(v)
+      if (!Number.isNaN(v)) mids.push(v)
     })
-    song.notes.forEach((n) => {
+    const sung = song.notes.filter((n) => !n.spoken) // a spoken note's midi is no pitch
+    sung.forEach((n) => {
       mids.push(n.midi)
     })
     if (mids.length) {
@@ -102,7 +105,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       const k = Math.floor(mids.length * 0.005)
       lo = Math.floor(mids[k]) - 1
       hi = Math.ceil(mids[mids.length - 1 - k]) + 1
-      song.notes.forEach((n) => {
+      sung.forEach((n) => {
         lo = Math.min(lo, n.midi - 1)
         hi = Math.max(hi, n.midi + 1)
       })
@@ -251,14 +254,17 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       ctx.fillStyle = sel ? (active ? 'rgba(240,140,20,0.6)' : 'rgba(240,140,20,0.35)') : hexA(col, active ? 0.55 : 0.28)
       ctx.strokeStyle = sel ? 'rgba(200,100,0,0.95)' : hexA(col, 0.8)
       ctx.lineWidth = sel ? 2 : 1
-      ctx.fillRect(x, y, bw, bh)
+      // spoken (rap): dashed outline, no fill, so it never reads as a pitch to hit
+      if (n.spoken) ctx.setLineDash([4, 3])
+      else ctx.fillRect(x, y, bw, bh)
       ctx.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1)
+      ctx.setLineDash([])
       if (bw > 26 && bh > 9) {
         ctx.fillStyle = '#fff'
         ctx.textBaseline = 'middle'
         ctx.textAlign = 'left'
         ctx.font = `${Math.min(12, bh - 1)}px system-ui,sans-serif`
-        ctx.fillText(n.name || midiName(n.midi), x + 3, y + bh / 2)
+        ctx.fillText(noteName(n), x + 3, y + bh / 2)
       }
       if (n.phraseStart) {
         ctx.fillStyle = '#FF6F61'
@@ -284,7 +290,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     ctx.lineCap = 'round'
     for (let i = i0; i < i1; i += stride) {
       const m = pitchMidi[i]
-      if (isNaN(m)) {
+      if (Number.isNaN(m)) {
         prev = -1
         continue
       }
@@ -391,7 +397,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     let nn = '–'
     for (const n of song.notes) {
       if (t >= n.start && t <= n.end) {
-        nn = n.name || midiName(n.midi)
+        nn = noteName(n)
         break
       }
     }
@@ -570,7 +576,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     $('noteCard').hidden = !song
     $('sectState').textContent = bars ? '' : gridState
     const box = $('sectList')
-    const list = (song && song.sections) || []
+    const list = song?.sections || []
     const num = (value, label) =>
       el('input', { type: 'number', min: 1, max: bars ? bars.length : '', value, ariaLabel: label, disabled: !bars, placeholder: bars ? '' : '…' })
     const rows = list.map((s, i) => {
@@ -620,21 +626,24 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
         const ph = phrases.find((p) => p.notes.includes(ids[0]))
         if (ph) pos.push(`Phrase ${ph.number}`)
       } else if (staffSong) pos.push(`Takt ${Math.min(...ids.map(bar))}–${Math.max(...ids.map(bar))}`)
-      big = ids.length > 1 ? `${ids.length} Noten` : first.name || midiName(first.midi)
+      big = ids.length > 1 ? `${ids.length} Noten` : noteName(first)
       info = pos.join(' · ')
       const names = Object.fromEntries((configRoles || []).map((r) => [r.id, r.name]))
       const roles = [...new Set(notes.map((n) => n.role).filter(Boolean))].map((r) => names[r] || r)
       const sect = (song.sections || []).find((s) => first.start >= s.start && first.start < s.end)
-      meta = [sect && `Abschnitt ${sect.name}`, roles.length && `Rolle ${roles.join(', ')}`].filter(Boolean).join(' · ')
+      const rap = notes.every((n) => n.spoken) ? 'ohne Bewertung' : notes.some((n) => n.spoken) ? 'teils Rap' : ''
+      meta = [sect && `Abschnitt ${sect.name}`, roles.length && `Rolle ${roles.join(', ')}`, rap].filter(Boolean).join(' · ')
     }
     const pressed = notes.length > 0 && notes.every((n) => n.phraseStart)
-    const key = [big, info, meta, pressed, pick && pick.kind === 'section' ? pick.index : ''].join('\n')
+    const rapped = notes.length > 0 && notes.every((n) => n.spoken)
+    const key = [big, info, meta, pressed, rapped, pick && pick.kind === 'section' ? pick.index : ''].join('\n')
     if (key === noteKey) return
     noteKey = key
     $('noteBig').textContent = big
     $('noteInfo').textContent = info
     $('noteMeta').textContent = meta
     $('phraseBtn').setAttribute('aria-pressed', pressed)
+    $('rapBtn').setAttribute('aria-pressed', rapped)
     for (const row of $('sectList').querySelectorAll('.row[data-i]'))
       row.classList.toggle('picked', !!pick && pick.kind === 'section' && Number(row.dataset.i) === pick.index)
   }
@@ -646,7 +655,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
   function shiftSelected(dt, part) {
     selected.forEach((i) => {
       const n = song.notes[i],
-        o = drag && drag.orig ? drag.orig.get(i) : { start: n.start, end: n.end }
+        o = drag?.orig ? drag.orig.get(i) : { start: n.start, end: n.end }
       if (part !== 'end') n.start = Math.max(0, Math.round((o.start + dt) * 1000) / 1000)
       if (part !== 'start') n.end = Math.max(n.start + 0.02, Math.round((o.end + dt) * 1000) / 1000)
       n.edited = true
@@ -787,7 +796,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       audio.removeEventListener('loadedmetadata', restore)
       try {
         audio.currentTime = t
-      } catch (e) {}
+      } catch (_e) {}
       if (wasPlaying) audio.play().catch(() => {})
     }
     audio.addEventListener('loadedmetadata', restore)
@@ -873,6 +882,11 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
       togglePhraseStart(song.notes, selected)
       setDirty()
     }
+    $('rapBtn').onclick = () => {
+      if (!song || !selected.size) return
+      toggleSpoken(song.notes, selected)
+      setDirty()
+    }
     $('sectBtn').onclick = async () => {
       if (!song) return
       const before = song.sections
@@ -933,7 +947,7 @@ import { addSection, deleteSection, rebarSection, redetectSections, renameSectio
     $('pageNext').onclick = () => page && page.next !== null && seek(page.next)
     try {
       viewMod = await import('./lib/editor-view.js')
-    } catch (e) {
+    } catch (_e) {
       /* not built: refreshView shows the hint */
     }
     // the songs of sources/config.json, titled as in the app; each is edited in web/data/<id>.json, the file pack reads

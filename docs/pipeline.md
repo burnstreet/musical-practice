@@ -154,7 +154,10 @@ Strophen als Liedtextzeilen (Strophe 1, 2, … in MuseScore) landen pro Note in
 einzelne Noten, wie notiert (auch über den Taktstrich); die erste bekommt
 `tie: true`, die Bewertung zählt die Kette als eine Note. Eine Note mit
 Bindebogen bekommt `slur: true`. Für beide zeichnet die Notenanzeige einen Bogen
-zur nächsten Note derselben Rolle.
+zur nächsten Note derselben Rolle. Rap als Slash-Notenköpfe (MuseScore:
+Notenkopf „Schrägstrich“) wird zu `spoken: true`: in der App mit Rhythmus und
+Silbe angezeigt, nie bewertet. Im Editor setzt oder löscht der Knopf „Rap“ das
+Flag für die ausgewählten Noten.
 
 ## 4. Partitur an die Aufnahme ausrichten
 
@@ -178,6 +181,12 @@ Findet ein Abschnitt auch Blöcke eines anderen (Strophe frisst Refrain),
 `--grid` legt jeden Durchlauf ins Partiturtempo (`--bpm`), verankert am Median
 der DTW-Zeiten; für Playbacks mit festem Tempo, wenn DTW Phrasenanfänge zu spät
 setzt.
+
+Gesprochene Noten (Rap) haben keine Tonhöhe: Sie kosten gegen jeden Audio-Frame
+gleich viel, die gesungenen Noten drumherum legen sie fest. `--snap` lässt sie
+aus, und `--grid` verankert nur an gesungenen Noten. Ein Abschnitt nur aus Rap
+lässt sich so nicht allein finden: Lieder mit Rap als einen Block ausrichten
+(Partitur ausgeschrieben, ohne Abschnittsnamen) mit `--grid`.
 
 Kontrollbild: `./mp.ps1 tool plot_aligned work\pitch\08_aligned.json work\pitch\08_aligned.png 20 40`
 (blau Partitur, rot gesnappt, orange Gesang).
