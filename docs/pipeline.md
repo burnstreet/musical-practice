@@ -145,6 +145,14 @@ weg, solange eine andere Stimme singt. `--roles 1=anna,2=chor` setzt `role` aus
 der Stimme (Rollen-IDs aus `sources/config.json`). Noten werden nach Rolle
 eingefärbt, wenn das Score-JSON `role` und `roles` enthält (siehe 5).
 
+Strophen als Liedtextzeilen (Strophe 1, 2, … in MuseScore) landen pro Note in
+`lyrics`; die Ausrichtung gibt dem n-ten Vorkommen eines Abschnitts Strophe n
+(die letzte wiederholt sich, z. B. Schlussrefrain). Übergebundene Noten bleiben
+einzelne Noten, wie notiert (auch über den Taktstrich); die erste bekommt
+`tie: true`, die Bewertung zählt die Kette als eine Note. Eine Note mit
+Bindebogen bekommt `slur: true`. Für beide zeichnet die Notenanzeige einen Bogen
+zur nächsten Note derselben Rolle.
+
 ## 4. Partitur an die Aufnahme ausrichten
 
 ```
@@ -161,6 +169,12 @@ erhalten). Die Ausgabe druckt pro Durchlauf Kosten und impliziertes Tempo:
 
 - Kosten ≈ 0.10, Tempo in allen Durchläufen gleich: Partitur stimmt.
 - Kosten 0.2–0.3: Erstfassung mit Fehlern, in MuseScore nachbessern.
+
+Findet ein Abschnitt auch Blöcke eines anderen (Strophe frisst Refrain),
+`--max-cost` senken, bis jeder Block beim richtigen Abschnitt landet (03: 0.23).
+`--grid` legt jeden Durchlauf ins Partiturtempo (`--bpm`), verankert am Median
+der DTW-Zeiten; für Playbacks mit festem Tempo, wenn DTW Phrasenanfänge zu spät
+setzt (03).
 
 Kontrollbild: `tools\.venv\Scripts\python.exe tools\plot_aligned.py work\pitch\08_aligned.json work\pitch\08_aligned.png 20 40`
 (blau Partitur, rot gesnappt, orange Gesang).

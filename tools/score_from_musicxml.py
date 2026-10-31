@@ -1,8 +1,11 @@
 """Import a MusicXML melody (e.g. exported from MuseScore) into the score JSON
-used by align_score.py. Takes the first part; chords use their top note; tied
-notes are merged; text expressions / rehearsal marks become section names.
+used by align_score.py. Takes the first part; chords use their top note; text
+expressions / rehearsal marks become section names.
 Each note keeps its MuseScore voice; --roles maps voices to role ids. A rest is
-dropped while another voice sings (filler rest).
+dropped while another voice sings (filler rest). With several lyric lines
+(verses) each note also gets `lyrics`, one entry per verse. Tied notes stay
+notes of their own: `tie: true` marks a note tied to the next one (scored as one
+note), `slur: true` a note slurred to the next one (the staff draws the arc).
 
 Usage: python tools/score_from_musicxml.py <in.musicxml> <out.json> [--roles 1=anna,2=chor]
 """
@@ -11,7 +14,7 @@ import argparse
 import json
 from pathlib import Path
 
-from music21 import chord, converter, expressions, note, stream
+from music21 import chord, converter, expressions, note, spanner, stream
 
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -48,9 +51,11 @@ def main():
                 if el.tie is not None and el.tie.type in ("stop", "continue") and notes:
                     prev = next((n for n in reversed(notes) if n["midi"] is not None and n["voice"] == voice), None)
                     if prev and prev["midi"] == el.pitch.midi:
-                        prev["dur"] += float(el.quarterLength)
-                        continue
-                lyric = el.lyric if el.lyric else None
+                        prev["tie"] = True  # kept as notes of their own, so the staff writes them as notated
+                # shortcut: a slur over n notes becomes n-1 arcs note to note; fine for the two-note slurs we have
+                slur = any(isinstance(sp, spanner.Slur) and not sp.isLast(el) for sp in el.getSpannerSites())
+                verses = {ly.number: ly.text for ly in el.lyrics}
+                lyric = verses.get(1) or None
                 midi = el.pitch.midi
                 name = el.pitch.name.replace("-", "b") + str(el.pitch.octave)
                 notes.append(
@@ -61,10 +66,18 @@ def main():
                         "midi": midi,
                         "name": name,
                         "lyric": lyric,
+                        "verses": verses,
                         "voice": voice,
                         "section": section,
+                        **({"slur": True} if slur else {}),
                     }
                 )
+    # several verse lines: every note gets `lyrics`, verse n at index n-1 (align_score picks one per pass)
+    n_verses = max((k for n in notes for k in n.get("verses", {})), default=1)
+    for n in notes:
+        verses = n.pop("verses", None)
+        if n_verses > 1 and verses is not None:
+            n["lyrics"] = [verses.get(k) or None for k in range(1, n_verses + 1)]
     sung = [n for n in notes if n["midi"] is not None]
 
     def overlaps(a, b):
