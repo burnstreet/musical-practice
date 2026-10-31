@@ -28,6 +28,43 @@ def test_nth_occurrence_sings_verse_n_and_last_verse_repeats():
     assert not any("lyrics" in n for n in notes)
 
 
+def test_form_gives_each_sung_block_its_role_in_time_order():
+    form = align_score.parse_form("Refrain:anna, Strophe:anna, Refrain:chor, Strophe 3, Refrain:chor")
+    assert form == [("Refrain", "anna"), ("Strophe", "anna"), ("Refrain", "chor"), ("Strophe 3", None), ("Refrain", "chor")]
+    notes = [
+        {"section": "Refrain", "pass": 2, "start": 50.0, "role": "x"},
+        {"section": "Refrain", "pass": 0, "start": 10.0, "role": "x"},
+        {"section": "Refrain", "pass": 0, "start": 11.0, "role": "x"},
+        {"section": "Strophe", "pass": 0, "start": 20.0, "role": "x"},
+        {"section": "Strophe 3", "pass": 0, "start": 40.0, "role": "x"},
+        {"section": "Refrain", "pass": 1, "start": 30.0, "role": "x"},
+    ]
+    align_score.apply_form(notes, form)
+    assert [(n["start"], n["role"]) for n in notes] == [
+        (50.0, "chor"),
+        (10.0, "anna"),
+        (11.0, "anna"),
+        (20.0, "anna"),
+        (40.0, "x"),
+        (30.0, "chor"),
+    ]
+
+
+def test_form_rejects_blocks_found_in_another_order():
+    form = align_score.parse_form("Refrain,Strophe,Refrain")
+    notes = [
+        {"section": "Strophe", "pass": 0, "start": 10.0},
+        {"section": "Refrain", "pass": 0, "start": 20.0},
+        {"section": "Refrain", "pass": 1, "start": 30.0},
+    ]
+    try:
+        align_score.apply_form(notes, form)
+    except SystemExit as e:
+        assert "Strophe, Refrain, Refrain" in str(e)
+    else:
+        raise AssertionError("order mismatch not reported")
+
+
 def test_grid_lays_a_pass_on_the_score_tempo_at_its_median_offset():
     # 120 bpm: a beat is 0.5 s; DTW put the first note 0.4 s late
     notes = [
