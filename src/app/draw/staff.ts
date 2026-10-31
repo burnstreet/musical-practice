@@ -1,4 +1,4 @@
-import { arcTarget, type Note, type RoleId, type Song, visibleNotes } from '../../core/content'
+import { arcTarget, type Note, type RoleId, type Song, splitHyphen, visibleNotes } from '../../core/content'
 import type { Tolerance } from '../../core/scorer'
 import type { PitchFrame } from '../../core/types'
 
@@ -154,6 +154,48 @@ export function noteValue(dur: number): { base: number; dot: boolean } {
   return VALUES.reduce((a, v) => (off(v) < off(a) ? v : a))
 }
 
+/** Written length of a note in quarters. */
+const written = (n: Note) => noteValue(n.dur).base * (noteValue(n.dur).dot ? 1.5 : 1)
+const EPS = 1e-6
+
+/**
+ * Beam groups: per role, runs of eighths and shorter back to back (each starts where the previous written value ends)
+ * in the same bar and beat (quarter). A run of one note keeps its flags and is left out.
+ */
+export function beamGroups(notes: Note[]): Note[][] {
+  const groups: Note[][] = []
+  const short = (n: Note) => noteValue(n.dur).base <= 0.5
+  for (const role of new Set(notes.map((n) => n.role))) {
+    let run: Note[] = []
+    const close = () => {
+      if (run.length > 1) groups.push(run)
+      run = []
+    }
+    for (const n of notes.filter((n) => n.role === role).sort((a, b) => a.bar - b.bar || a.beat - b.beat)) {
+      const last = run.at(-1)
+      const joins =
+        last && short(n) && last.bar === n.bar && Math.floor(last.beat + EPS) === Math.floor(n.beat + EPS) && Math.abs(last.beat + written(last) - n.beat) < EPS
+      if (!joins) close()
+      if (short(n)) run.push(n)
+    }
+    close()
+  }
+  return groups
+}
+
+/**
+ * Stem tips (y) of a beam group with stems at (x, head y), `up` or down, `len` long: a straight beam from the first to
+ * the last natural tip, slope at most 1/4, moved away from the heads until the shortest stem is `min` long.
+ */
+export function beamTips(heads: [number, number][], up: boolean, len: number, min: number): number[] {
+  const dir = up ? -1 : 1
+  const [[x0, y0], [x1, y1]] = [heads[0], heads[heads.length - 1]]
+  const slope = Math.max(-0.25, Math.min(0.25, (y1 - y0) / (x1 - x0 || 1)))
+  const line = heads.map(([x]) => y0 + dir * len + slope * (x - x0))
+  const shift = Math.max(0, ...heads.map(([, y], i) => min - dir * (line[i] - y)))
+  return line.map((v) => v + dir * shift)
+}
+
 /** Rest values, longest first; a value only starts on a multiple of itself from the bar start. No dotted rests. */
 const REST_VALUES = [2, 1, 0.5, 0.25]
 const snap = (beat: number) => Math.round(beat * 4) / 4
@@ -215,12 +257,13 @@ export function layoutBar(onsets: number[], barQ: number, width: number, mins: n
   return xs
 }
 
-/** One distinct onset of a page: its bar, beat, syllable width at the normal font (0 = none), accidental in front. */
+/** One distinct onset of a page: its bar, beat, syllable width at the normal font (0 = none), accidental in front, room for a hyphen after the syllable. */
 export interface PageOnset {
   bar: number
   beat: number
   label: number
   acc: boolean
+  hyphen?: number
 }
 /** px: head = closest heads, +acc before an accidental; pad = bar line to first head; tail = last head to bar line; sep = between labels. */
 export interface PageOptions {
@@ -248,10 +291,10 @@ export interface PageLayout {
   fits: boolean
 }
 
-/** Minimum segments per bar ([lead, …segments], [] for an empty bar) so heads and labels of `L` (label widths) fit. */
-function pageMins(bars: number[], onsets: PageOnset[], L: number[], o: PageOptions): number[][] {
+/** Minimum segments per bar ([lead, …segments], [] for an empty bar) so heads, labels of `L` (label widths) and hyphens of `H` fit. */
+function pageMins(bars: number[], onsets: PageOnset[], L: number[], H: number[], o: PageOptions): number[][] {
   const n = onsets.length
-  const need = (k: number) => Math.max(o.head + (onsets[k + 1].acc ? o.acc : 0), (L[k] + L[k + 1]) / 2 + o.sep)
+  const need = (k: number) => Math.max(o.head + (onsets[k + 1].acc ? o.acc : 0), (L[k] + L[k + 1]) / 2 + o.sep + H[k])
   const left = n ? L[0] / 2 + o.sep / 2 - o.leftRoom : 0
   const right = n ? L[n - 1] / 2 + o.sep / 2 : 0
   const out: number[][] = []
@@ -289,6 +332,7 @@ export function layoutPage(bars: number[], onsets: PageOnset[], o: PageOptions):
       bars,
       onsets,
       onsets.map((p) => p.label * scale),
+      onsets.map((p) => (p.hyphen ?? 0) * scale),
       o,
     )
     const need = mins.map((m) => (m.length ? sum(m) : o.empty))
@@ -373,7 +417,6 @@ export function pageContent(song: Song, roles: RoleId[], first: number, count: n
   const mine = (n: Note) => roles.includes(n.role)
   const bars = Array.from({ length: count }, (_, i) => first + i)
   const notes = visibleNotes(song.notes, roles).filter((n) => n.bar >= first && n.bar < first + count)
-  const written = (n: Note) => noteValue(n.dur).base * (noteValue(n.dur).dot ? 1.5 : 1)
   const keys = [...new Set(notes.map((n) => `${n.bar}:${n.beat}`))]
   const onsets: { bar: number; beat: number; here: Note[]; rest?: { len: number; voice: Note | undefined } }[] = [
     ...keys.map((k) => {
@@ -407,12 +450,16 @@ export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: 
   const startX = 46 * s + Math.abs(fifths) * 8 * s
   const page = layoutPage(
     content.bars,
-    content.onsets.map(({ bar, beat, here }, k) => ({
-      bar,
-      beat,
-      label: content.lyric[k]?.syllable ? ctx.measureText(content.lyric[k].syllable).width : 0,
-      acc: here.some((n) => notePos(n, song, fifths).acc !== ''),
-    })),
+    content.onsets.map(({ bar, beat, here }, k) => {
+      const { text, hyphen } = splitHyphen(content.lyric[k]?.syllable ?? '')
+      return {
+        bar,
+        beat,
+        label: text ? ctx.measureText(text).width : 0,
+        acc: here.some((n) => notePos(n, song, fifths).acc !== ''),
+        hyphen: hyphen ? ctx.measureText('-').width + 4 * s : 0,
+      }
+    }),
     {
       barQ: (song.timeSig[0] * 4) / song.timeSig[1],
       width: w - 4 - startX,
@@ -574,14 +621,33 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
     i = j + 1
   }
 
+  // Beam groups: all stems one way (the head farthest from the middle line decides), each ending on the beam
+  const stemX = (n: Note, up: boolean) => x(n) + (up ? 5 : -5) * s
+  const groups = beamGroups(notes)
+  const beamed = new Map<Note, { up: boolean; tip: number }>()
+  for (const g of groups) {
+    const steps = g.map((n) => notePos(n, song, fifths).step)
+    const up = steps.reduce((a, v) => (Math.abs(v - 4) > Math.abs(a - 4) ? v : a)) < 4
+    const tips = beamTips(
+      g.map((n, i) => [stemX(n, up), y(steps[i])]),
+      up,
+      28 * s,
+      24 * s,
+    )
+    g.forEach((n, i) => {
+      beamed.set(n, { up, tip: tips[i] })
+    })
+  }
+
   for (const n of notes) {
     const nx = x(n)
     const { step, acc } = notePos(n, song, fifths)
     const ny = y(step)
     const { base, dot } = noteValue(n.dur)
-    const up = step < 4
-    const stemX = nx + (up ? 5 : -5) * s
-    const tip = ny + (up ? -28 : 28) * s
+    const beam = beamed.get(n)
+    const up = beam?.up ?? step < 4
+    const sx = stemX(n, up)
+    const tip = beam?.tip ?? ny + (up ? -28 : 28) * s
     const rx = (base === 4 ? 6.5 : 5.5) * s
     ctx.strokeStyle = ctx.fillStyle = colour(n)
     ctx.lineWidth = 1.5
@@ -595,19 +661,19 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
       ctx.lineTo(nx + rx + 3.5 * s, y(st))
     }
     if (base < 4) {
-      ctx.moveTo(stemX, ny)
-      ctx.lineTo(stemX, tip)
+      ctx.moveTo(sx, ny)
+      ctx.lineTo(sx, tip)
     }
     ctx.stroke()
-    // flags: one for an eighth, two for a sixteenth, on the right of the stem, curling back to the head
-    const flags = base === 0.5 ? 1 : base === 0.25 ? 2 : 0
+    // flags (unless beamed): one for an eighth, two for a sixteenth, on the right of the stem, curling back to the head
+    const flags = beam ? 0 : base === 0.5 ? 1 : base === 0.25 ? 2 : 0
     const dir = up ? 1 : -1
     ctx.lineWidth = 1.8 * s
     for (let k = 0; k < flags; k++) {
       const fy = tip + dir * k * 6 * s
       ctx.beginPath()
-      ctx.moveTo(stemX, fy)
-      ctx.bezierCurveTo(stemX + 1 * s, fy + dir * 6 * s, stemX + 8 * s, fy + dir * 8 * s, stemX + 6 * s, fy + dir * 16 * s)
+      ctx.moveTo(sx, fy)
+      ctx.bezierCurveTo(sx + 1 * s, fy + dir * 6 * s, sx + 8 * s, fy + dir * 8 * s, sx + 6 * s, fy + dir * 16 * s)
       ctx.stroke()
     }
     // head: a slash for a spoken note (rhythm only), hollow for half and whole
@@ -635,6 +701,32 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
       ctx.fillText(GLYPH[acc], nx - 13 * s, ny)
       ctx.textBaseline = 'alphabetic'
     }
+  }
+
+  // Beams from tip towards the heads: one over the group, a second between neighbouring sixteenths, a stub for a lone one
+  for (const g of groups) {
+    const { up } = beamed.get(g[0])!
+    const [a, b] = [g[0], g.at(-1)!]
+    const [xa, xb, ya, yb] = [stemX(a, up), stemX(b, up), beamed.get(a)!.tip, beamed.get(b)!.tip]
+    const dir = up ? 1 : -1
+    const beam = (x0: number, x1: number, level: number) => {
+      const at = (px: number) => ya + ((yb - ya) * (px - xa)) / (xb - xa) + dir * level * 7 * s
+      ctx.beginPath()
+      ctx.moveTo(x0, at(x0))
+      ctx.lineTo(x1, at(x1))
+      ctx.lineTo(x1, at(x1) + dir * 4 * s)
+      ctx.lineTo(x0, at(x0) + dir * 4 * s)
+      ctx.fill()
+    }
+    ctx.fillStyle = colour(a)
+    beam(xa - 0.75, xb + 0.75, 0) // over the stems' line width
+    const sixteenth = g.map((n) => noteValue(n.dur).base === 0.25)
+    g.forEach((n, i) => {
+      if (!sixteenth[i]) return
+      const sx = stemX(n, up)
+      if (sixteenth[i + 1]) beam(sx, stemX(g[i + 1], up), 1)
+      else if (!sixteenth[i - 1]) beam(i > 0 ? sx - 8 * s : sx, i > 0 ? sx : sx + 8 * s, 1)
+    })
   }
 
   // Ties and slurs: an arc to the next note of the same role, below the heads when the stem points up, else above;
@@ -682,12 +774,27 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   })
   ctx.globalAlpha = 1
 
-  // Syllables: one per onset, all of them, on one row
+  // Syllables: one per onset, all of them, on one row; a word that goes on gets a hyphen centred in the gap to its
+  // next syllable on the page, or just after it when that one is on a later page
+  const font = (n: Note) => `${n === current && mine(n) ? 700 : 400} ${12 * s * L.scale}px ${FONT}`
+  const words = lyric.map((n) => splitHyphen(n?.syllable ?? ''))
+  const half = lyric.map((n, k) => {
+    if (!n) return 0
+    ctx.font = font(n)
+    return ctx.measureText(words[k].text).width / 2
+  })
   lyric.forEach((n, k) => {
-    if (!n?.syllable) return
-    ctx.font = `${n === current && mine(n) ? 700 : 400} ${12 * s * L.scale}px ${FONT}`
+    if (!n || !words[k].text) return
+    ctx.font = font(n)
     ctx.fillStyle = colour(n)
-    ctx.fillText(n.syllable, startX + L.xs[k], 100 * s)
+    const cx = startX + L.xs[k]
+    ctx.fillText(words[k].text, cx, 100 * s)
+    if (!words[k].hyphen) return
+    const next = lyric.findIndex((m, j) => j > k && m?.role === n.role && words[j].text)
+    ctx.font = `400 ${12 * s * L.scale}px ${FONT}`
+    const from = cx + half[k]
+    const dash = ctx.measureText('-').width
+    ctx.fillText('-', next < 0 ? from + 2 * s + dash / 2 : (from + startX + L.xs[next] - half[next]) / 2, 100 * s)
   })
 
   // Repeat: the page outside the range dimmed, a line at the range start when it is on this page

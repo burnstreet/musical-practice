@@ -194,6 +194,19 @@ export function joinTies(notes: Note[]): { notes: Note[]; tiedIn: Set<number> } 
   return { notes: out, tiedIn }
 }
 
+/** A syllable without its trailing `-`, and whether its word goes on (see content-format). A lone `-` stays. */
+export function splitHyphen(syllable: string): { text: string; hyphen: boolean } {
+  const hyphen = syllable.length > 1 && syllable.endsWith('-')
+  return { text: hyphen ? syllable.slice(0, -1) : syllable, hyphen }
+}
+
+/** Syllables in order as words: one ending in `-` runs on into the next, the others are separated by a space. */
+export function joinSyllables(syllables: string[]): string {
+  let out = ''
+  for (const s of syllables.filter(Boolean)) out = !out ? s : splitHyphen(out).hyphen ? splitHyphen(out).text + s : `${out} ${s}`
+  return out
+}
+
 export function roleSpans(notes: Note[], roles: RoleId[]): Span[] {
   const spans: Span[] = []
   for (const n of notes.filter((n) => roles.includes(n.role)).sort((a, b) => a.start - b.start)) {
