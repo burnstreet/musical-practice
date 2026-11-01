@@ -21,6 +21,10 @@ Files are self-contained HTML artboards (`<x-dc>` markup, inline styles). Open i
 
 Placeholder lyrics in the artboards are from the public-domain folk song "Der Mond ist aufgegangen", not from the musical. Song titles are `[Liedtitel eintragen]` placeholders.
 
+## Auswertung (results redesign)
+
+Claude Design canvas "Auswertung – Entwürfe", not exported here: https://claude.ai/artifact/VuMigQE7PKiR3eyLrrN6q2. Boards: Main (Gesamt / Abschnitte / Phrasen, built), Einsaetze (entries after rests, built), Verlauf (trend over days and weeks, built). Supersedes Auswertung.dc.html and AuswertungDesktop.dc.html.
+
 ## Repeat and skip (`repeat-and-skip/`)
 
 Snapshot of the Claude Design canvas "Wiederholen und Springen – Entwürfe" (spec `.scratch/repeat-and-skip/spec.md`):

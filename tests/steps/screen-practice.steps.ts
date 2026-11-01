@@ -1,6 +1,5 @@
 import { expect } from 'vitest'
 import { type AppContext, setContext } from '../../src/app/context'
-import { features } from '../../src/app/features'
 import { ownSpans as mergedSpans } from '../../src/app/repeat'
 import { entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
@@ -48,7 +47,6 @@ function world(ctx: any) {
   document.body.innerHTML = ''
   localStorage.clear()
   history.replaceState(null, '', '#/practice/08')
-  features.results = false
   settings.set({ roles: ['maria'] })
   ctx.data = fixture()
   ctx.calls = [] as string[]
@@ -56,6 +54,7 @@ function world(ctx: any) {
   ctx.playing = false
   ctx.startResult = 'ok'
   ctx.recorded = null
+  ctx.dayPasses = [] as unknown[]
   const on = (store: Record<string, ((x: any) => void)[]>) => (ev: string, fn: (x: any) => void) => {
     if (!store[ev]) store[ev] = []
     store[ev].push(fn)
@@ -76,6 +75,9 @@ function world(ctx: any) {
     history: {
       record: async (id: string, roles: string[], passes: unknown[]) => {
         ctx.recorded = { id, roles, passes }
+      },
+      recordPass: async (id: string, roles: string[], pass: unknown) => {
+        ctx.dayPasses.push({ id, roles, pass })
       },
     } as any,
     engine: {
@@ -340,7 +342,7 @@ export default steps(({ Given, When, Then }) => {
     await tap(ctx, b)
   }
   const play = (ctx: any) => press(ctx, 'Abspielen')
-  const pause = (ctx: any) => press(ctx, features.results ? 'Pause und Auswertung' : 'Pause')
+  const pause = (ctx: any) => press(ctx, 'Pause')
   const enterNote = async (ctx: any, i: number) => {
     const n = ctx.data.song.notes[i]
     ctx.engineL.enter?.forEach((fn: (n: Note) => void) => {
@@ -360,9 +362,11 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.playing).toBe(true)
     if (which !== 'no') await enterNote(ctx, 1)
   })
-  Given(/^the results screen is enabled$/, (ctx) => {
-    world(ctx)
-    features.results = true
+  Then(/^there is no "Auswertung" button$/, (ctx) => expect(byLabel(ctx.el, 'Auswertung')).toBeNull())
+  When(/^I press "Auswertung"$/, (ctx) => press(ctx, 'Auswertung'))
+  Then(/^the day history got one pass for "(\w+)" and \[(\w+)\]$/, (ctx, id, role) => {
+    expect(ctx.dayPasses).toHaveLength(1)
+    expect(ctx.dayPasses[0]).toMatchObject({ id, roles: [role], pass: ctx.app.live.session.passes()[0] })
   })
   When(/^the engine is paused from outside the screen$/, async (ctx) => {
     ctx.app.engine.pause()
@@ -404,10 +408,10 @@ export default steps(({ Given, When, Then }) => {
     expect(byLabel(ctx.el, 'Mikrofon aus')).not.toBeNull()
     await play(ctx)
     expect(ctx.playing).toBe(true)
-    features.results = true // even with the results screen on, a denied mic gives no results
     await enterNote(ctx, 1)
     await pause(ctx)
     expect(location.hash).toBe('#/practice/08')
+    expect(byLabel(ctx.el, 'Auswertung')).toBeNull() // a denied mic gives no results
   })
   Given(/^roles \[(\w+)\] selected for song "(\w+)"$/, (ctx, role) => {
     world(ctx)

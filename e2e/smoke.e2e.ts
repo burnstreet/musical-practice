@@ -68,9 +68,19 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   await expect(page.getByText(/Ziel A\b/)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/\d+ Cent · sauber/)).toBeVisible({ timeout: 15_000 })
 
-  // results screen is off (features.results): pause just pauses
+  // pause just pauses; the results come on request
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Abspielen' })).toBeVisible()
+  await expect(page).toHaveURL(/#\/practice\/90$/)
+  await page.getByRole('button', { name: 'Auswertung' }).click()
+  await expect(page).toHaveURL(/#\/results\/90$/)
+  await expect(page.getByText('Töne getroffen')).toBeVisible()
+  // the pass was stored as today's sum
+  await page.getByRole('button', { name: 'Verlauf' }).click()
+  await expect(page.getByText('an 1 von 7 Tagen geübt')).toBeVisible()
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/verlauf.png`, fullPage: true })
+  await page.getByRole('button', { name: 'Zurück', exact: true }).click()
+  await page.getByRole('button', { name: 'Zurück zum Üben' }).click()
   await expect(page).toHaveURL(/#\/practice\/90$/)
 
   await page.getByRole('button', { name: 'Zurück zur Auswahl' }).click()

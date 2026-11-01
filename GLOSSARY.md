@@ -69,6 +69,10 @@ A time range of a song in which any role of the role set sings.
 A role span after merging spans separated by a gap shorter than one bar. The unit of the *Einsatz* repeat and of skipping to my previous or next entry. Shown in German as *Einsatz*.
 _Avoid_: Solo, voice (the instrumental intro is skipped with *Intro überspringen*, not with an own-span skip)
 
+**Entry**:
+A scored note of mine right after a rest (at least a quarter, or a breath at a phrase change). Results judge it on timing (early, on time, late) and approach (from below, straight, from above). Shown in German as *Einsatz nach Pause*. Finer than an Own span: one own span holds several entries when its rests are shorter than a bar.
+_Avoid_: Onset (the first voiced frame is the onset; the entry is the note)
+
 **Library**:
 The set of songs published in one bundle, with their roles and titles.
 _Avoid_: Catalogue, playlist, index
@@ -158,8 +162,12 @@ The one coaching sentence after a pass, built from a fixed template around the w
 _Avoid_: Feedback, advice, hint (that is a UI note)
 
 **Trend**:
-Hit percentage of each pass of the current session, in order. Shown as *Verlauf*.
+Hit percentage of each pass of the current session, in order. Shown as *Durchgänge*.
 _Avoid_: Progress, history (that spans sessions)
+
+**Day trend**:
+The day sums of one song and role set over the last 7 days, 28 days, or all weeks: hits, tendency, clean entries, sections. One bar per day, per week for all. Shown as *Verlauf*.
+_Avoid_: Progress, statistics
 
 **History**:
 Stored summaries of past sessions per song and role set on this device.
