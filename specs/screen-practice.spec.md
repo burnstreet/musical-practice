@@ -36,7 +36,8 @@ Strings:
 | skipNext | aria `Zum nächsten Einsatz` |
 | introSkip | `Intro überspringen` |
 | phraseStart | aria `Zurück zum Anfang der Phrase` |
-| pause | aria `Pause`; with `features.results` on `Pause und Auswertung` |
+| pause | aria `Pause` |
+| results | aria `Auswertung` (chart icon) |
 | tempo | `{t}%`, aria `Tempo {t} Prozent` |
 | mic | aria `Mikrofon aktiv` / `Mikrofon aus` |
 | micDenied | `Mikrofon nicht erlaubt. Du hörst das Lied, aber ohne Bewertung.` |
@@ -47,15 +48,16 @@ Strings:
 ## Setup
 
 - On enter: `library.getSong`, `engine.load(song, roles)`, `setMode(settings.mode)`, headphone sheet if due, `session = new Session`, then `pitch.start(engine.time, engine.latency)` only when the song has notes for the selected roles.
-- No notes for my roles: `noPart` hint, mic indicator hidden, mode forced `all`. With `features.results` on, pause goes to songs.
-- Only spoken notes for my roles (rap, see content format): `rapOnly` hint, no mic, mic indicator hidden, mode from settings (`nur für andere` mutes my rap as it mutes singing). Pause stays on practice, also with `features.results` on: there is nothing to score.
-- `pitch.start` returns `denied` or `unsupported`: `micDenied` banner, mic button shows off state, playback allowed, results disabled.
-- Leaving: `engine.unload`, `pitch.stop`, `history.record` with session passes.
+- No notes for my roles: `noPart` hint, mic indicator hidden, mode forced `all`.
+- Only spoken notes for my roles (rap, see content format): `rapOnly` hint, no mic, mic indicator hidden, mode from settings (`nur für andere` mutes my rap as it mutes singing). Nothing to score, so no `results` button.
+- `pitch.start` returns `denied` or `unsupported`: `micDenied` banner, mic button shows off state, playback allowed, no passes, no `results` button.
+- Leaving: `engine.unload`, `pitch.stop`, `history.record` with session passes; a pass still running also goes to `history.recordPass`.
 
 ## Header
 
 - `sub` bar range = the staff page drawn (`Takt {a}` for a one-bar page; before the first draw: `barsPerPage` bars), key from song, bpm from song times tempo.
 - Mode button cycles all → others → backing → all. Saves to settings.
+- `results` button, left of settings: only while paused and the session has a pass. Goes to `#/results/{id}`. Never automatic: singers found the jump after every pause distracting.
 
 ## Staff (canvas, 1 to 4 bars per page)
 
@@ -133,7 +135,7 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 - Progress bar `m:ss` elapsed / total, tap seeks. See Progress bar.
 - `phraseStart`: seek to current phrase start.
 - `tempo`: cycles 100 → 90 → 80 → 70 → 100.
-- `pause`: engine.pause, `session.endPass` (passes still go to history), stay paused on practice. Only with `features.results` on: route results when a pass result exists.
+- `pause`: engine.pause, `session.endPass`, stay paused on practice. A pass result goes to `history.recordPass` right away (the day survives closing the app).
 - Play again after pause: `session.startPass`, engine.play.
 - The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
@@ -201,11 +203,13 @@ Feature: Practice screen
     When I press the back button
     Then the route is "#/songs"
 
-  Scenario: pause leads to results when the results screen is on
-    Given the results screen is enabled
-    And a pass with at least one entered note
+  Scenario: results on request after a pass
+    Given a pass with at least one entered note
+    Then there is no "Auswertung" button
     When I press pause
-    Then session.endPass ran and the route is "#/results/08"
+    Then the day history got one pass for "08" and [maria]
+    When I press "Auswertung"
+    Then the route is "#/results/08"
 
   Scenario: paused from elsewhere
     Given a pass with at least one entered note
@@ -233,9 +237,9 @@ Feature: Practice screen
   Scenario: role that only raps
     Given roles [chor] selected for song "08", whose chor notes are all spoken
     Then the hint "Deine Rolle rappt hier: Text und Rhythmus, ohne Bewertung." is visible, no mic button, mode is others
-    Given the results screen is enabled
     When I press play and then pause
     Then the route stays "#/practice/08"
+    And there is no "Auswertung" button
 
   Scenario: rap shows no target
     Given my spoken note sounds at 12.0

@@ -1,15 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { AppContext } from '../src/app/context'
-import { features } from '../src/app/features'
 import { guard } from '../src/app/shell'
 
 const ctx = (live: string | null, ready = true) =>
   ({ vault: { state: () => 'unlocked' }, library: { isReady: () => ready }, live: live && { songId: live } }) as unknown as AppContext
 
 describe('shell guard, results route', () => {
-  beforeEach(() => {
-    features.results = true
-  })
   it('without a live session (reload) goes to practice of a ready song', () => {
     expect(guard(ctx(null), '#/results/08')).toBe('#/practice/08')
   })
@@ -21,9 +17,5 @@ describe('shell guard, results route', () => {
   })
   it('of a song not ready goes to songs', () => {
     expect(guard(ctx(null, false), '#/results/08')).toBe('#/songs')
-  })
-  it('with the results screen off goes to practice, even with the live session', () => {
-    features.results = false
-    expect(guard(ctx('08'), '#/results/08')).toBe('#/practice/08')
   })
 })
