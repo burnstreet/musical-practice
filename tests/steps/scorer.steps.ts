@@ -110,6 +110,48 @@ export default steps(({ Given, When, Then }) => {
     expect(mean(b)).toBeCloseTo(+cb, 6)
   })
 
+  Given(/^the song above with sections "A" \[0,4\] and "B" \[4,9\]$/, (ctx) => {
+    statsSong(ctx)
+    ctx.song.sections = [
+      { name: 'A', start: 0, end: 4 },
+      { name: 'B', start: 4, end: 9 },
+    ]
+  })
+  Then(/^section (\d+) "(\w+)" has (\d+) notes, (\d+) hits, meanCents (-?\d+)$/, (ctx, i, name, n, h, c) => {
+    const s = ctx.result.sections.find((x: any) => x.index === +i)
+    expect(s).toMatchObject({ label: name, notes: +n, hits: +h })
+    expect(s.meanCents).toBeCloseTo(+c, 6)
+  })
+
+  Given(/^maria notes (.*), one quarter each, all entered$/, (ctx, list) => {
+    const notes = [...list.matchAll(/\[([\d.]+),([\d.]+)\](?: in phrase (\d+))?/g)].map(([, a, b, p]) => note(+a, +b, 67, { phrase: +(p ?? 0) }))
+    ctx.song = { ...song([{}]), notes, phrases: [0, 1].map((index) => ({ index, label: '', start: 0, end: 0 })) }
+    ctx.roles = ['maria']
+    ctx.byNote = new Map(notes.map((n, i) => [i, sing(n, [0, 0, 0])]))
+  })
+  Then(/^notes (\d+) and (\d+) are entries(?: and note (\d+) is not)?$/, (ctx, a, b, not) => {
+    expect(ctx.result.notes[+a].entry).toBeTruthy()
+    expect(ctx.result.notes[+b].entry).toBeTruthy()
+    if (not) expect(ctx.result.notes[+not].entry).toBeNull()
+  })
+  Given(/^entry note \[4.0,5.0\] midi 67 with (.*)$/, (ctx, how) => {
+    const n = note(4, 5, 67)
+    ctx.song = { ...song([{}]), notes: [n] }
+    ctx.roles = ['maria']
+    const f =
+      how === 'frames at 67 from 4.02'
+        ? frames(times(50, 67), 4.02, 5)
+        : how === 'frames at 66.2 from 4.15 to 4.25, then at 67'
+          ? [...frames(times(6, 66.2), 4.15, 4.25), ...frames(times(37, 67), 4.27, 5)]
+          : how === 'frames at 67.8 from 3.85 to 3.95, then at 67'
+            ? [...frames(times(6, 67.8), 3.85, 3.95), ...frames(times(52, 67), 3.97, 5)]
+            : frames(times(10, null), 3.7, 5)
+    ctx.byNote = new Map([[0, f]])
+  })
+  Then(/^the entry has (.*)$/, (ctx, list) => {
+    for (const [, k, v] of list.matchAll(/(\w+) ([^\s,]+)/g)) expect(ctx.result.notes[0].entry[k]).toBe(value(v))
+  })
+
   Given(/^the pass above where note 3 has syllable "(.*)" and maxAbsCents (\d+)$/, (ctx, syl, max) => {
     statsSong(ctx)
     ctx.song.notes[2].syllable = syl
@@ -190,6 +232,21 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^note 0 is a hit$/, (ctx) => {
     expect(ctx.result.notes[0].hit).toBe(true)
+  })
+  When(/^I start a pass, feed frames at 67 from 0.85 to 0.95, enter note 0, feed frames at 67 from 1.0 to 2.0, end the pass$/, (ctx) => {
+    const s: Session = ctx.session
+    s.startPass()
+    frames(times(6, 67), 0.85, 0.95).forEach((f) => {
+      s.frame(f)
+    })
+    s.enter(0)
+    frames(times(50, 67), 1, 2).forEach((f) => {
+      s.frame(f)
+    })
+    ctx.result = s.endPass()
+  })
+  Then(/^the entry of note 0 has ms (-?\d+)$/, (ctx, ms) => {
+    expect(ctx.result.notes[0].entry.ms).toBe(+ms)
   })
 
   Given(/^a session$/, (ctx) => {

@@ -1,6 +1,5 @@
 import { css, html, LitElement } from 'lit'
 import { type AppContext, type Route, type ShellDeps, setContext } from './context'
-import { features } from './features'
 import { settings } from './settings'
 import { sheetStyles } from './sheet'
 import './settings-sheet'
@@ -10,12 +9,12 @@ import './screens/results'
 import './screens/start'
 import './screens/songs'
 
-/** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song; results without its live session, or while the results screen is off, go to practice. */
+/** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song; results without its live session go to practice. */
 export function guard(ctx: AppContext, hash: string): Route {
   if (ctx.vault.state() !== 'unlocked') return '#/start'
   const m = hash.match(/^#\/(practice|results)\/(.+)$/)
   if (!m || !ctx.library.isReady(m[2])) return '#/songs'
-  return m[1] === 'results' && (!features.results || ctx.live?.songId !== m[2]) ? `#/practice/${m[2]}` : (hash as Route)
+  return m[1] === 'results' && ctx.live?.songId !== m[2] ? `#/practice/${m[2]}` : (hash as Route)
 }
 
 export class GuApp extends LitElement {

@@ -7,7 +7,6 @@ import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import { draw as drawRoll } from '../draw/roll'
 import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
-import { features } from '../features'
 import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
@@ -33,6 +32,7 @@ const GEAR = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g>`,
   20,
 )
+const CHART = icon(svg`<path d="M5 20V12M12 20V5M19 20v-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>`, 20)
 const CHEVRON = icon(svg`<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`, 16)
 const TO_START = icon(
   svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
@@ -55,10 +55,12 @@ export function leaveSession(ctx: AppContext): void {
   const live = ctx.live
   if (!live) return
   ctx.live = null
-  live.session.endPass() // a pass still running counts
+  const running = live.session.endPass() // a pass still running counts
   ctx.engine.unload()
   ctx.pitch.stop()
-  ctx.history.record(live.songId, ctx.settings.get().roles, live.session.passes()).catch(console.error)
+  const roles = ctx.settings.get().roles
+  if (running) ctx.history.recordPass(live.songId, roles, running).catch(console.error)
+  ctx.history.record(live.songId, roles, live.session.passes()).catch(console.error)
 }
 
 /**
@@ -336,13 +338,11 @@ export class GuPractice extends LitElement {
   }
 
   private pause() {
-    const { engine, route } = getContext()
+    const { engine, history, settings } = getContext()
     this.playing = false // before engine.pause: its 'pause' event comes back here
     engine.pause()
-    const passed = this.mic && this.session.endPass() // history still gets the pass
-    if (!features.results) return
-    if (!this.singsHere && !this.rapsHere) route('#/songs')
-    else if (passed) route(`#/results/${this.songId}`)
+    const passed = this.mic && this.session.endPass()
+    if (passed) history.recordPass(this.songId, settings.get().roles, passed).catch(console.error)
   }
 
   private back() {
@@ -521,7 +521,7 @@ export class GuPractice extends LitElement {
   render() {
     const loaded = this.loaded
     if (!loaded) return ''
-    const { library, settings, openSettings } = getContext()
+    const { library, settings, openSettings, route } = getContext()
     const s = settings.get()
     const { bars, key, bpm } = loaded.song
     // the staff page the canvas drew; before that (and without a canvas context) the regular page of the canvas width
@@ -548,6 +548,11 @@ export class GuPractice extends LitElement {
         <h1>Lied ${loaded.meta.number} · ${loaded.meta.title}</h1>
         <p>Takt ${firstBar === lastBar ? firstBar : `${firstBar}–${lastBar}`} · ${key} · ${Math.round((bpm * this.tempo) / 100)} BPM</p>
       </div>
+      ${
+        this.mic && !this.playing && this.session.passes().length
+          ? html`<button class="round" aria-label="Auswertung" @click=${() => route(`#/results/${this.songId}`)}>${CHART}</button>`
+          : ''
+      }
       <button class="round" aria-label="Einstellungen" @click=${openSettings}>${GEAR}</button>
     </header>
     ${
@@ -618,7 +623,7 @@ export class GuPractice extends LitElement {
         <button class="round" aria-label="Zum vorigen Einsatz" ?disabled=${!skip.prev} @click=${() => skip.prev && this.skipTo(skip.prev.start, skip.prev)}>${SKIP_PREV}</button>
         ${
           this.playing
-            ? html`<button class="round main" aria-label=${features.results ? 'Pause und Auswertung' : 'Pause'} @click=${this.pause}>${PAUSE}</button>`
+            ? html`<button class="round main" aria-label="Pause" @click=${this.pause}>${PAUSE}</button>`
             : html`<button class="round main" aria-label="Abspielen" @click=${this.play}>${PLAY}</button>`
         }
         <button class="round" aria-label="Zum nächsten Einsatz" ?disabled=${!skip.next} @click=${() => skip.next && this.skipTo(skip.next.start, skip.next)}>${SKIP_NEXT}</button>

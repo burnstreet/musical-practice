@@ -7,6 +7,9 @@
   --text: #ffffff;
   --muted: #cfe0f5;
   --other: #a9d3f7;
+  /* results: too high / too low, told apart by arrows too */
+  --high: #ffb35c;
+  --low: #8fe3ff;
   --font-body: "DM Sans", system-ui, sans-serif;
   --font-display: "Fraunces", serif;
 }

@@ -1,6 +1,6 @@
 ---
 name: Scorer
-description: Pure scoring. Octave folding, per-note hit, pass results, phrase stats, coaching sentence, session with passes and trend.
+description: Pure scoring. Octave folding, per-note hit, entries after rests, pass results, phrase and section stats, coaching sentence, session with passes and trend.
 targets:
   - ../src/core/scorer.ts
   - ../src/core/session.ts
@@ -14,11 +14,16 @@ Pure functions plus one small stateful `Session`. No audio, no DOM.
 export type Tolerance = 75 | 50 | 30
 export type Tendency = 'high' | 'low' | 'ok'
 
-export interface NoteResult { note: Note; sung: boolean; cents: number | null; hit: boolean; maxAbsCents: number | null }
+export interface Entry {
+  ms: number | null; cents: number | null
+  timing: 'early' | 'ok' | 'late' | null; approach: 'below' | 'ok' | 'above' | null; clean: boolean
+  curve: [number, number][]                       // [ms from note start, folded cents]
+}
+export interface NoteResult { note: Note; sung: boolean; cents: number | null; hit: boolean; maxAbsCents: number | null; entry: Entry | null }
 export interface PhraseResult { index: number; label: string; notes: number; sung: number; hits: number; meanCents: number | null }
 export interface PassResult {
-  notes: NoteResult[]; phrases: PhraseResult[]
-  scoredNotes: number; hits: number; hitPct: number
+  notes: NoteResult[]; phrases: PhraseResult[]; sections: PhraseResult[]
+  scoredNotes: number; hits: number; hitPct: number; low: number; high: number
   meanCents: number | null; tendency: Tendency
   rangeMidi: [number, number] | null
   worstPhrase: number | null; tip: string
@@ -96,17 +101,63 @@ Feature: Note scoring
     Then hit is true
 ```
 
+## Entry (Einsatz)
+
+- Entry = scored note after a rest: no earlier note of my roles (spoken too) reaches past `start − quarter`, quarter = `(end − start) / dur` s. Also entry: first note of my roles, and first note of a new phrase after a gap over 0.05 s. Other notes: `entry` null.
+- Window: voiced frames of the note with `t` in `[start − 0.3, start + 0.5]`. Session hands frames from 0.3 s before start (see Session).
+- `ms` = round(1000 · (first window frame `t` − start)). No window frame: `ms`, `cents`, `timing`, `approach` null, `clean` false.
+- `timing`: ms < −80 `early`, ms > 80 `late`, else `ok`.
+- `cents` = median folded cents of frames in `[onset, onset + 0.1]`. `approach`: below −tol `below`, above tol `above`, else `ok`.
+- `clean` = timing `ok` and approach `ok`.
+- `curve` = voiced frames in `[start − 0.3, start + 0.6]` as [round ms, round cents]. For the picture only.
+  `[@test] ../tests/steps/scorer.steps.ts`
+
+```gherkin
+Feature: Entries
+  Scenario: entry only after a rest
+    Given maria notes [1.0,2.0], [2.0,3.0] and [4.0,5.0], one quarter each, all entered
+    When I score the pass
+    Then notes 0 and 2 are entries and note 1 is not
+
+  Scenario: new phrase after a short breath is an entry
+    Given maria notes [1.0,2.0] in phrase 0 and [2.2,3.0] in phrase 1, one quarter each, all entered
+    When I score the pass
+    Then notes 0 and 1 are entries
+
+  Scenario: clean entry
+    Given entry note [4.0,5.0] midi 67 with frames at 67 from 4.02
+    When I score the pass with tolerance 50
+    Then the entry has ms 20, timing ok, approach ok, clean true
+
+  Scenario: late from below
+    Given entry note [4.0,5.0] midi 67 with frames at 66.2 from 4.15 to 4.25, then at 67
+    When I score the pass with tolerance 50
+    Then the entry has ms 150, timing late, approach below, clean false
+
+  Scenario: early from above
+    Given entry note [4.0,5.0] midi 67 with frames at 67.8 from 3.85 to 3.95, then at 67
+    When I score the pass with tolerance 50
+    Then the entry has ms -150, timing early, approach above, clean false
+
+  Scenario: entry not sung
+    Given entry note [4.0,5.0] midi 67 with silent frames only
+    When I score the pass with tolerance 50
+    Then the entry has ms null, timing null, approach null, clean false
+```
+
 ## Pass
 
 - Scored notes = my notes that were entered in this pass. Others excluded from every statistic.
 - `hitPct` = round(100 · hits / scoredNotes). 0 scored notes: hitPct 0, meanCents null, tendency `ok`, tip "Keine Töne gesungen."
+- `low` / `high` = sung notes not hit with note cents < 0 / ≥ 0. So hits + low + high + unsung = scoredNotes.
+- `sections` = stats like phrases, one per `song.sections` entry holding scored notes (`start ≤ note.start < end`). `index` into `song.sections`, `label` = name. Empty without sections.
 - `meanCents` = mean of folded cents over all considered frames of scored notes. `tendency`: above 15 `high`, below −15 `low`, else `ok`.
 - `rangeMidi` = [min, max] of rounded sung midi, true octave, over considered frames.
 - Phrase stats over scored notes per phrase. `meanCents` of phrase = mean of note cents of sung notes, null when none sung.
 - `worstPhrase`: among phrases with scored notes, the one with largest |meanCents|; ties: more misses; still tied: lower index. Phrase with all notes unsung: |meanCents| treated as 0 but misses count.
-- `tip` templates, `n` = worst phrase index + 1, `syl` = syllable of first note in that phrase with |cents| > tol, else first unsung note, `max` = that phrase's max |cents| rounded:
-  - worst meanCents ≤ −tol/2: `Phrase {n} ist zu tief. Ab „{syl}“ rutscht die Stimme um bis zu {max} Cent ab. Übe die Stelle langsamer.`
-  - worst meanCents ≥ tol/2: `Phrase {n} ist zu hoch. Ab „{syl}“ steigt die Stimme um bis zu {max} Cent. Übe die Stelle langsamer.`
+- `tip` templates, `n` = worst phrase index + 1, `syl` = syllable of first note in that phrase with |cents| > tol, else first unsung note. No cent numbers: singers do not know cents.
+  - worst meanCents ≤ −tol/2: `Phrase {n} ist zu tief. Ab „{syl}“ rutscht die Stimme ab. Übe die Stelle langsamer.`
+  - worst meanCents ≥ tol/2: `Phrase {n} ist zu hoch. Ab „{syl}“ steigt die Stimme. Übe die Stelle langsamer.`
   - else, misses in worst phrase: `In Phrase {n} fehlen {k} Töne, ab „{syl}“. Sing die Stelle erst mit Voicetrack.`
   - else: `Alles getroffen. Versuch das Lied einmal ohne Voicetrack.`
   `[@test] ../tests/steps/scorer.steps.ts`
@@ -118,12 +169,20 @@ Feature: Pass result
     And frames giving note cents 10, -10, -60, -40 with 6 frames each
     When I score the pass with tolerance 50
     Then hitPct is 50, meanCents is -25, tendency is low
+    And low is 2 and high is 0
     And phrase 0 meanCents is 0 and phrase 1 meanCents is -50
     And worstPhrase is 1
 
+  Scenario: section statistics
+    Given the song above with sections "A" [0,4] and "B" [4,9]
+    And frames giving note cents 10, -10, -60, -40 with 6 frames each
+    When I score the pass with tolerance 50
+    Then section 0 "A" has 2 notes, 2 hits, meanCents 0
+    And section 1 "B" has 2 notes, 0 hits, meanCents -50
+
   Scenario: tip for flat phrase
     Given the pass above where note 3 has syllable "ge" and maxAbsCents 65
-    Then tip is "Phrase 2 ist zu tief. Ab „ge“ rutscht die Stimme um bis zu 65 Cent ab. Übe die Stelle langsamer."
+    Then tip is "Phrase 2 ist zu tief. Ab „ge“ rutscht die Stimme ab. Übe die Stelle langsamer."
 
   Scenario: tip when all hit
     Given a pass where every scored note is a hit with |cents| under 10
@@ -152,7 +211,8 @@ Feature: Pass result
 
 ## Session
 
-- `frame` routes by `t` into the entered note whose `[start, end]` contains `t`, mine only. Frames before `enter` of that note dropped.
+- `frame` routes by `t` into every entered note whose `[start − 0.3, end]` contains `t`, mine only. Scoring ignores the part before `start + 0.1` anyway; the entry needs it.
+- Session keeps the frames of the last 0.5 s. `enter` starts the note with those in `[start − 0.3, start)`, so singing before the engine's `enter` (early entry, latency) still counts for the entry. Kept frames after the start are stale (seek back): dropped. `startPass` empties the buffer.
 - `enter` on an already entered note clears its frames (loop restart, seek back). Last entry wins.
 - `startPass` clears entered set and frames. `endPass` scores, appends, returns. Pass number = `passes().length`.
 - `myNotes` = my notes of `visibleNotes(song.notes, roles)`, without spoken ones. `enter` ignores the dropped unison copies, so a duet note counts once, and spoken notes, so rap is never scored.
@@ -166,6 +226,11 @@ Feature: Session
     Given a session with note 0 [1.0,2.0] midi 67
     When I start a pass, enter note 0, feed frames at 60, enter note 0 again, feed frames at 67, end the pass
     Then note 0 is a hit
+
+  Scenario: singing just before the entry counts for the entry
+    Given a session with note 0 [1.0,2.0] midi 67
+    When I start a pass, feed frames at 67 from 0.85 to 0.95, enter note 0, feed frames at 67 from 1.0 to 2.0, end the pass
+    Then the entry of note 0 has ms -150
 
   Scenario: trend across passes
     Given a session
