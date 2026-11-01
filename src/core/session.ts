@@ -1,11 +1,13 @@
 import { joinTies, type Note, type RoleId, type Song, visibleNotes } from './content'
-import { type PassResult, scorePass, type Tolerance } from './scorer'
+import { ENTRY_PRE, type PassResult, scorePass, type Tolerance } from './scorer'
 import type { PitchFrame } from './types'
 
 /** Routes pitch frames into entered notes of the role set and keeps the passes of one session. */
 export class Session {
   private entered = new Map<number, PitchFrame[]>() // song note index -> frames, in order of entry
   private done: PassResult[] = []
+  /** Frames of the last 0.5 s: singing before the engine's `enter` (early entry, latency) still reaches the entry. */
+  private recent: PitchFrame[] = []
   /** My visible sung notes: a unison copy of another of my roles is not mine twice, a spoken note has no pitch to score, a tie chain is one note. */
   private mine: Set<Note>
   private song: Song
@@ -28,17 +30,27 @@ export class Session {
   enter(noteIndex: number): void {
     const n = this.song.notes[noteIndex]
     if (!n || !this.mine.has(n)) return
-    this.entered.delete(noteIndex) // re-insert so the latest entry wins when spans touch
-    this.entered.set(noteIndex, [])
+    // only frames before the start: later ones in the buffer are stale (seek back)
+    this.entered.set(
+      noteIndex,
+      this.recent.filter((f) => this.holds(noteIndex, f) && f.t < n.start),
+    )
+  }
+
+  /** Note i takes frames from ENTRY_PRE before its start: scoring skips that part, the entry needs it. */
+  private holds(i: number, f: PitchFrame): boolean {
+    const n = this.song.notes[i]
+    return n.start - ENTRY_PRE <= f.t && f.t <= n.end
   }
 
   frame(f: PitchFrame): void {
-    const hit = [...this.entered].reverse().find(([i]) => this.song.notes[i].start <= f.t && f.t <= this.song.notes[i].end)
-    hit?.[1].push(f)
+    this.recent = [...this.recent.filter((x) => f.t - 0.5 < x.t && x.t <= f.t), f]
+    for (const [i, frames] of this.entered) if (this.holds(i, f)) frames.push(f)
   }
 
   startPass(): void {
     this.entered = new Map()
+    this.recent = []
   }
 
   endPass(): PassResult | null {

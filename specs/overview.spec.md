@@ -70,7 +70,8 @@ Numbers refer to the grilling session of 2026-10-27.
 - Two stems per song: voices = full mix, backing = aligned playback or Demucs accompaniment. `others` mode plays backing wherever any selected role has a note. Overlapping other roles go silent too. Documented limitation. (Q5, Q16)
 - Tempo 100/90/80/70 % via media elements with pitch preservation. Phrase loop. (Q6, Q33)
 - No recording of own voice. (Q7)
-- Results: hit %, mean cents, tendency, sung range, signed per-phrase chart, template coaching sentence. Phrase = lyric line. Results screen switched off for now (`features.results`); pause only pauses. (Q8)
+- Results on request (button on practice, never after pause by itself): hit %, tendency in words, notes too high / too low, entries after rests (on time, from below / above), all three overall and per section / phrase, template coaching sentence. No cent numbers. Phrase = lyric line. (Q8)
+- Each pass adds to the day's sums in history. Results show them as *Verlauf* over 7 days, 4 weeks or all weeks.
 - Octave folding in scoring and in display. Note names never show an octave. (Q9)
 - Derived AES key stored non-extractable in IndexedDB. Lock wipes all. (Q10)
 - History: last 20 sessions per song and role set, on device. (Q11, Q30)

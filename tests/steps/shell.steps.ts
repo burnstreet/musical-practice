@@ -41,7 +41,7 @@ function deps(ctx: any): ShellDeps {
       },
       wipe: async () => {},
     },
-    history: { record: async () => {}, list: async () => [], badge: async () => null, wipe: async () => {} },
+    history: { record: async () => {}, list: async () => [], badge: async () => null, recordPass: async () => {}, days: async () => [], wipe: async () => {} },
     engine: { latency: () => 0 } as any,
     pitch: { devices: async () => [], inputLatency: () => 0 } as any,
     sw: { activateWaiting: async () => false },
