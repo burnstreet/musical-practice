@@ -10,6 +10,9 @@ import '../settings-sheet'
 import { SLIDERS } from './roles'
 import { lineCount, sceneNo } from './text'
 
+/** Line text with its inline directions `[x]` as italic direction spans, brackets removed. */
+const inline = (text: string) => text.split(/(\[[^\]]*\])/).map((p) => (p.startsWith('[') ? html`<span class="inl">${p.slice(1, -1)}</span>` : p))
+
 const icon = (body: ReturnType<typeof svg>, size = 22) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
 const BACK = icon(svg`<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`, 20)
 const PREV = icon(
@@ -80,6 +83,7 @@ export class GuRun extends LitElement {
     .past { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; overflow: hidden;
       mask-image: linear-gradient(to bottom, transparent, #000 40px); -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px); }
     .past > * { flex: none; padding: 0 4px; }
+    .inl { font-style: italic; color: var(--muted); }
     .dir { font-size: 14px; font-style: italic; line-height: 1.4; color: var(--muted); }
     .who { font-size: 12px; font-weight: 700; color: var(--other); }
     .who.me { color: var(--accent); }
@@ -318,7 +322,7 @@ export class GuRun extends LitElement {
     if (i.type === 'direction') return html`<div class="dir" style="opacity:${fade}">${i.text}</div>`
     if (i.type === 'song') return html`<div class="dir" style="opacity:${fade}">${this.songTitle(i.songId)}</div>`
     const name = names.get(i.role) ?? i.role
-    return html`<div style="opacity:${fade}"><div class="who ${me ? 'me' : ''}">${me ? `${name} · du` : name}</div><div class="said">${i.text}</div></div>`
+    return html`<div style="opacity:${fade}"><div class="who ${me ? 'me' : ''}">${me ? `${name} · du` : name}</div><div class="said">${inline(i.text)}</div></div>`
   }
 
   private songTitle(songId: string) {
@@ -357,7 +361,7 @@ export class GuRun extends LitElement {
     if (!s.roles.includes(role))
       return html`<div class="current play">
         <div class="top"><span class="chip">${names.get(role) ?? role}</span>${cue.state === 'playing' ? html`<span role="img" aria-label="Wiedergabe läuft">${WAVE(44, 18)}</span>` : ''}</div>
-        <div class="big">${first.text}</div>
+        <div class="big">${inline(first.text)}</div>
       </div>`
     return this.myTurn()
   }
@@ -381,7 +385,7 @@ export class GuRun extends LitElement {
       ${lines.map((t) =>
         mode === 'hide'
           ? html`<div class="hidden" role="img" aria-label="Zeile verdeckt"><i style="width:92%"></i><i style="width:58%"></i></div>`
-          : html`<div class="big">${hintText(t, mode)}</div>`,
+          : html`<div class="big">${inline(hintText(t, mode))}</div>`,
       )}
       <div class="acts">
         ${canReveal ? html`<button @click=${() => (this.revealed = cue.turn[0].id)}>${EYE}Aufdecken</button>` : ''}

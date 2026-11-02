@@ -182,6 +182,13 @@ export default steps(({ Given, When, Then }) => {
     expect(card(ctx)).toContain(a)
     expect(card(ctx)).toContain(b)
   })
+  Then(/^the card shows "([^"]+)", the inline direction "([^"]+)" and "([^"]+)", and no "\["$/, (ctx, a, dir, b) => {
+    expect(card(ctx)).toContain(a)
+    expect(card(ctx)).toContain(b)
+    expect(card(ctx)).not.toContain('[')
+    const em = all(ctx).find((e) => e.matches('.current .inl'))
+    expect(em?.textContent).toBe(dir)
+  })
   Given(/^settings\.dialog\.hint "(\w+)" and the cue state waiting with my line "([^"]+)"$/, async (ctx, hint, t) => {
     fake(ctx)
     settings.set({ roles: ['anna'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })

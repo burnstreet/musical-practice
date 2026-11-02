@@ -64,7 +64,7 @@ export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string
 
 ## Hint text
 
-- `show`: the text. `hide`: `""`. `start`: the first 3 words plus ` …`; 3 words or fewer: the text.
+- `show`: the text. `hide`: `""`. `start`: the first 3 words plus ` …`; 3 words or fewer: the text. An inline direction `[…]` counts as no word and stays where it is when it comes before the cut.
 
 Sample script of the scenarios: scene s1 = direction d1, lines l1 and l2 of mutter, lines l3 and l4 of anna, line l5 of mutter, song g1; scene s2 = line m1 of mutter. Unless a scenario says otherwise: roles [anna], directionMs 2500, hardTimeoutMs 20000, directions shown, no loop.
   `[@test] ../tests/steps/cue.steps.ts`
@@ -158,4 +158,5 @@ Feature: Hint text
     Then hintText "Ich geh jetzt mal los" with start is "Ich geh jetzt …"
     And hintText "Ich geh" with start is "Ich geh"
     And hintText "Ich geh" with hide is ""
+    And hintText "[leise] Ich geh jetzt mal" with start is "[leise] Ich geh jetzt …"
 ```

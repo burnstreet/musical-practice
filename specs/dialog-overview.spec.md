@@ -55,7 +55,7 @@ Grilling and listening test of 2026-11-02.
 - Rendering only local. MP3 mono 64 kbps in the production repo under `web/data/script/<hash>.mp3`; the hash covers spoken text and voice, so render is idempotent without a manifest. CI never renders. ADR 0008.
 - Roles: one global list for songs and script, flags `sings` and `speaks`; one role selection for both modes. Narrators are roles (`erzaehler1`, `erzaehler2`). DOCX speaker names map through `name` and `aliases`. Voice per role in the config.
 - Script source: `web/data/script.json`, written once by the parser, then edited in the editor's `Skript` view. Pronunciation via `say` per line.
-- Directions shown 2.5 s and auto-advance; can be hidden. Technical cues (props, light) dropped by the parser.
+- Directions shown 2.5 s and auto-advance; can be hidden. Every coloured text of the DOCX is a direction (blue stage directions, green light, sound and props); inside a line it stays in the line as an inline direction, shown, never spoken (user, 2026-11-02).
 - Own lines: three modes plus *Vorsprechen* (all lines are rendered anyway).
 - Song items: jump to the pitch trainer and back to the same place. No song audio inside the dialog flow.
 - Script audio is part of the full library download after unlock (estimated 15 to 25 MB).
@@ -104,7 +104,7 @@ Run on iOS Safari (installed PWA) and Android Chrome:
 
 ## Further Notes
 
-- The first production's DOCX colours: blue = stage direction, green = technical cue or song cue. Unprefixed black paragraphs continue the last speaker; right after a scene header they are props lists.
+- The first production's DOCX colours: blue = stage direction, green = technical cue or song cue (both shown as directions, `Lied n:` as song cue). Speakers are mostly `Name:`, sometimes `Name`, `Name.` or `Name` and a tab, often right before a coloured direction. Unprefixed black paragraphs continue the last speaker; right after a scene header they are props lists.
 - Copyright: no script text in tracked plaintext of the engine. Specs use invented text. Character names are allowed.
 - XTTS-v2 license (CPML) allows non-commercial use only. The production is non-commercial.
 - Playback leaking into the mic is the main failure mode. Mic only open on the actor's turn, a fresh noise floor per turn, and the headphone reminder cover it.

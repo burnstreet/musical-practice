@@ -5,6 +5,7 @@ Format: specs/script-format.spec.md. Standard library only: both tools/.venv and
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 SCRIPT = Path("web/data/script.json")
@@ -41,6 +42,8 @@ def validate(script, config):
                 raise ScriptError(f"item {iid}: unknown type {kind}")
             if kind in ("line", "direction") and not str(item.get("text", "")).strip():
                 raise ScriptError(f"item {iid}: empty text")
+            if kind == "line" and not spoken(item):
+                raise ScriptError(f"item {iid}: nothing to speak")
             if kind == "line" and item.get("role") not in speakers:
                 raise ScriptError(f"item {iid}: {item.get('role')} is no speaking role")
             if kind == "song" and item.get("songId") not in songs:
@@ -58,7 +61,8 @@ def lines(script):
 
 
 def spoken(line):
-    return line.get("say") or line["text"]
+    """What the TTS says: say, else text without its inline directions, whitespace collapsed."""
+    return line.get("say") or " ".join(re.sub(r"\[[^\]]*\]", " ", line["text"]).split())
 
 
 def line_hash(line, voice):

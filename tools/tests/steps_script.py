@@ -79,6 +79,11 @@ def _(text, say):
     return {"text": text, "say": say}
 
 
+@given(parsers.parse('a line with text "{text}" and no say'), target_fixture="line")
+def _(text):
+    return {"text": text}
+
+
 @then(parsers.parse('its hash equals the hash of a line with text "{text}" and the same voice'))
 def _(line, text):
     assert script_format.line_hash(line, VOICE_A) == script_format.line_hash({"text": text}, VOICE_A)
