@@ -48,6 +48,36 @@ export function octaveVote(midi: number, t: number, mine: Note[]): number | null
   return n ? 12 * Math.round((n.midi - midi) / 12) + 0 : null // + 0: no -0
 }
 
+/** Longest piece of a voiced stretch, s, that can be an octave slip of the detector; a voice cannot leap that far in one frame. */
+const SLIP_MAX = 0.3
+
+/**
+ * Midi per frame with the detector's octave slips folded back: a voiced stretch splits where it jumps more than half an
+ * octave between two frames; each piece shorter than SLIP_MAX moves by whole octaves to the longest piece's octave.
+ */
+export function foldSlips(frames: { t: number; midi: number | null }[]): (number | null)[] {
+  const out = frames.map((f) => f.midi)
+  const mean = (p: number[]) => p.reduce((a, i) => a + out[i]!, 0) / p.length
+  const span = (p: number[]) => frames[p.at(-1)!].t - frames[p[0]].t
+  let pieces: number[][] = []
+  const fold = () => {
+    const ref = pieces.reduce((a, p) => (p.length > a.length ? p : a), [])
+    for (const p of pieces.filter((p) => p !== ref && span(p) < SLIP_MAX)) {
+      const o = 12 * Math.round((mean(p) - mean(ref)) / 12)
+      for (const i of p) out[i]! -= o
+    }
+    pieces = []
+  }
+  frames.forEach((f, i) => {
+    const prev = out[i - 1]
+    if (f.midi === null) fold()
+    else if (prev == null || Math.abs(f.midi - prev) > 6) pieces.push([i])
+    else pieces.at(-1)!.push(i)
+  })
+  fold()
+  return out
+}
+
 /** Seconds the roll shows at a canvas width: 72 px per second, 5…8 s (a wider screen shows more of what comes). */
 export const rollWindow = (cssWidth: number) => Math.min(8, Math.max(5, cssWidth / 72))
 
@@ -83,7 +113,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
   const { octave } = state
   const pitch = (midi: number, time: number) => (octave == null ? foldToTargetOctave(midi, time, mine) : midi + octave)
-  const recent = frames.flatMap((f) => (f.midi !== null && f.t >= t - ZOOM_HOLD ? [pitch(f.midi, f.t)] : []))
+  const midis = foldSlips(frames)
+  const recent = frames.flatMap((f, i) => (midis[i] != null && f.t >= t - ZOOM_HOLD ? [pitch(midis[i], f.t)] : []))
   const [toLo, toHi] = zoomRange(rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi)), recent)
   // ease from the rows drawn last towards these (fractional while it moves)
   const now = performance.now()
@@ -218,7 +249,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(pitch(f.midi, f.t))]))
+  const pts = frames.map((f, i) => (midis[i] == null ? null : [x(f.t), y(pitch(midis[i], f.t))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
     [COLORS.surface, 8],

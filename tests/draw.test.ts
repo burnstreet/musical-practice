@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { draw as drawRoll, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
+import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
@@ -717,5 +717,25 @@ describe('roll layout', () => {
 
   it('leaves the pitch alone without any note', () => {
     expect(foldToTargetOctave(46, 0, [])).toBe(46)
+  })
+
+  // frames every 5 ms from t0, one midi per piece of [midi, seconds]
+  const run = (...pieces: [number | null, number][]) =>
+    pieces.flatMap(([midi, s]) => Array.from({ length: Math.round(s / 0.005) }, () => midi)).map((midi, i) => ({ t: i * 0.005, midi }))
+
+  it('folds a short octave slip of the detector back onto the held note', () => {
+    const out = foldSlips(run([62.3, 0.5], [74.2, 0.2], [62.1, 0.5]))
+    expect(out.slice(100, 140).every((m) => Math.abs(m! - 62.2) < 1e-9)).toBe(true)
+    expect(out[0]).toBe(62.3)
+    expect(out.at(-1)).toBe(62.1)
+  })
+
+  it('folds a slip at the start of a stretch onto what follows', () => {
+    expect(foldSlips(run([50, 0.05], [62, 0.5]))[0]).toBe(62)
+  })
+
+  it('keeps a real leap and a new start after a break', () => {
+    expect(foldSlips(run([62, 0.5], [74, 0.4])).at(-1)).toBe(74)
+    expect(foldSlips(run([62, 0.5], [null, 0.02], [74, 0.1])).at(-1)).toBe(74)
   })
 })
