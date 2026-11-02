@@ -26,7 +26,9 @@ export class GuSongs extends LitElement {
     .bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 8px; overflow: hidden; }
     .bar > i { display: block; height: 100%; background: var(--accent); }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-    .chip { height: 44px; padding: 0 18px; border-radius: 22px; border: 2px solid var(--other); background: transparent; font-size: 14px; font-weight: 500; }
+    .chip { height: 44px; padding: 0 18px; border-radius: 22px; border: 2px solid var(--other); background: transparent; font-size: 14px; font-weight: 500; display: inline-flex; flex-direction: column; justify-content: center; align-items: center; }
+    /* invisible bold copy keeps the width the same when the chip turns bold */
+    .chip::after { content: attr(data-label); font-weight: 700; height: 0; overflow: hidden; visibility: hidden; }
     .chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--ink); font-weight: 700; }
     .listhead { display: flex; align-items: baseline; justify-content: space-between; margin-top: 8px; }
     .legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
@@ -124,7 +126,10 @@ export class GuSongs extends LitElement {
         ${library
           .roles()
           .filter((r) => r.sings)
-          .map((r) => html`<button class="chip" aria-pressed=${this.selected.includes(r.id)} @click=${() => this.toggle(r.id)}>${r.name}</button>`)}
+          .map(
+            (r) =>
+              html`<button class="chip" data-label=${r.name} aria-pressed=${this.selected.includes(r.id)} @click=${() => this.toggle(r.id)}>${r.name}</button>`,
+          )}
       </div>
       <div class="listhead"><h2>Lied zum Üben</h2><span class="legend"><span class="dot"></span>deine Rolle singt mit</span></div>
       <ul>${library.songs().map((s) => this.song(s, names))}</ul>
