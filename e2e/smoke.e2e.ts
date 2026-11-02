@@ -66,8 +66,7 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
 
   // the sung A4 against target A4 shows up as a live reading
   await expect(page.getByText(/Ziel A\b/)).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.readout big')).toHaveText('A')
-  await expect(page.locator('.meter .mark')).toBeVisible()
+  await expect(page.getByText(/\d+ Cent · sauber/)).toBeVisible({ timeout: 15_000 })
 
   // pause just pauses; the results come on request
   await page.getByRole('button', { name: 'Pause', exact: true }).click()

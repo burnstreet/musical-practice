@@ -255,7 +255,6 @@ Feature: Stem preparation
 - Remove `.bin` files in `content/` that no longer appear in the manifest.
 - Same inputs twice: same file ids, same manifest except `build`.
 - Password: env `PITCH_PASSWORD`. Missing: exit 2 with message. Salt: `content/salt` persisted across builds; `--new-salt` regenerates (forces password re-entry on all devices).
-- `--cache <dir>` (the dev server): encoded stems and their lengths kept there, reused for the same source bytes and filter, so a repack after a note edit skips ffmpeg. Without it nothing is kept (CI).
   `[@test] ../tools/tests/steps_pack.py`
 
 ```gherkin
@@ -276,11 +275,6 @@ Feature: Packing
     Given content/ holds a file "0000000000000000.bin" not in the inputs
     When I run pack
     Then that file is gone
-
-  Scenario: stems from the cache
-    Given one complete song packed once with a cache
-    When I run pack again with the cache and without ffmpeg
-    Then every file id in the manifest is unchanged
 ```
 
 Section detection and stored sections.

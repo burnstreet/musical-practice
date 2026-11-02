@@ -148,23 +148,6 @@ def _(ctx):
     ctx["ids"] = read_manifest(ctx)["files"].keys()
 
 
-@given("one complete song packed once with a cache")
-def _(ctx):
-    make_song(ctx)
-    ctx["args"] = ["--cache", str(ctx["root"] / "cache")]
-    run(ctx)
-    ctx["ids"] = read_manifest(ctx)["files"].keys()
-
-
-@when("I run pack again with the cache and without ffmpeg")
-def _(ctx, monkeypatch):
-    def gone(*args):
-        raise AssertionError("ffmpeg ran")
-
-    monkeypatch.setattr(pack, "ffmpeg", gone)
-    run(ctx)
-
-
 @given(parsers.parse('content/ holds a file "{name}" not in the inputs'))
 def _(ctx, name):
     make_song(ctx)

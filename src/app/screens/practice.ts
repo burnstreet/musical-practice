@@ -5,7 +5,7 @@ import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
-import { draw as drawRoll, octaveVote } from '../draw/roll'
+import { draw as drawRoll } from '../draw/roll'
 import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
 import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
 
@@ -136,8 +136,7 @@ export class GuPractice extends LitElement {
     .meter { position: relative; height: 3px; margin-top: 4px; background: var(--line); }
     .meter .band { position: absolute; top: 0; bottom: 0; background: var(--accent); opacity: 0.5; }
     .meter .tick { position: absolute; left: 50%; top: -2px; width: 1px; height: 7px; background: var(--muted); }
-    .meter .dot { position: absolute; top: -3px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--text); opacity: 0.4; }
-    .meter .mark { position: absolute; top: -7px; width: 3px; height: 17px; margin-left: -1.5px; border-radius: 1.5px; background: var(--text); }
+    .meter .dot { position: absolute; top: -3px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--text); }
     .ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -4px; }
     .transport { grid-area: transport; align-self: end; display: flex; flex-direction: column; gap: 10px; }
     @media (min-width: 960px) { .transport { align-self: start; background: var(--surface); border-radius: 24px; padding: 20px 24px; } .transport .round { background: var(--bg); } }
@@ -225,11 +224,9 @@ export class GuPractice extends LitElement {
   /** The role set only raps here: spoken notes, shown and muted like singing, never scored (`rapOnly` hint). */
   rapsHere = false
   session!: Session
-  /** Pitch frames of the last 2 s (the roll's zoom hold), oldest first. */
+  /** Pitch frames of the last 1.5 s, oldest first. */
   frames: PitchFrame[] = []
-  /** Octave shift (semitones) -> frames voting for it, this song; the roll draws the sung line in the winner (the voice stays in its octave). */
-  private octaves = new Map<number, number>()
-  /** [first bar, count] of the bars the scrolling staff last showed; null before the first draw. */
+  /** [first bar, count] of the staff page last drawn; null before the first draw. */
   private page: [number, number] | null = null
   /** Redraws the canvases when the layout changes size; happy-dom may not have it. */
   private resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.requestUpdate())
@@ -275,10 +272,8 @@ export class GuPractice extends LitElement {
       names,
       t: this.heard(),
       frames: this.frames,
-      octave: [...this.octaves].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
       tolerance: s.tolerance,
       repeat: this.marks(),
-      scroll: true,
     }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
     const page = drawStaff(ctx2d('.staff canvas'), state)
@@ -298,7 +293,6 @@ export class GuPractice extends LitElement {
     const loaded = back?.song ?? (await library.getSong(this.songId))
     if (!back) await engine.load(loaded, s.roles)
     this.session = back?.session ?? new Session(loaded.song, s.roles, s.tolerance)
-    if (!back) this.octaves.clear()
     this.singsHere = this.session.myNotes().length > 0
     this.rapsHere = !this.singsHere && loaded.song.notes.some((n) => s.roles.includes(n.role))
     this.setMode(this.singsHere || this.rapsHere ? s.mode : 'all', false)
@@ -364,10 +358,8 @@ export class GuPractice extends LitElement {
   /** Frames only join the buffer; at most one redraw per animation frame (while playing the engine tick redraws). */
   private onFrame(f: PitchFrame) {
     this.session.frame(f)
-    const vote = f.midi === null ? null : octaveVote(f.midi, f.t, this.session.myNotes())
-    if (vote !== null) this.octaves.set(vote, (this.octaves.get(vote) ?? 0) + 1)
     this.frames.push(f)
-    while (this.frames[0].t < f.t - 2) this.frames.shift()
+    while (this.frames[0].t < f.t - 1.5) this.frames.shift()
     if (this.playing || this.redrawQueued) return
     this.redrawQueued = true
     this.requestFrame(() => {
@@ -508,15 +500,22 @@ export class GuPractice extends LitElement {
     if (!this.repeat) return ''
     return `${this.repeatName()} · ${clock(this.repeat.start)}–${clock(this.repeat.end)}`
   }
-  /** Big note of the last second, target label, countdown or rap text; meter dot (newest frame) and mark (the mean). */
+  /** Big note, target label, cents text and meter position. */
   private readout() {
     const s = getContext().settings.get()
     const { song } = this.loaded!
     const t = this.heard()
-    const d = liveDeviation(song, s.roles, t, this.frames)
+    const d = liveDeviation(song, s.roles, t, this.frames, s.tolerance)
     const rap = song.notes.some((n) => n.spoken && s.roles.includes(n.role) && n.start <= t && t < n.end)
-    if (!d) return { big: '–', label: '', text: rap ? 'Rap · ohne Bewertung' : entryCountdown(song, s.roles, t, this.tempo), cents: null, mean: null }
-    return { big: noteName(d.sungMidiFolded), label: `Ziel ${noteName(d.note.midi)}`, text: '', cents: d.cents, mean: d.meanCents }
+    if (!d) return { big: '–', label: '', text: rap ? 'Rap · ohne Bewertung' : entryCountdown(song, s.roles, t, this.tempo), cents: null }
+    const dir = d.cents > 0 ? 'zu hoch' : 'zu tief'
+    const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
+    return {
+      big: noteName(d.sungMidiFolded),
+      label: `Ziel ${noteName(d.note.midi)}`,
+      text: `${d.cents > 0 ? '+' : ''}${d.cents} Cent · ${word}`,
+      cents: d.cents,
+    }
   }
 
   render() {
@@ -525,7 +524,7 @@ export class GuPractice extends LitElement {
     const { library, settings, openSettings, route } = getContext()
     const s = settings.get()
     const { bars, key, bpm } = loaded.song
-    // the bars the canvas shows; before that (and without a canvas context) the regular page of the canvas width
+    // the staff page the canvas drew; before that (and without a canvas context) the regular page of the canvas width
     const per = barsPerPage(this.renderRoot.querySelector<HTMLElement>('.staff canvas')?.clientWidth ?? 0)
     const [first, count] = this.page ?? [pageOf(bars, this.heard(), per) * per, per]
     const firstBar = first + 1
@@ -577,7 +576,6 @@ export class GuPractice extends LitElement {
         <div class="band" style="left:${50 - s.tolerance / 2}%;width:${s.tolerance}%"></div>
         <div class="tick"></div>
         ${readout.cents === null ? '' : html`<div class="dot" style="left:${50 + Math.max(-100, Math.min(100, readout.cents)) / 2}%"></div>`}
-        ${readout.mean === null ? '' : html`<div class="mark" style="left:${50 + Math.max(-100, Math.min(100, readout.mean)) / 2}%"></div>`}
       </div>
       <div class="ends"><span>tief</span><span>hoch</span></div>
     </section>
