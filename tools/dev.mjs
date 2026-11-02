@@ -1,9 +1,12 @@
 // Dev server with a production's songs (`./mp.ps1 dev` in a content repo, MP_PRODUCTION = its root).
 // Code: Vite hot reload. Songs: packed with the local password "dev" into <root>/work/dev-content (git-ignored), served as
 // content/, packed again when web/data or sources/config.json change, then the page reloads (its boot syncs the library).
-// Only on localhost: the dev password guards nothing.
-import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, statSync, watch } from 'node:fs'
+// Only on localhost: the dev password guards nothing. `--lan` (a phone in the same network): listens on every address over
+// HTTPS (the mic needs a secure context) with a mkcert certificate in <root>/work/dev-cert, and packs with a random password.
+import { execFileSync, spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, statSync, watch } from 'node:fs'
+import { networkInterfaces } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { createServer } from 'vite'
 
@@ -12,8 +15,25 @@ if (!root) throw new Error('MP_PRODUCTION is not set: run ./mp.ps1 dev in the co
 const out = resolve(root, 'work/dev-content')
 const venv = resolve(process.platform === 'win32' ? 'tools/.venv/Scripts/python.exe' : 'tools/.venv/bin/python')
 const python = existsSync(venv) ? venv : 'python'
+const lan = process.argv.includes('--lan')
+const password = lan ? randomBytes(3).toString('hex') : 'dev'
+
+function lanServer() {
+  const dir = resolve(root, 'work/dev-cert')
+  const [cert, key] = [join(dir, 'cert.pem'), join(dir, 'key.pem')]
+  if (!existsSync(cert)) {
+    const ips = Object.values(networkInterfaces())
+      .flat()
+      .filter((a) => a?.family === 'IPv4' && !a.internal)
+      .map((a) => a.address)
+    mkdirSync(dir, { recursive: true })
+    execFileSync('mkcert', ['-cert-file', cert, '-key-file', key, 'localhost', ...ips], { stdio: 'inherit' })
+  }
+  return { host: true, https: { cert: readFileSync(cert), key: readFileSync(key) } }
+}
 
 const server = await createServer({
+  server: lan ? lanServer() : {},
   plugins: [
     {
       name: 'dev-content',
@@ -31,7 +51,7 @@ const server = await createServer({
 })
 await server.listen()
 server.printUrls()
-console.log('  Songs: unlock with the password "dev"')
+console.log(`  Songs: unlock with the password "${password}"`)
 
 let running = false
 let again = false
@@ -41,7 +61,7 @@ function pack() {
   const started = Date.now()
   const p = spawn(python, [resolve('tools/pack.py'), '--out', out, '--cache', resolve(root, 'work/dev-cache')], {
     cwd: root,
-    env: { ...process.env, PITCH_PASSWORD: 'dev', PYTHONUTF8: '1' },
+    env: { ...process.env, PITCH_PASSWORD: password, PYTHONUTF8: '1' },
     stdio: 'inherit',
   })
   p.on('exit', (code) => {
