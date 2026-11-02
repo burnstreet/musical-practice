@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { draw as drawRoll, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange } from '../src/app/draw/roll'
+import { describe, expect, it, vi } from 'vitest'
+import { draw as drawRoll, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
@@ -493,7 +493,7 @@ describe('piano roll', () => {
     expect(calls.filter(([k]) => k === 'roundRect')).toHaveLength(1)
     const texts = calls.filter(([k]) => k === 'fillText').map(([, a]) => a[0])
     expect(texts).toContain('rap')
-    expect(texts.length - 2).toBe(13) // row labels: 60 ± 6; with the spoken 71 it would be 24
+    expect(texts.length - 2).toBe(10) // row labels: 60 ± 2 padded to 10 rows; with the spoken 71 it would be 16
   })
   const mineAt = (start: number, midi: number, phrase: number) =>
     ({ start, end: start + 1, midi, syllable: '', role: 'maria', phrase, bar: 0, beat: start, dur: 1 }) as Note
@@ -502,15 +502,42 @@ describe('piano roll', () => {
     const song = { notes: [mineAt(1, 60, 0), mineAt(20, 72, 0), mineAt(30, 84, 1)], bars: [0], timeSig: [4, 4] } as unknown as Song
     const { ctx, calls } = recorder()
     drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 })
-    expect(labels(calls)).toBe(25) // 60…72 ± 6; phrase 1 (84) not in view
+    expect(labels(calls)).toBe(17) // 60…72 ± 2; phrase 1 (84) not in view
   })
   it('draws the sung line in the octave given for the song, not folded per note', () => {
     const song = { notes: [mineAt(1, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
-    const frames = [{ t: 1.5, at: 1.5, midi: 49, clarity: 1, rms: 0.1 }] // 18 below: folded per note it would be 73 (top row)
+    const frames = [{ t: 1.5, at: 1.5, midi: 49, clarity: 1, rms: 0.1 }] // 18 below: folded per note it would be 73
     const { ctx, calls } = recorder()
     drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 1.5, frames, tolerance: 50, octave: 12 })
     const dot = calls.find(([k]) => k === 'arc')![1]
-    expect(dot[1]).toBeCloseTo((73 - 61 + 0.5) * (178 / 13)) // row of 61, the bottom one of 61…73
+    expect(dot[1]).toBeCloseTo((73 - 61 + 0.5) * (178 / 14)) // 61 is the 2nd row from the bottom of 60…73 (zoomed out)
+  })
+  it('zooms out for 2 s after a sung pitch outside the rows', () => {
+    const song = { notes: [mineAt(3, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const frames = [{ t: 1.5, at: 1.5, midi: 61, clarity: 1, rms: 0.1 }] // under 62…71
+    const rows = (t: number) => {
+      const { ctx, calls } = recorder()
+      drawRoll(ctx, { song, roles: ['maria'], names: {}, t, frames, tolerance: 50, octave: 0 })
+      return labels(calls)
+    }
+    expect(rows(3.4)).toBe(14) // 60…73 about the same centre
+    expect(rows(3.6)).toBe(10)
+  })
+  it('eases into the zoom instead of jumping', () => {
+    const song = { notes: [mineAt(3, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const out = [{ t: 3.4, at: 3.4, midi: 61, clarity: 1, rms: 0.1 }]
+    const { ctx, calls } = recorder()
+    const now = vi.spyOn(performance, 'now')
+    const rows = (ms: number, frames: typeof out) => {
+      now.mockReturnValue(ms)
+      calls.length = 0
+      drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3.4, frames, tolerance: 50, octave: 0 })
+      return labels(calls)
+    }
+    expect(rows(0, [])).toBe(10)
+    expect(rows(16, out)).toBe(10) // one animation frame in: still close to 62…71
+    expect(rows(1000, out)).toBe(14)
+    now.mockRestore()
   })
   it('draws a bar line at each bar start in view', () => {
     // 400 px: 5.56 s window, t = 3 shows 1.33…6.89 s, so the bars at 2, 4 and 6 s
@@ -645,13 +672,22 @@ describe('roll window and lyric strip', () => {
 })
 
 describe('roll layout', () => {
-  it('spans the notes ±6 semitones, where every pitch class has its row', () => {
-    expect(rowRange([60, 72])).toEqual([54, 78])
-    expect(rowRange([67])).toEqual([61, 73])
+  it('spans my notes in view ±2 semitones', () => {
+    expect(rowRange([60, 72])).toEqual([58, 74])
   })
 
-  it('keeps 10 rows without notes', () => {
+  it('keeps at least 10 rows, centred', () => {
+    expect(rowRange([67])).toEqual([62, 71])
+    expect(rowRange([67, 69])).toEqual([63, 72])
     expect(rowRange([])).toEqual([62, 71])
+  })
+
+  it('zooms out about the centre to hold sung pitches with a semitone to spare, at most an octave either side', () => {
+    expect(zoomRange([62, 71], [])).toEqual([62, 71])
+    expect(zoomRange([62, 71], [64, 70.5])).toEqual([62, 71])
+    expect(zoomRange([62, 71], [73.2])).toEqual([58, 75])
+    expect(zoomRange([62, 71], [40])).toEqual([54, 79])
+    expect(zoomRange([40, 80], [61])).toEqual([40, 80]) // a wide phrase never shrinks
   })
 
   const n = (start: number, end: number, midi: number) => ({ start, end, midi }) as Note
