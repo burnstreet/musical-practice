@@ -33,6 +33,17 @@ def test_editor_from_engine_data_from_content_root(tmp_path, monkeypatch):
         srv.shutdown()
 
 
+def test_nothing_is_cached(tmp_path, monkeypatch):
+    # a rebuilt spectrogram or mix keeps its name; the browser must not show the old one from its cache
+    srv, _ = serve_with(tmp_path, monkeypatch)
+    base = f"http://127.0.0.1:{srv.server_port}"
+    try:
+        for path in ("/index.html", "/data/08.json"):
+            assert urllib.request.urlopen(f"{base}{path}").headers["Cache-Control"] == "no-store"
+    finally:
+        srv.shutdown()
+
+
 def test_save_writes_into_the_content_root(tmp_path, monkeypatch):
     srv, content = serve_with(tmp_path, monkeypatch)
     try:
