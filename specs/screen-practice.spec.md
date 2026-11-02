@@ -23,6 +23,9 @@ Strings:
 | legendMine | `Meine Stimme · {roleNames}` |
 | legendOthers | `Andere` |
 | target | `Ziel {note}` |
+| centsOk | `{±n} Cent · sauber` |
+| centsSlight | `{±n} Cent · leicht zu hoch` / `leicht zu tief` |
+| centsFar | `{±n} Cent · zu hoch` / `zu tief` |
 | noTarget | `–` |
 | meterEnds | `tief` (left) / `hoch` (right), under the meter |
 | repeatLabel | `Wiederholen` (heading of the selector row) |
@@ -52,11 +55,11 @@ Strings:
 
 ## Header
 
-- `sub` bar range = the bars the staff shows, also partly (`Takt {a}` for one bar; before the first draw: the `barsPerPage` page), key from song, bpm from song times tempo.
+- `sub` bar range = the staff page drawn (`Takt {a}` for a one-bar page; before the first draw: `barsPerPage` bars), key from song, bpm from song times tempo.
 - Mode button cycles all → others → backing → all. Saves to settings.
 - `results` button, left of settings: only while paused and the session has a pass. Goes to `#/results/{id}`. Never automatic: singers found the jump after every pause distracting.
 
-## Staff (canvas, scrolling)
+## Staff (canvas, 1 to 4 bars per page)
 
 - Treble clef, key signature from `song.key`, 5 lines. Accidentals only on pitches outside the key. A song whose median note lies below B3 is written an octave (or more) above its sound, with a small `8` under the clef (`octaveShift`), so low voices stay on the lines.
 - Rests: in each bar every span no visible note covers (bar start to first note, a note's written end to the next note, last end to bar end) gets rests. Gap ends snap to the sixteenth grid (gaps under 1/8 beat vanish), then split into half, quarter, eighth, sixteenth rests, each starting on a multiple of its own length from the bar start; no dotted rests. Empty bar: one whole-bar rest, centred (also in 3/4). Music font glyphs U+1D13B–U+1D13F placed by measured ink (whole hangs from the fourth line, half sits on the middle line). Faint colour of the voice that just stopped (mine first), else the one about to start; muted in an empty bar. Rests are onsets of the spacing without a syllable.
@@ -64,22 +67,21 @@ Strings:
 - Beams (`beamGroups`): eighths and shorter of one role, back to back (each starts where the previous written value ends), in the same bar and beat (quarter), share a beam instead of flags; one note alone keeps its flag. Group stems all point one way, set by the head farthest from the middle line. Beam: straight from first to last stem, slope at most 1/4, moved off the heads so the shortest stem keeps its minimum length (`beamTips`). Sixteenths get a second beam between neighbouring sixteenths, a lone one a stub towards the note before it (after it when first).
 - Hyphens: a syllable ending in `-` is drawn without it; a `-` sits centred in the gap to the next syllable of its role on the page, or just after the syllable when that one is on a later page. Spacing leaves room for it.
 - Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room. Minimum distance between onsets = head (more before an accidental) and half of each neighbour's syllable + 4 px; short notes take it from long ones.
-- Scrolling (`scroll`): the whole song is one row (`layoutStrip`, cached per song, canvas height and roles), lyric font at 12 px. Room ∝ time up to a quarter, so the row moves at one speed through sixteenths, eighths and quarters, over bar lines too (the room after a bar's last onset includes the next bar's lead); longer values get time^0.6, the row slows there. Per bar, px per quarter = the least that keeps every minimum distance (heads, syllables, hyphens), at least 35 px × drawing scale; a dense bar runs faster. Syllables are never left out and always on one row (two rows were unreadable). The playhead stands still at 25 % of the room right of clef and key; notes, rests, syllables and bar lines move past it, so the singer sees what comes instead of a page flip at the bar end. Clef, key signature and staff lines stay; the row slides away under them. Only the bars in view are drawn.
-- Pages (the editor; the player without `scroll`): the song is split once per canvas size and roles (`staffPages`, cached): each page takes up to `barsPerPage` bars (canvas width / 150 px, 2…4), fewer while its syllables do not fit on one row at 10 px, at least 1. Bar widths follow each bar's minimum width; too dense: lyric font shrinks down to 10 px. The page shown is the one holding the bar of the heard time.
-- Bar lines: solid, text colour, 1.5 px, full staff height, at every bar start after the first and at the end of the last bar drawn. Bar number (muted, 10 px) over each bar's start. Role name: scrolling, over the first note of a run and none for a run begun out of view, so names never jump while bars come and go.
+- Bar widths on a page follow each bar's minimum width. Too dense: lyric font shrinks down to 10 px. Syllables are never left out and always on one row (two rows were unreadable).
+- Pages: the song is split once per canvas size and roles (`staffPages`, cached): each page takes up to `barsPerPage` bars (canvas width / 150 px, 2…4: phone 2, sideways 3, wide 4), fewer while its syllables do not fit on one row at 10 px, at least 1. The page shown is the one holding the bar of the heard time.
+- Bar lines: solid, text colour, 1.5 px, full staff height, at every bar start on the page and at the page end. Bar number (muted, 10 px) over each bar's start, matching `sub`.
 - Notes drawn = `visibleNotes(song.notes, roles)`: one line where I sing (same for the piano roll).
 - Mine: accent colour. Others: `--other`. Syllable under each onset (mine first), mine bold at the current note. Role name above each run of same-role notes, left out where it would overprint the previous one.
 - Current note highlighted with a translucent box.
-- Playhead: dashed vertical line as in the piano roll (text colour, 1.5 px, dash 3/4) over the staff at the heard time. The row's position follows the heard time linearly from onset to onset (notes at their sung start, rests at their place in the bar; the song's first bar line before the first, its end after the last). Before the song start and after its end the row stops, its start or end at the playhead. Pages: the playhead itself moves that way over the page.
+- Playhead: dashed vertical line as in the piano roll (text colour, 1.5 px, dash 3/4) over the staff at the heard time, moving linearly from onset to onset (notes at their sung start, rests at their place in the bar; bar line at the page start, page end at the last), so the next entry can be anticipated.
 - Intro and other bars without visible notes show whole-bar rests (the song's `bars` include the intro, see content format).
 
 ## Piano roll (canvas)
 
-- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …); above 12 rows only the rows without sharp (`C`, `D`, `E` …). Range = all my sung notes of every phrase that has one of my notes in view (also the part outside the window, so the rows change only when a phrase comes or goes), ±2 semitones, min 10 rows. Without my notes in view: the sung notes in view. Zoom: while a sung-line point of the last 2 s lies outside these rows, they widen about the same centre until it fits with a semitone to spare (`zoomRange`, at most 12 semitones either side), so a far-off pitch shows for 2 s and the rows then go back. Every change of the rows (zoom, a new phrase) eases from the rows drawn last (exponential, 80 ms time constant), the first draw takes them as they are.
-- Bar lines: muted, half opacity, 1 px, over the rows (not the lyric strip) at each bar start in view, moving with the notes.
+- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …). Range follows my notes in view ±2 semitones, min 10 rows.
 - Horizontal: window `rollWindow` = canvas width / 72 px per second, 5…8 s (a wider screen shows more of what comes), playhead at 30 % width. Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`. Spoken notes: no bar, not in the row range, syllable in the lyric strip only; the sung line folds to sung notes only.
 - Heard time: staff, piano roll, page and readout show `engine.time() − pitch.delay()`, the song position the singer hears now (Android Chrome measured 760 ms on Bluetooth). Transport and seek keep the playback position.
-- Sung line: pitch frames of the last 2 s by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), shifted by one octave for the whole song, not per note (the voice keeps its octave; men sing an octave under the written notes): every voiced frame inside one of my notes votes for the whole octaves that bring it nearest that note (`octaveVote`), the shift with most votes since the song was opened wins. Before the first vote each frame folds into the octave of the nearest target note at that time. Octave slips of the detector folded back first (`foldSlips`, line and zoom): a voiced stretch splits where two frames lie more than 6 semitones apart (a voice cannot leap that in 5 ms); each piece under 0.3 s moves by whole octaves to the longest piece's octave. Pitchy's own `k` stays 0.9: higher made more octave-down slips on the vocal stems. `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
+- Sung line: pitch frames of the last 1.5 s by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), folded into the octave of the nearest target note at that time; `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
 - Lyric strip: 22 px under the rows (the playhead runs through it). One syllable per onset in view (mine first), 12 px, at its note's start, pushed right only as far as needed to keep 6 px after the previous one (`lyricXs`), so none is left out or overprinted. Mine accent, others `--other`, my sounding one bold.
 
 ## Repeat
@@ -123,9 +125,9 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 
 ## Cents readout
 
-- Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here). Mean = `liveDeviation.meanCents`, the last 1 s: the newest frame jumps too fast to read.
-- Shows the mean's note name (no octave, as everywhere) and `target`. No cent numbers in words: the meter shows the deviation. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s. While a spoken note of mine sounds: `noTarget` and `rapNow` in the text slot.
-- Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at the newest frame's cents, vertical mark at the mean, both clamped ±100 and only while a voiced frame exists.
+- Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here).
+- Shows sung note name (no octave, as everywhere), `target`, and cents text: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the cents text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s. While a spoken note of mine sounds: `noTarget` and `rapNow` in the cents text slot.
+- Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at cents clamped ±100 only while a voiced frame exists.
 - Mic indicator in the transport row: small status icon, no button styling.
 
 ## Transport
@@ -137,7 +139,7 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 - Play again after pause: `session.startPass`, engine.play.
 - The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
-- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s.
+- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). No smoothing: the newest frame is drawn on the next animation frame.
   `[@test] ../tests/steps/screen-practice.steps.ts`
 
 ```gherkin
@@ -145,9 +147,9 @@ Feature: Practice screen
   Scenario: renders header
     Given song "08" loaded with key "F", bpm 93, title placeholder
     When the screen renders at bar 5 with the staff 600 px wide
-    Then the subline reads "Takt 4–7 · F · 93 BPM"
+    Then the subline reads "Takt 5–8 · F · 93 BPM"
 
-  Scenario: a phone staff shows fewer bars
+  Scenario: phone staff pages hold 2 bars
     Given song "08" loaded with key "F", bpm 93, title placeholder
     When the screen renders at bar 5 with the staff 340 px wide
     Then the subline reads "Takt 5–6 · F · 93 BPM"
@@ -157,17 +159,13 @@ Feature: Practice screen
     When I tap the voicetrack button twice
     Then the button shows "nur Playback" and engine mode is backing
 
-  Scenario: note of the last second, no cent text
+  Scenario: cents text
     Given target D5 and a sung frame 14 cents above
-    Then the readout shows "D" and "Ziel D"
-    And the readout shows no "Cent"
-    Given 1.1 s later a sung frame 80 cents below
-    Then the readout shows "C#"
-
-  Scenario: mark shows the last second, the dot the newest frame
-    Given target D5 and a sung frame 0 cents above
-    And 0.6 s later a sung frame 40 cents above
-    Then the meter shows the dot at 40 and the mark at 20
+    Then the readout shows "D", "Ziel D" and "+14 Cent · sauber"
+    Given a sung frame 40 cents below with tolerance 50
+    Then the readout shows "-40 Cent · leicht zu tief"
+    Given a sung frame 80 cents above
+    Then the readout shows "+80 Cent · zu hoch"
 
   Scenario: countdown to my entry
     Given my next note starts at 8.0 in bars of 2 s
@@ -178,28 +176,25 @@ Feature: Practice screen
 
   Scenario: the screen shows what the singer hears, not what is being played out
     Given a delay of 0.6 s, playback at 9.7 and a frame 14 cents above D5 scored at 9.1
-    Then the readout shows "D" and "Ziel D"
-    And the meter shows the mark at 14
+    Then the readout shows "D", "Ziel D" and "+14 Cent · sauber"
 
   Scenario: pitch frames redraw once per animation frame
     Given target D5 and the screen paused
     When 5 pitch frames arrive before the next animation frame
     Then the screen has not redrawn
     When the animation frame runs
-    Then the screen redrew once
-    And the meter shows the mark at 3
+    Then the screen redrew once and the readout shows "+5 Cent · sauber"
 
   Scenario: readout and mic are passive indicators
     Given target D5 and no sung frame
-    Then the meter is labelled "tief" and "hoch" and shows no dot and no mark
+    Then the meter is labelled "tief" and "hoch" and shows no dot
     Given a sung frame 14 cents above
     Then the meter shows a dot
     And neither the readout nor the mic indicator is a control
 
   Scenario: octave folded readout
     Given target D5 and a sung frame at D4 plus 5 cents
-    Then the readout shows "D"
-    And the meter shows the mark at 5
+    Then the readout shows "D" and "+5 Cent · sauber"
 
   Scenario: pause stays on practice
     Given a pass with at least one entered note
