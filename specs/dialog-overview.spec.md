@@ -51,6 +51,7 @@ Grilling and listening test of 2026-11-02.
 - Module specs: script-format, script-parser, tts-renderer, cue-engine, voice-detect, script-editor; library and builder extended. Screen after the design.
 - Detection: energy threshold with hysteresis on the pitch engine's `rms` frames (voice-detect). Same mic, no second capture. Silero VAD only if this fails on devices.
 - TTS: XTTS-v2 (`coqui-tts`), built-in speakers, `split_sentences=False`, local GPU, chunks of at most 250 characters with no tiny chunk. Piper, Chatterbox and Kokoro lost the listening test (Piper: quality; Chatterbox: garbage in some outputs, slower; Kokoro: no official German). Cloud TTS not needed: cost would be trivial, quality of XTTS sufficient.
+- Renderer in its own venv `tools/.venv-tts` (`mp.ps1 setup -Tts`), so CI's tools venv never pulls torch. The editor server talks to a long-lived worker in that venv.
 - Rendering only local. MP3 mono 64 kbps in the production repo under `web/data/script/<hash>.mp3`; the hash covers spoken text and voice, so render is idempotent without a manifest. CI never renders. ADR 0008.
 - Roles: one global list for songs and script, flags `sings` and `speaks`; one role selection for both modes. Narrators are roles (`erzaehler1`, `erzaehler2`). DOCX speaker names map through `name` and `aliases`. Voice per role in the config.
 - Script source: `web/data/script.json`, written once by the parser, then edited in the editor's `Skript` view. Pronunciation via `say` per line.
@@ -95,7 +96,6 @@ Run on iOS Safari (installed PWA) and Android Chrome:
 
 ## Open points
 
-- Python environment for the renderer: `coqui-tts` with CUDA torch is heavy and may conflict with the tools venv pins. To decide before implementation: tools venv extra vs. own venv managed by `mp.ps1`.
 - Production repo: add `speaks`, `aliases`, `voice` to `sources/config.json`, add roles `erzaehler1`, `erzaehler2`, `roemer`.
 
 ## Out of Scope
