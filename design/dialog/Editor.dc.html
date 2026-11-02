@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Admin-Editor Skript</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="min-height:1040px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:20px clamp(16px, 2.5vw, 32px) 32px;display:flex;flex-direction:column;gap:18px">
+
+<header style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#CFE0F5">Inhalt
+<select style="height:44px;min-width:200px;border-radius:12px;border:0;background:#17498C;color:#FFFFFF;font-size:15px;font-weight:700;padding:0 12px"><option>Lied 1 · [Liedtitel]</option><option selected>Skript</option></select></label>
+<div><div style="font-family:'Fraunces',serif;font-size:24px;font-weight:600">Editor · Skript</div><div style="font-size:14px;color:#CFE0F5;margin-top:2px">8 Szenen · 373 Einträge · 10 Sprechrollen · <strong style="color:#FFD166">4 ohne Ton</strong></div></div>
+</div>
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+<span style="font-size:14px;color:#CFE0F5">Ungespeichert: 2 Einträge</span>
+<button style="height:44px;padding:0 24px;border-radius:22px;background:#C8E05A;border:0;color:#0F2F57;font-size:15px;font-weight:700">Speichern</button>
+</div>
+</header>
+
+<div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;background:#17498C;border-radius:18px;padding:12px 16px">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#CFE0F5">Rolle
+<select style="height:40px;min-width:180px;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:14px;padding:0 10px"><option>Alle Rollen</option><option>Anna</option><option>Mutter</option></select></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#CFE0F5">Szene
+<select style="height:40px;min-width:180px;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:14px;padding:0 10px"><option>Szene 4 · [Szenentitel]</option></select></label>
+<label style="display:flex;align-items:center;gap:8px;height:40px;font-size:14px"><input type="checkbox" style="width:20px;height:20px;accent-color:#C8E05A">nur ohne Ton</label>
+<span style="margin-left:auto;font-size:12px;color:#CFE0F5">Stimmen und Rollen: sources/config.json</span>
+</div>
+
+<section aria-label="Szene 4" style="display:flex;flex-direction:column;gap:8px">
+<h2 style="margin:6px 0 4px;font-family:'Fraunces',serif;font-size:20px;font-weight:600">Szene 4 · [Szenentitel]</h2>
+
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+
+<sc-if value="{{r.isLine}}" hint-placeholder-val="{{true}}">
+<div style="display:grid;grid-template-columns:120px minmax(0, 1fr) minmax(0, 0.7fr) auto;gap:10px;align-items:start;background:{{r.bg}};border:2px solid {{r.border}};border-radius:14px;padding:10px 12px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span style="align-self:flex-start;height:28px;padding:0 12px;border-radius:14px;background:{{r.color}};color:#0F2F57;font-size:13px;font-weight:700;display:flex;align-items:center">{{r.role}}</span>
+<span style="font-size:11px;color:#CFE0F5">{{r.id}}</span>
+</div>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#CFE0F5">Text
+<textarea rows="2" style="resize:vertical;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:15px;line-height:1.4;padding:8px 10px">{{r.text}}</textarea></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#CFE0F5">Aussprache (say)
+<input value="{{r.say}}" placeholder="wie Text" style="height:38px;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:14px;padding:0 10px"></label>
+<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+<div style="display:flex;gap:6px">
+<button aria-label="Abspielen" style="width:40px;height:40px;border-radius:20px;border:0;background:#1F5FAB;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></button>
+<button style="height:40px;padding:0 14px;border-radius:20px;border:0;background:#FFFFFF;color:#0F2F57;font-size:13px;font-weight:700">{{r.render}}</button>
+</div>
+<span style="font-size:12px;font-weight:700;color:{{r.statusColor}}">{{r.status}}</span>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{r.isDirection}}" hint-placeholder-val="{{false}}">
+<div style="display:grid;grid-template-columns:120px minmax(0, 1fr) auto;gap:10px;align-items:center;border:1px dashed #3F78BF;border-radius:14px;padding:8px 12px">
+<span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#CFE0F5">Regie</span>
+<input value="{{r.text}}" aria-label="Regieanweisung" style="height:38px;border-radius:10px;border:0;background:#17498C;color:#FFFFFF;font-size:14px;font-style:italic;padding:0 10px">
+<span style="font-size:11px;color:#CFE0F5">{{r.id}}</span>
+</div>
+</sc-if>
+
+<sc-if value="{{r.isSong}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;align-items:center;gap:12px;background:#0F2F57;border-radius:14px;padding:10px 12px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8E05A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+<span style="flex:1;font-size:14px;font-weight:700">{{r.text}}</span>
+<span style="font-size:11px;color:#CFE0F5">{{r.id}}</span>
+</div>
+</sc-if>
+
+</sc-for>
+</section>
+
+<div style="position:relative;align-self:flex-start;background:#FFFFFF;color:#0F2F57;border-radius:16px;padding:8px;display:flex;gap:4px;flex-wrap:wrap;box-shadow:0 8px 24px rgba(8,30,60,0.3)">
+<span style="font-size:12px;color:#3D5B80;padding:10px 8px 0">Eintrag „k3f9“:</span>
+<button style="height:40px;padding:0 12px;border-radius:10px;border:0;background:#EEF3FA;color:#0F2F57;font-size:13px;font-weight:700">Am Cursor teilen</button>
+<button style="height:40px;padding:0 12px;border-radius:10px;border:0;background:#EEF3FA;color:#0F2F57;font-size:13px;font-weight:700">Mit nächstem zusammenführen</button>
+<button style="height:40px;padding:0 12px;border-radius:10px;border:0;background:#EEF3FA;color:#0F2F57;font-size:13px;font-weight:700">Zur Regie machen</button>
+<button style="height:40px;padding:0 12px;border-radius:10px;border:0;background:#EEF3FA;color:#0F2F57;font-size:13px;font-weight:700">Darunter einfügen</button>
+<button style="height:40px;padding:0 12px;border-radius:10px;border:0;background:#FDECEA;color:#9B1C14;font-size:13px;font-weight:700">Löschen</button>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1040}}'>
+class Component extends DCLogic {
+renderVals() {
+const colors = { Anna: '#C8E05A', Mutter: '#FFD166', 'Erzähler 2': '#F4B6C2', Benjamin: '#A9D3F7' };
+const line = (id, role, text, say, state) => ({
+  id, role, text, say, isLine: true, isDirection: false, isSong: false, color: colors[role],
+  bg: state === 'selected' ? '#17498C' : '#17498C', border: state === 'selected' ? '#FFFFFF' : 'transparent',
+  render: state === 'loading' ? 'lädt …' : 'Neu sprechen',
+  status: state === 'missing' ? 'ohne Ton' : state === 'loading' ? 'wird gesprochen' : 'Ton ok',
+  statusColor: state === 'missing' ? '#FFD166' : '#CFE0F5',
+});
+const rows = [
+  line('p0x2', 'Erzähler 2', 'Auf dem Platz roch es nach gebrannten Mandeln, und überall leuchteten Lichterketten.', '', 'ok'),
+  { id: 'd7a1', text: 'Mutter setzt sich auf die Bank.', isLine: false, isDirection: true, isSong: false },
+  line('k3f9', 'Anna', 'Ich hab den Bus verpasst. Tut mir leid!', '', 'selected'),
+  line('m2q8', 'Mutter', 'Macht nichts. Komm, wir suchen zusammen noch ein Geschenk für Oma.', '', 'missing'),
+  line('z5c0', 'Benjamin', 'Hallo Anna! Kennst du schon Jo vom Krippenspiel?', 'Hallo Anna! Kennst du schon Joh vom Krippenspiel?', 'loading'),
+  line('r8t4', 'Anna', 'Oma mag doch Schneekugeln. Da drüben am Stand gibt es welche!', '', 'ok'),
+  { id: 'g1s4', text: 'Lied 4 · [Liedtitel]', isLine: false, isDirection: false, isSong: true },
+];
+return { rows };
+}
+}
+</script>
+</body>
+</html>
