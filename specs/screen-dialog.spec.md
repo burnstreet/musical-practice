@@ -183,4 +183,4 @@ Feature: Text settings
 
 ## Admin script view
 
-Artboard "Admin-Editor · Skript". Behaviour in script-editor.spec.md. Layout: content picker with `Skript`, filter bar (role, scene, `nur ohne Ton`), rows per scene (role chip, text, `say`, ▶, `Neu sprechen`, status), action bar for the selected item (`Am Cursor teilen`, `Mit nächstem zusammenführen`, `Zur Regie machen`, `Darunter einfügen`, `Löschen`).
+Artboard "Admin-Editor · Skript". Behaviour in script-editor.spec.md. Layout: content picker with `Skript`, filter bar (role, scene, `nur ohne Ton`), rows per scene (role chip, text, `say`, ▶, `Neu sprechen`, status), action bar for the selected item (`Am Cursor teilen`, `Mit nächstem zusammenführen`, `Markierung zur Regie`, `Zur Regie machen`, `Darunter einfügen`, `Löschen`).

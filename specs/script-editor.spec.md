@@ -18,6 +18,8 @@ Part of the editor (`./mp.ps1 serve`, `web/`). Same page, same server. Edits go 
 - Role filter: show only lines of one role plus their neighbours.
 - Audio status per line: `ohne Ton` when the line has no audio for its current hash. The editor asks the server (`POST /script-status` with the script, answer `{ missing: [itemId] }`) after load, after save and after each render. Never hashes in JS.
 - Buttons per line: `▶` plays its audio (`/data/script/<hash>.mp3`, the hash from the status answer); `Neu sprechen` posts the line (`POST /render-line` with `{ item }`), the server renders it with `render_line` and its role's voice, answers `{ hash }`; the editor plays it. Rendering a line does not save the script.
+- Inline directions (`[…]`, script-format) are edited as plain text in the text field. A line with inline directions shows its spoken text as the `say` field's placeholder (`spricht: …`). Action `Markierung zur Regie` puts the selected part of a line's text in brackets.
+- Text fields grow with their text: long lines show in full.
 - First `Neu sprechen` of a server process loads the model: the button shows `lädt …` until the answer.
 - Drawing and server routes are not unit-tested; the ops are.
 
