@@ -861,6 +861,7 @@ import * as ops from './script-ops.js'
     hashes = {},
     scriptSel = null, // id of the selected item
     cursor = 0, // caret offset in the selected item's text field
+    cursorEnd = 0, // end of its text selection
     rendering = new Set(),
     statusSeq = 0
   const scriptPlayer = new Audio()
@@ -959,7 +960,7 @@ import * as ops from './script-ops.js'
     row.onclick = () => {
       if (scriptSel === it.id) return
       scriptSel = it.id
-      cursor = 0
+      cursor = cursorEnd = 0
       showScript()
     }
     const idTag = el('span', { className: 'sid', textContent: it.id })
@@ -974,8 +975,14 @@ import * as ops from './script-ops.js'
     }
     const text = el('textarea', { rows: it.type === 'line' ? 2 : 1, value: it.text, ariaLabel: it.type === 'line' ? 'Text' : 'Regieanweisung' })
     const track = () => {
-      scriptSel = it.id
+      if (scriptSel !== it.id) {
+        scriptSel = it.id // no re-render: it would take the focus
+        for (const r of document.querySelectorAll('.srow.picked')) r.classList.remove('picked')
+        row.classList.add('picked')
+        showActions()
+      }
       cursor = text.selectionStart
+      cursorEnd = text.selectionEnd
     }
     // grows with its text, so long lines show in full
     const fit = () => {
@@ -997,7 +1004,13 @@ import * as ops from './script-ops.js'
     chip.value = it.role
     chip.style.background = scriptColor(it.role)
     chip.onchange = () => scriptEdit((s) => ops.setRole(s, it.id, chip.value))
-    const say = el('input', { value: it.say || '', placeholder: 'wie Text', ariaLabel: 'Aussprache (say)' })
+    // with inline directions [..] the placeholder shows what is spoken
+    const spoken = it.text
+      .replace(/\[[^\]]*\]/g, ' ')
+      .split(/\s+/)
+      .join(' ')
+      .trim()
+    const say = el('input', { value: it.say || '', placeholder: spoken === it.text ? 'wie Text' : `spricht: ${spoken}`, ariaLabel: 'Aussprache (say)' })
     say.onchange = () => scriptEdit((s) => ops.setSay(s, it.id, say.value.trim()))
     const play = el('button', { textContent: '▶', ariaLabel: 'Abspielen', disabled: missing.has(it.id) || !hashes[it.id] })
     play.onclick = (e) => {
@@ -1044,6 +1057,9 @@ import * as ops from './script-ops.js'
       return [h, ...sc.items.filter((x) => show.has(x.id)).map(scriptRow)]
     })
     $('scriptList').replaceChildren(...parts)
+    showActions()
+  }
+  function showActions() {
     const sel = scriptSel && findItem(scriptSel)
     $('scriptActions').hidden = !sel
     if (sel) {
@@ -1086,6 +1102,12 @@ import * as ops from './script-ops.js'
       )
     })
     act('scriptMerge', (id) => scriptEdit((s) => ops.merge(s, id)))
+    act('scriptInline', (id, it) => {
+      const [a, b] = [Math.min(cursor, cursorEnd), Math.max(cursor, cursorEnd)]
+      const part = it.text.slice(a, b).trim()
+      if (it.type !== 'line' || !part) return scriptMsg('Erst im Text einer Zeile die Regie markieren.')
+      scriptEdit((s) => ops.setText(s, id, `${it.text.slice(0, a)}[${part}]${it.text.slice(b)}`))
+    })
     act('scriptType', (id, it) => {
       const role = $('scriptRole').value || speakers()[0]?.id
       scriptEdit((s) => (it.type === 'direction' ? ops.setType(s, id, 'line', role) : ops.setType(s, id, 'direction')))
