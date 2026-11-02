@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { draw as drawRoll, foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
+import { draw as drawRoll, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
@@ -493,7 +493,24 @@ describe('piano roll', () => {
     expect(calls.filter(([k]) => k === 'roundRect')).toHaveLength(1)
     const texts = calls.filter(([k]) => k === 'fillText').map(([, a]) => a[0])
     expect(texts).toContain('rap')
-    expect(texts.length - 2).toBe(10) // row labels: 60 ± 2 padded to 10 rows; with the spoken 71 it would be 16
+    expect(texts.length - 2).toBe(13) // row labels: 60 ± 6; with the spoken 71 it would be 24
+  })
+  const mineAt = (start: number, midi: number, phrase: number) =>
+    ({ start, end: start + 1, midi, syllable: '', role: 'maria', phrase, bar: 0, beat: start, dur: 1 }) as Note
+  const labels = (calls: [string, unknown[]][]) => calls.filter(([k]) => k === 'fillText').length
+  it('spans every note of my phrases in view, also those still outside the window', () => {
+    const song = { notes: [mineAt(1, 60, 0), mineAt(20, 72, 0), mineAt(30, 84, 1)], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 })
+    expect(labels(calls)).toBe(25) // 60…72 ± 6; phrase 1 (84) not in view
+  })
+  it('draws the sung line in the octave given for the song, not folded per note', () => {
+    const song = { notes: [mineAt(1, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const frames = [{ t: 1.5, at: 1.5, midi: 49, clarity: 1, rms: 0.1 }] // 18 below: folded per note it would be 73 (top row)
+    const { ctx, calls } = recorder()
+    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 1.5, frames, tolerance: 50, octave: 12 })
+    const dot = calls.find(([k]) => k === 'arc')![1]
+    expect(dot[1]).toBeCloseTo((73 - 61 + 0.5) * (178 / 13)) // row of 61, the bottom one of 61…73
   })
   it('draws a bar line at each bar start in view', () => {
     // 400 px: 5.56 s window, t = 3 shows 1.33…6.89 s, so the bars at 2, 4 and 6 s
@@ -628,18 +645,25 @@ describe('roll window and lyric strip', () => {
 })
 
 describe('roll layout', () => {
-  it('spans my notes in view ±2 semitones', () => {
-    expect(rowRange([60, 72])).toEqual([58, 74])
+  it('spans the notes ±6 semitones, where every pitch class has its row', () => {
+    expect(rowRange([60, 72])).toEqual([54, 78])
+    expect(rowRange([67])).toEqual([61, 73])
   })
 
-  it('keeps at least 10 rows, centred', () => {
-    expect(rowRange([67])).toEqual([62, 71])
-    expect(rowRange([67, 69])).toEqual([63, 72])
-    expect(rowRange([])).toHaveLength(2)
+  it('keeps 10 rows without notes', () => {
+    expect(rowRange([])).toEqual([62, 71])
   })
 
   const n = (start: number, end: number, midi: number) => ({ start, end, midi }) as Note
   const mine = [n(1, 2, 62), n(3, 4, 70)]
+
+  it('votes for the octave that puts a sung pitch with my sounding note', () => {
+    expect(octaveVote(50.3, 1.5, mine)).toBe(12)
+    expect(octaveVote(74, 1.5, mine)).toBe(-12)
+    expect(octaveVote(63, 1.5, mine)).toBe(0)
+    expect(octaveVote(58, 3.5, mine)).toBe(12)
+    expect(octaveVote(58, 2.5, mine)).toBeNull() // between notes: no vote
+  })
 
   it('folds a sung pitch into the octave of the target at that time', () => {
     expect(foldToTargetOctave(50.3, 1.5, mine)).toBeCloseTo(62.3)

@@ -271,7 +271,7 @@ export default steps(({ Given, When, Then }) => {
   // Readout: playhead inside Maria's D5 (8–9.5 s)
   Given(/^target D5 and a sung frame (?:(\d+) cents above|at D4 plus (\d+) cents)$/, async (ctx, above, d4) => {
     await screen(ctx)
-    await tick(ctx, 8.5)
+    await tick(ctx, 8.2) // early, so two frames 0.6 s later still sound in the note
     await frame(ctx, { midi: above ? 74 + +above / 100 : 62 + +d4 / 100 })
   })
   Given(/^a delay of ([\d.]+) s, playback at ([\d.]+) and a frame (\d+) cents above D5 scored at ([\d.]+)$/, async (ctx, delay, at, n, t) => {
@@ -306,8 +306,9 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.renders).toBe(1)
     expect(text(ctx.el)).toContain(s)
   })
-  Given(/^a sung frame (\d+) cents (above|below)(?: with tolerance (\d+))?$/, async (ctx, n, dir, tol) => {
+  Given(/^(?:([\d.]+) s later )?a sung frame (\d+) cents (above|below)(?: with tolerance (\d+))?$/, async (ctx, later, n, dir, tol) => {
     if (tol) settings.set({ tolerance: +tol as any })
+    if (later) await tick(ctx, ctx.time + +later)
     await frame(ctx, { midi: 74 + ((dir === 'above' ? 1 : -1) * +n) / 100 })
   })
   Given(/^target D5 and no sung frame$/, async (ctx) => {
@@ -315,12 +316,18 @@ export default steps(({ Given, When, Then }) => {
     await tick(ctx, 8.5)
   })
   const meter = (ctx: any) => ctx.el.shadowRoot!.querySelector('.meter')!.parentElement as HTMLElement
-  Then(/^the meter is labelled "(\w+)" and "(\w+)" and shows no dot$/, (ctx, lo, hi) => {
+  Then(/^the meter is labelled "(\w+)" and "(\w+)" and shows no dot and no mark$/, (ctx, lo, hi) => {
     expect(meter(ctx).textContent).toContain(lo)
     expect(meter(ctx).textContent).toContain(hi)
     expect(meter(ctx).querySelector('.dot')).toBeNull()
+    expect(meter(ctx).querySelector('.mark')).toBeNull()
   })
   Then(/^the meter shows a dot$/, (ctx) => expect(meter(ctx).querySelector('.dot')).not.toBeNull())
+  // meter spans ±100 cents over 0–100 %
+  Then(/^the meter shows the dot at (-?\d+) and the mark at (-?\d+)$/, (ctx, dot, mark) => {
+    expect(meter(ctx).querySelector<HTMLElement>('.dot')!.style.left).toBe(`${50 + +dot / 2}%`)
+    expect(meter(ctx).querySelector<HTMLElement>('.mark')!.style.left).toBe(`${50 + +mark / 2}%`)
+  })
   Then(/^neither the readout nor the mic indicator is a control$/, (ctx) => {
     const mic = byLabel(ctx.el, 'Mikrofon aktiv')!
     expect(mic.getAttribute('role')).toBe('img')

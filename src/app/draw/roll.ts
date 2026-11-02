@@ -7,9 +7,10 @@ const BEHIND_SHARE = 0.3
 const MIN_ROWS = 10
 /** Lyric strip under the rows, px. */
 const LYRICS = 22
-const MARGIN = 2
+/** A sung pitch lands up to a tritone from its note, so every pitch class gets a row. */
+const MARGIN = 6
 
-/** Inclusive midi range of the rows: notes ±2 semitones, padded to at least 10 rows (G4 area when empty). */
+/** Inclusive midi range of the rows: notes ±6 semitones, padded to at least 10 rows (G4 area when empty). */
 export function rowRange(midis: number[]): [number, number] {
   let lo = midis.length ? Math.min(...midis) - MARGIN : 67
   let hi = midis.length ? Math.max(...midis) + MARGIN : 67
@@ -23,6 +24,12 @@ export function foldToTargetOctave(midi: number, t: number, mine: Note[]): numbe
   const gap = (n: Note) => Math.max(n.start - t, t - n.end, 0)
   const target = mine.reduce<Note | null>((a, n) => (!a || gap(n) < gap(a) ? n : a), null)
   return target ? target.midi + foldCents(midi, target.midi) / 100 : midi
+}
+
+/** Semitones (whole octaves) that put a sung pitch into the octave of my note sounding at `t`; null between notes. */
+export function octaveVote(midi: number, t: number, mine: Note[]): number | null {
+  const n = mine.find((n) => n.start <= t && t <= n.end)
+  return n ? 12 * Math.round((n.midi - midi) / 12) + 0 : null // + 0: no -0
 }
 
 /** Seconds the roll shows at a canvas width: 72 px per second, 5…8 s (a wider screen shows more of what comes). */
@@ -54,7 +61,10 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const inView = notes.filter((n) => n.end > t0 && n.start < t1)
   const sungInView = inView.filter((n) => !n.spoken) // a spoken note has no pitch: no bar, no row, only its syllable
   const mineInView = sungInView.filter((n) => roles.includes(n.role))
-  const [lo, hi] = rowRange((mineInView.length ? mineInView : sungInView).map((n) => n.midi))
+  // whole phrases, so the rows change only when a phrase comes or goes
+  const phrases = new Set(mineInView.map((n) => n.phrase))
+  const myPhrases = notes.filter((n) => roles.includes(n.role) && !n.spoken && phrases.has(n.phrase))
+  const [lo, hi] = rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi))
   const rowH = h / (hi - lo + 1)
   const y = (midi: number) => (hi - midi + 0.5) * rowH // centre of the row
 
@@ -175,7 +185,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
 
   // Sung line: dark outline under a 4 px white line, null frames break it
   const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
+  const { octave } = state
+  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(octave == null ? foldToTargetOctave(f.midi, f.t, mine) : f.midi + octave)]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
     [COLORS.surface, 8],
