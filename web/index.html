@@ -12,6 +12,28 @@
     <h1>Piano Roll</h1>
     <label>Song <select id="songSel"></select></label>
   </header>
+  <section id="scriptView" hidden>
+    <div class="shead">
+      <div><h2 id="scriptTitle">Editor · Skript</h2><div id="scriptInfo"></div></div>
+      <span id="scriptDirty"></span>
+      <button id="scriptSave" class="primary">Speichern</button>
+    </div>
+    <div class="sfilter">
+      <label>Rolle <select id="scriptRole"></select></label>
+      <label>Szene <select id="scriptScene"></select></label>
+      <label class="chk"><input type="checkbox" id="scriptMissing"> nur ohne Ton</label>
+      <span class="hint">Stimmen und Rollen: sources/config.json</span>
+    </div>
+    <div id="scriptList"></div>
+    <div id="scriptActions" hidden>
+      <span id="scriptSelLbl"></span>
+      <button id="scriptSplit">Am Cursor teilen</button>
+      <button id="scriptMerge">Mit nächstem zusammenführen</button>
+      <button id="scriptType">Zur Regie machen</button>
+      <button id="scriptAdd">Darunter einfügen</button>
+      <button id="scriptDel" class="danger">Löschen</button>
+    </div>
+  </section>
   <audio id="audio" controls preload="auto"></audio>
   <div id="stems" hidden></div>
   <div class="toolbar">
