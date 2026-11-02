@@ -55,6 +55,12 @@ export class GuRoles extends LitElement {
     this.open = false
   }
 
+  connectedCallback() {
+    super.connectedCallback()
+    // roles arrive with the library file, after the first unlock
+    getContext().library.onProgress(() => this.isConnected && this.requestUpdate())
+  }
+
   private toggle(id: RoleId) {
     this.selected = this.selected.includes(id) ? this.selected.filter((r) => r !== id) : [...this.selected, id]
     getContext().settings.set({ roles: this.selected })
@@ -101,6 +107,11 @@ export class GuModeTabs extends LitElement {
   constructor() {
     super()
     this.active = 'songs'
+  }
+
+  connectedCallback() {
+    super.connectedCallback()
+    getContext().library.onProgress(() => this.isConnected && this.requestUpdate())
   }
 
   private pick(tab: 'songs' | 'text') {
