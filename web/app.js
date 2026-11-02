@@ -977,6 +977,13 @@ import * as ops from './script-ops.js'
       scriptSel = it.id
       cursor = text.selectionStart
     }
+    // grows with its text, so long lines show in full
+    const fit = () => {
+      text.style.height = 'auto'
+      text.style.height = `${text.scrollHeight}px`
+    }
+    requestAnimationFrame(fit) // after the row is in the page
+    text.addEventListener('input', fit)
     for (const ev of ['keyup', 'mouseup', 'input', 'focus']) text.addEventListener(ev, track)
     text.onchange = () => text.value !== it.text && scriptEdit((s) => ops.setText(s, it.id, text.value))
     if (it.type === 'direction') {
