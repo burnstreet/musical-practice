@@ -6,7 +6,7 @@ def test_pytest_bdd_parses_every_feature():
     counts = {p.stem: len(FeatureParser(str(FEATURES_DIR), p.name).parse().scenarios) for p in FEATURES_DIR.glob("*.feature")}
     assert counts == {
         "completeness": 2,
-        "packing": 4,
+        "packing": 3,
         "phrase-derivation": 3,
         "section-detection": 7,
         "stem-preparation": 2,

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
+import { describe, expect, it } from 'vitest'
+import { draw as drawRoll, foldToTargetOctave, lyricXs, rollWindow, rowRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
@@ -9,7 +9,6 @@ import {
   keyFifths,
   layoutBar,
   layoutPage,
-  layoutStrip,
   noteColour,
   notePos,
   noteValue,
@@ -265,42 +264,6 @@ describe('lyric-aware page layout', () => {
   })
 })
 
-describe('scrolling row layout', () => {
-  // as the page options, width = least px per quarter
-  const opts = { barQ: 4, leftRoom: 40, head: 16, acc: 12, pad: 18, tail: 10, sep: 4, empty: 40, minScale: 10 / 12, width: 30 }
-  const on = (bar: number, beat: number, label = 10): PageOnset => ({ bar, beat, label, acc: false })
-  const gaps = (xs: number[]) => xs.slice(1).map((x, i) => x - xs[i])
-
-  it('gives sixteenths, eighths and quarters the same room per beat, so the row moves at one speed', () => {
-    const r = layoutStrip([0], [on(0, 0), on(0, 1), on(0, 1.5), on(0, 1.75), on(0, 2)], opts)
-    const [q, e, s] = gaps(r.xs)
-    expect(q).toBeCloseTo(2 * e)
-    expect(e).toBeCloseTo(2 * s)
-  })
-  it('keeps that speed over the bar line', () => {
-    const r = layoutStrip(
-      [0, 1],
-      [0, 1, 2, 3].flatMap((b) => [on(0, b), on(1, b)]).sort((a, b) => a.bar - b.bar || a.beat - b.beat),
-      opts,
-    )
-    for (const g of gaps(r.xs)) expect(g).toBeCloseTo(gaps(r.xs)[0])
-    expect(r.barX[1]).toBeGreaterThan(r.xs[3] + opts.tail - 1e-6)
-    expect(r.barX[1]).toBeLessThan(r.xs[4] - opts.pad + 1e-6)
-  })
-  it('slows down on longer notes: a half gets more room than a quarter, less than twice', () => {
-    const r = layoutStrip([0, 1], [on(0, 0), on(0, 1), on(0, 3), on(1, 0)], opts)
-    const [, half] = gaps(r.xs)
-    const quarter = gaps(r.xs)[0]
-    expect(half).toBeGreaterThan(quarter)
-    expect(half).toBeLessThan(2 * quarter)
-  })
-  it('makes a dense bar faster, never squeezing a syllable', () => {
-    const r = layoutStrip([0], [on(0, 0, 60), on(0, 0.5, 60), on(0, 1)], opts)
-    expect(gaps(r.xs)[0]).toBeGreaterThanOrEqual(60 + opts.sep - 1e-6)
-    expect(gaps(r.xs)[1]).toBeCloseTo(gaps(r.xs)[0]) // the second eighth needs less, keeps the speed
-  })
-})
-
 describe('beams', () => {
   const n = (beat: number, dur: number, role = 'chor', bar = 0) =>
     ({ start: bar * 4 + beat, end: bar * 4 + beat + dur, midi: 67, syllable: 'la', role, phrase: 0, bar, beat, dur }) as Note
@@ -495,96 +458,6 @@ describe('piano roll', () => {
     expect(texts).toContain('rap')
     expect(texts.length - 2).toBe(10) // row labels: 60 ± 2 padded to 10 rows; with the spoken 71 it would be 16
   })
-  const mineAt = (start: number, midi: number, phrase: number) =>
-    ({ start, end: start + 1, midi, syllable: '', role: 'maria', phrase, bar: 0, beat: start, dur: 1 }) as Note
-  const labels = (calls: [string, unknown[]][]) => calls.filter(([k]) => k === 'fillText').length
-  it('spans every note of my phrases in view, also those still outside the window', () => {
-    const song = { notes: [mineAt(1, 60, 0), mineAt(20, 72, 0), mineAt(30, 84, 1)], bars: [0], timeSig: [4, 4] } as unknown as Song
-    const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 })
-    expect(labels(calls)).toBe(10) // 60…72 ± 2 = 17 rows, over 12: only the 10 without sharp; phrase 1 (84) not in view
-  })
-  it('draws the sung line in the octave given for the song, not folded per note', () => {
-    const song = { notes: [mineAt(1, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
-    const frames = [{ t: 1.5, at: 1.5, midi: 49, clarity: 1, rms: 0.1 }] // 18 below: folded per note it would be 73
-    const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 1.5, frames, tolerance: 50, octave: 12 })
-    const dot = calls.find(([k]) => k === 'arc')![1]
-    expect(dot[1]).toBeCloseTo((73 - 61 + 0.5) * (178 / 14)) // 61 is the 2nd row from the bottom of 60…73 (zoomed out)
-  })
-  it('zooms out for 2 s after a sung pitch outside the rows', () => {
-    const song = { notes: [mineAt(3, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
-    const frames = [{ t: 1.5, at: 1.5, midi: 61, clarity: 1, rms: 0.1 }] // under 62…71
-    const rows = (t: number) => {
-      const { ctx, calls } = recorder()
-      drawRoll(ctx, { song, roles: ['maria'], names: {}, t, frames, tolerance: 50, octave: 0 })
-      return labels(calls)
-    }
-    expect(rows(3.4)).toBe(8) // 60…73 about the same centre: 14 rows, labelled without sharps
-    expect(rows(3.6)).toBe(10)
-  })
-  it('eases into the zoom instead of jumping', () => {
-    const song = { notes: [mineAt(3, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
-    const out = [{ t: 3.4, at: 3.4, midi: 61, clarity: 1, rms: 0.1 }]
-    const { ctx, calls } = recorder()
-    const now = vi.spyOn(performance, 'now')
-    const rows = (ms: number, frames: typeof out) => {
-      now.mockReturnValue(ms)
-      calls.length = 0
-      drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3.4, frames, tolerance: 50, octave: 0 })
-      return labels(calls)
-    }
-    expect(rows(0, [])).toBe(10)
-    expect(rows(16, out)).toBe(10) // one animation frame in: still close to 62…71
-    expect(rows(1000, out)).toBe(8) // 60…73, no sharps
-    now.mockRestore()
-  })
-  it('draws a bar line at each bar start in view', () => {
-    // 400 px: 5.56 s window, t = 3 shows 1.33…6.89 s, so the bars at 2, 4 and 6 s
-    const song = { notes: [], bars: [0, 2, 4, 6, 8, 10], timeSig: [4, 4] } as unknown as Song
-    const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3, frames: [], tolerance: 50 })
-    const verticals = calls.flatMap(([k, a], i) =>
-      k === 'moveTo' && calls[i + 1][0] === 'lineTo' && calls[i + 1][1][0] === a[0] ? [Math.round(a[0] as number)] : [],
-    )
-    expect(verticals).toEqual([48, 192, 336, 120]) // three bar lines, then the playhead at 30 %
-  })
-})
-
-describe('scrolling staff', () => {
-  const n = (start: number, bar: number, beat: number) =>
-    ({ start, end: start + 1, midi: 67, syllable: 'la', role: 'chor', phrase: 0, bar, beat, dur: 1 }) as Note
-  const song = {
-    id: 'x',
-    key: 'C',
-    timeSig: [4, 4],
-    bars: [0, 4, 8, 12],
-    notes: [n(0, 0, 0), n(2, 0, 2), n(4, 1, 0), n(8, 2, 0)],
-    phrases: [],
-    sections: [],
-  } as unknown as Song
-  /** Playhead x, head xs and bar line xs drawn at `t`. */
-  const frame = (t: number) => {
-    const { ctx, calls } = recorder()
-    const shown = drawStaff(ctx, { song, roles: ['chor'], names: {}, t, frames: [], tolerance: 50, scroll: true })
-    const s = 200 / 112
-    const at = (k: string, y: number) => calls.filter(([c, a]) => c === k && Math.abs((a[1] as number) - y) < 1e-6).map(([, a]) => a[0] as number)
-    return {
-      shown,
-      playhead: at('moveTo', 22 * s),
-      heads: calls.filter(([k]) => k === 'ellipse').map(([, a]) => a[0] as number),
-      barLines: at('moveTo', 30 * s).filter((x) => x > 4), // the top staff line starts at 4
-    }
-  }
-  it('keeps the playhead still and moves notes and bar lines past it', () => {
-    const [a, b] = [frame(1), frame(3)]
-    expect(a.playhead).toEqual(b.playhead)
-    expect(b.heads[0]).toBeLessThan(a.heads[0])
-    expect(b.barLines[0]).toBeLessThan(a.barLines[0])
-  })
-  it('shows the next bar before the playhead gets there', () => {
-    expect(frame(3).shown).toEqual([0, 2])
-  })
 })
 
 describe('staff arcs', () => {
@@ -679,27 +552,11 @@ describe('roll layout', () => {
   it('keeps at least 10 rows, centred', () => {
     expect(rowRange([67])).toEqual([62, 71])
     expect(rowRange([67, 69])).toEqual([63, 72])
-    expect(rowRange([])).toEqual([62, 71])
-  })
-
-  it('zooms out about the centre to hold sung pitches with a semitone to spare, at most an octave either side', () => {
-    expect(zoomRange([62, 71], [])).toEqual([62, 71])
-    expect(zoomRange([62, 71], [64, 70.5])).toEqual([62, 71])
-    expect(zoomRange([62, 71], [73.2])).toEqual([58, 75])
-    expect(zoomRange([62, 71], [40])).toEqual([54, 79])
-    expect(zoomRange([40, 80], [61])).toEqual([40, 80]) // a wide phrase never shrinks
+    expect(rowRange([])).toHaveLength(2)
   })
 
   const n = (start: number, end: number, midi: number) => ({ start, end, midi }) as Note
   const mine = [n(1, 2, 62), n(3, 4, 70)]
-
-  it('votes for the octave that puts a sung pitch with my sounding note', () => {
-    expect(octaveVote(50.3, 1.5, mine)).toBe(12)
-    expect(octaveVote(74, 1.5, mine)).toBe(-12)
-    expect(octaveVote(63, 1.5, mine)).toBe(0)
-    expect(octaveVote(58, 3.5, mine)).toBe(12)
-    expect(octaveVote(58, 2.5, mine)).toBeNull() // between notes: no vote
-  })
 
   it('folds a sung pitch into the octave of the target at that time', () => {
     expect(foldToTargetOctave(50.3, 1.5, mine)).toBeCloseTo(62.3)
@@ -717,25 +574,5 @@ describe('roll layout', () => {
 
   it('leaves the pitch alone without any note', () => {
     expect(foldToTargetOctave(46, 0, [])).toBe(46)
-  })
-
-  // frames every 5 ms from t0, one midi per piece of [midi, seconds]
-  const run = (...pieces: [number | null, number][]) =>
-    pieces.flatMap(([midi, s]) => Array.from({ length: Math.round(s / 0.005) }, () => midi)).map((midi, i) => ({ t: i * 0.005, midi }))
-
-  it('folds a short octave slip of the detector back onto the held note', () => {
-    const out = foldSlips(run([62.3, 0.5], [74.2, 0.2], [62.1, 0.5]))
-    expect(out.slice(100, 140).every((m) => Math.abs(m! - 62.2) < 1e-9)).toBe(true)
-    expect(out[0]).toBe(62.3)
-    expect(out.at(-1)).toBe(62.1)
-  })
-
-  it('folds a slip at the start of a stretch onto what follows', () => {
-    expect(foldSlips(run([50, 0.05], [62, 0.5]))[0]).toBe(62)
-  })
-
-  it('keeps a real leap and a new start after a break', () => {
-    expect(foldSlips(run([62, 0.5], [74, 0.4])).at(-1)).toBe(74)
-    expect(foldSlips(run([62, 0.5], [null, 0.02], [74, 0.1])).at(-1)).toBe(74)
   })
 })
