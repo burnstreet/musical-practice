@@ -1,6 +1,7 @@
 """Static server for the editor in web/ with HTTP Range support (audio seeking)
 and a save endpoint for note edits made in the viewer. Song data comes from the
-content root (the current directory; `mp.ps1 -Content` sets it).
+content root (the current directory; `mp.ps1 -Content` sets it). Nothing is
+cached by the browser (Cache-Control: no-store).
 
 GET  /data/<file>       -> web/data/<file> under the content root
 GET  /config.json       -> sources/config.json (404 when absent)
@@ -38,6 +39,11 @@ class Handler(RangeRequestHandler):
             return super().translate_path(path)
         finally:
             self.directory = own
+
+    def end_headers(self):
+        # rebuilt files keep their names (NN_spec.png, NN_mix.mp3): never let the browser reuse an old copy
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
     def do_GET(self):
         if self.path == "/config.json":  # lives outside web/ (gitignored)
