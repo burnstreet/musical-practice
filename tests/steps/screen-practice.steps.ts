@@ -302,10 +302,7 @@ export default steps(({ Given, When, Then }) => {
     })
     await settle(ctx.el)
   })
-  Then(/^the screen redrew once and the readout shows "([^"]+)"$/, (ctx, s) => {
-    expect(ctx.renders).toBe(1)
-    expect(text(ctx.el)).toContain(s)
-  })
+  Then(/^the screen redrew once$/, (ctx) => expect(ctx.renders).toBe(1))
   Given(/^(?:([\d.]+) s later )?a sung frame (\d+) cents (above|below)(?: with tolerance (\d+))?$/, async (ctx, later, n, dir, tol) => {
     if (tol) settings.set({ tolerance: +tol as any })
     if (later) await tick(ctx, ctx.time + +later)
@@ -324,8 +321,8 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^the meter shows a dot$/, (ctx) => expect(meter(ctx).querySelector('.dot')).not.toBeNull())
   // meter spans ±100 cents over 0–100 %
-  Then(/^the meter shows the dot at (-?\d+) and the mark at (-?\d+)$/, (ctx, dot, mark) => {
-    expect(meter(ctx).querySelector<HTMLElement>('.dot')!.style.left).toBe(`${50 + +dot / 2}%`)
+  Then(/^the meter shows (?:the dot at (-?\d+) and )?the mark at (-?\d+)$/, (ctx, dot, mark) => {
+    if (dot) expect(meter(ctx).querySelector<HTMLElement>('.dot')!.style.left).toBe(`${50 + +dot / 2}%`)
     expect(meter(ctx).querySelector<HTMLElement>('.mark')!.style.left).toBe(`${50 + +mark / 2}%`)
   })
   Then(/^neither the readout nor the mic indicator is a control$/, (ctx) => {
@@ -334,9 +331,10 @@ export default steps(({ Given, When, Then }) => {
     expect(mic.classList.contains('round')).toBe(false) // .round is the button look
     expect(ctx.el.shadowRoot!.querySelector('.readout')!.querySelector('button, input, [role="slider"]')).toBeNull()
   })
+  Then(/^the readout shows no "([^"]+)"$/, (ctx, s) => expect(ctx.el.shadowRoot!.querySelector('.readout')!.textContent).not.toContain(s))
   Then(/^the readout shows (".+)$/, (ctx, list) => {
     for (const [, s] of list.matchAll(/"([^"]+)"/g)) {
-      if (/^[A-G]#?\d$/.test(s))
+      if (/^[A-G]#?\d?$/.test(s))
         expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(s) // the sung note, not the "Ziel" label
       else expect(text(ctx.el)).toContain(s)
     }

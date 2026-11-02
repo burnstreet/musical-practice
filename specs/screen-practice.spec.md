@@ -23,9 +23,6 @@ Strings:
 | legendMine | `Meine Stimme · {roleNames}` |
 | legendOthers | `Andere` |
 | target | `Ziel {note}` |
-| centsOk | `{±n} Cent · sauber` |
-| centsSlight | `{±n} Cent · leicht zu hoch` / `leicht zu tief` |
-| centsFar | `{±n} Cent · zu hoch` / `zu tief` |
 | noTarget | `–` |
 | meterEnds | `tief` (left) / `hoch` (right), under the meter |
 | repeatLabel | `Wiederholen` (heading of the selector row) |
@@ -126,8 +123,8 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 
 ## Cents readout
 
-- Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here). Mean = `liveDeviation.meanCents`, the last 0.5 s: the newest frame jumps too fast to read.
-- Shows the mean's note name (no octave, as everywhere), `target`, and cents text of the mean c: |c| ≤ 15 `centsOk`, ≤ tol `centsSlight`, else `centsFar`. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the cents text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s. While a spoken note of mine sounds: `noTarget` and `rapNow` in the cents text slot.
+- Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here). Mean = `liveDeviation.meanCents`, the last 1 s: the newest frame jumps too fast to read.
+- Shows the mean's note name (no octave, as everywhere) and `target`. No cent numbers in words: the meter shows the deviation. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s. While a spoken note of mine sounds: `noTarget` and `rapNow` in the text slot.
 - Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at the newest frame's cents, vertical mark at the mean, both clamped ±100 and only while a voiced frame exists.
 - Mic indicator in the transport row: small status icon, no button styling.
 
@@ -140,7 +137,7 @@ Selector row `repeatLabel` with chips `repeatValues`, replacing the old loop tog
 - Play again after pause: `session.startPass`, engine.play.
 - The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
-- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 0.5 s.
+- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s.
   `[@test] ../tests/steps/screen-practice.steps.ts`
 
 ```gherkin
@@ -160,19 +157,17 @@ Feature: Practice screen
     When I tap the voicetrack button twice
     Then the button shows "nur Playback" and engine mode is backing
 
-  Scenario: cents text
+  Scenario: note of the last second, no cent text
     Given target D5 and a sung frame 14 cents above
-    Then the readout shows "D", "Ziel D" and "+14 Cent · sauber"
-    Given 0.6 s later a sung frame 40 cents below with tolerance 50
-    Then the readout shows "-40 Cent · leicht zu tief"
-    Given 0.6 s later a sung frame 80 cents above
-    Then the readout shows "+80 Cent · zu hoch"
+    Then the readout shows "D" and "Ziel D"
+    And the readout shows no "Cent"
+    Given 1.1 s later a sung frame 80 cents below
+    Then the readout shows "C#"
 
-  Scenario: text and mark show the last half second, the dot the newest frame
+  Scenario: mark shows the last second, the dot the newest frame
     Given target D5 and a sung frame 0 cents above
-    And 0.2 s later a sung frame 40 cents above
-    Then the readout shows "+20 Cent · leicht zu hoch"
-    And the meter shows the dot at 40 and the mark at 20
+    And 0.6 s later a sung frame 40 cents above
+    Then the meter shows the dot at 40 and the mark at 20
 
   Scenario: countdown to my entry
     Given my next note starts at 8.0 in bars of 2 s
@@ -183,14 +178,16 @@ Feature: Practice screen
 
   Scenario: the screen shows what the singer hears, not what is being played out
     Given a delay of 0.6 s, playback at 9.7 and a frame 14 cents above D5 scored at 9.1
-    Then the readout shows "D", "Ziel D" and "+14 Cent · sauber"
+    Then the readout shows "D" and "Ziel D"
+    And the meter shows the mark at 14
 
   Scenario: pitch frames redraw once per animation frame
     Given target D5 and the screen paused
     When 5 pitch frames arrive before the next animation frame
     Then the screen has not redrawn
     When the animation frame runs
-    Then the screen redrew once and the readout shows "+3 Cent · sauber"
+    Then the screen redrew once
+    And the meter shows the mark at 3
 
   Scenario: readout and mic are passive indicators
     Given target D5 and no sung frame
@@ -201,7 +198,8 @@ Feature: Practice screen
 
   Scenario: octave folded readout
     Given target D5 and a sung frame at D4 plus 5 cents
-    Then the readout shows "D" and "+5 Cent · sauber"
+    Then the readout shows "D"
+    And the meter shows the mark at 5
 
   Scenario: pause stays on practice
     Given a pass with at least one entered note
