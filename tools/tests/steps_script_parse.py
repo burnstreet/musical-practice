@@ -36,6 +36,16 @@ def _(ctx):
     ctx["songs"] = [{"id": "01"}]
 
 
+@given(parsers.parse('a config with speaking roles anna "Anna" and mutter "Mutter"'))
+def _(ctx):
+    ctx["roles"] = [role("anna", "Anna"), role("mutter", "Mutter")]
+
+
+@given(parsers.parse('a config with speaking roles benjamin "Benjamin" and mutter "Mutter"'))
+def _(ctx):
+    ctx["roles"] = [role("benjamin", "Benjamin"), role("mutter", "Mutter")]
+
+
 @given(parsers.parse('a config with speaking role anna "Anna"'))
 def _(ctx):
     ctx["roles"] = [role("anna", "Anna")]
@@ -48,38 +58,58 @@ def _(ctx):
 
 @given(parsers.re(r"a DOCX with paragraphs (?P<text>.+)"))
 def _(ctx, text):
-    ctx["paras"] += [(t, None) for t in quoted(text)]
+    ctx["paras"] += [[(t, None)] for t in quoted(text)]
+
+
+def runs(text):
+    """Runs of a paragraph from `"A", blue "B", green "C"`; a literal \t is a tab."""
+    return [
+        (t.replace("\\t", "\t"), {"blue": BLUE, "green": GREEN}.get(c.strip())) for c, t in re.findall(r"(blue |green |)\"([^\"]*)\"", text)
+    ]
 
 
 @given(parsers.re(r"a DOCX with (?P<text>\".+)"))
 def _(ctx, text):
-    ctx["paras"] += [(t, None) for t in quoted(text)]
+    plain, _, rich = text.partition(" and a paragraph of runs ")
+    ctx["paras"] += [[(t.replace("\\t", "\t"), None)] for t in quoted(plain)]
+    if rich:
+        ctx["paras"].append(runs(rich))
+
+
+@given(parsers.re(r"a paragraph of runs (?P<text>.+)"))
+def _(ctx, text):
+    ctx["paras"].append(runs(text))
 
 
 @given(parsers.re(r"green paragraphs (?P<text>.+)"))
 def _(ctx, text):
-    ctx["paras"] += [(t, GREEN) for t in quoted(text)]
+    ctx["paras"] += [[(t, GREEN)] for t in quoted(text)]
+
+
+@given(parsers.re(r"a green paragraph (?P<text>.+)"))
+def _(ctx, text):
+    ctx["paras"] += [[(t, GREEN)] for t in quoted(text)]
 
 
 @given(parsers.re(r"a blue paragraph (?P<text>.+)"))
 def _(ctx, text):
-    ctx["paras"] += [(t, BLUE) for t in quoted(text)]
+    ctx["paras"] += [[(t, BLUE)] for t in quoted(text)]
 
 
 @given(parsers.re(r"paragraphs (?P<text>.+)"))
 def _(ctx, text):
-    ctx["paras"] += [(t, None) for t in quoted(text)]
+    ctx["paras"] += [[(t, None)] for t in quoted(text)]
 
 
 @given("a DOCX with 300 line paragraphs")
 def _(ctx):
     ctx["roles"] = [role("anna", "Anna")]
-    ctx["paras"] = [("Szene 1", None)] + [(f"Anna: Satz {i}", None) for i in range(300)]
+    ctx["paras"] = [[("Szene 1", None)]] + [[(f"Anna: Satz {i}", None)] for i in range(300)]
 
 
 @given("web/data/script.json exists")
 def _(ctx):
-    ctx["paras"] = [("Szene 1", None)]
+    ctx["paras"] = [[("Szene 1", None)]]
     ctx["roles"] = [role("anna", "Anna")]
     Path("web/data/script.json").write_text("old", encoding="utf-8")
 
@@ -87,10 +117,12 @@ def _(ctx):
 def parse(ctx, capsys, *flags):
     Path("sources/config.json").write_text(json.dumps({"roles": ctx["roles"], "songs": ctx["songs"]}), encoding="utf-8")
     doc = Document()
-    for text, color in ctx["paras"]:
-        run = doc.add_paragraph().add_run(text)
-        if color:
-            run.font.color.rgb = RGBColor.from_string(color)
+    for par in ctx["paras"]:
+        p = doc.add_paragraph()
+        for text, color in par:
+            run = p.add_run(text)
+            if color:
+                run.font.color.rgb = RGBColor.from_string(color)
     doc.save("script.docx")
     ctx["exit"] = script_parse.main(["script.docx", *flags])
     ctx["report"] = capsys.readouterr().out
@@ -125,6 +157,7 @@ def _():
     assert [brief(i) for i in scene(1)["items"]] == [
         ("song", "01", None),
         ("direction", None, "Sie sitzt am Fenster."),
+        ("direction", None, "Musik leiser"),
         ("line", "erzaehler1", "Es schneit."),
         ("line", "erzaehler1", "Es schneit sehr."),
         ("line", "anna", "Wir gehen gleich"),
@@ -151,6 +184,12 @@ def _(text):
     assert [brief(i) for i in scene(1)["items"]] == [("line", "onkel", text)]
 
 
+@then(parsers.re(r"scene s1 has line (?P<text>.+)"))
+def _(text):
+    want = [(r, t) for r, t in re.findall(r"(?:line )?(\w+) \"([^\"]*)\"", "line " + text)]
+    assert [(i["role"], i["text"]) for i in scene(1)["items"]] == want
+
+
 @then("the exit code is 1 and the file is unchanged")
 def _(ctx):
     assert ctx["exit"] == 1
@@ -165,6 +204,6 @@ def _():
 
 def test_no_speaking_role_exits_1(ctx, capsys):
     ctx["roles"] = [{"id": "chor", "name": "Chor"}]
-    ctx["paras"] = [("Szene 1", None)]
+    ctx["paras"] = [[("Szene 1", None)]]
     parse(ctx, capsys)
     assert ctx["exit"] == 1

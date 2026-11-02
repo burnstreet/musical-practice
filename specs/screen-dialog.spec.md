@@ -76,6 +76,7 @@ Artboards D2 (others speak), D3 (my turn), D4 (song cue, direction, missed hint)
 
 - Header: back (to `#/text`), title with a thin progress bar (turn index of the scene), settings.
 - Flow fills the space between header and controls, anchored at the bottom: past items above the current one, older ones fainter, as many as fit. Directions in italics. My lines labelled `me` in accent colour.
+- Inline directions (`[…]` in a line, script-format) show in the flow, the cards and the hint in italics in the direction style, without the brackets.
 - Current item by cue state:
   - `playing`: white card, speaker chip, playing indicator, full text. Below, when the next turn is mine: `upNext`.
   - `waiting` / `speaking`: accent card `myTurn`, status `listening` or `speaking`, my lines through `hintText` with the mode from settings (show, first words, hidden as bars), `reveal` (when not fully shown; shows the full text until the turn ends), `prompt`, level bar and `silence`.
@@ -142,6 +143,10 @@ Feature: Run-through
   Scenario: others speaking
     Given the cue state playing line of mutter "Macht nichts."
     Then a card shows "Mutter" and "Macht nichts."
+
+  Scenario: inline direction shown as direction
+    Given the cue state playing line of mutter "Oh. [Donnergrollen] Wer da?"
+    Then the card shows "Oh.", the inline direction "Donnergrollen" and "Wer da?", and no "["
 
   Scenario: my turn with first words
     Given settings.dialog.hint "start" and the cue state waiting with my line "Oma mag doch Schneekugeln."

@@ -166,6 +166,10 @@ export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue {
 export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string {
   if (mode === 'show') return text
   if (mode === 'hide') return ''
-  const words = text.split(/\s+/).filter(Boolean)
-  return words.length <= 3 ? text : `${words.slice(0, 3).join(' ')} …`
+  const tokens = text.match(/\[[^\]]*\]|[^\s[]+/g) ?? []
+  const isWord = (t: string) => !t.startsWith('[')
+  if (tokens.filter(isWord).length <= 3) return text
+  let end = 0
+  for (let i = 0, n = 0; n < 3; i++) if (isWord(tokens[i]) && ++n) end = i + 1
+  return `${tokens.slice(0, end).join(' ')} …`
 }
