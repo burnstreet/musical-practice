@@ -147,6 +147,7 @@ function world(ctx: any) {
     isIosSafariTab: () => false,
     settings,
     live: null,
+    returnTo: null,
     route: (to: string) => {
       location.hash = to
     },

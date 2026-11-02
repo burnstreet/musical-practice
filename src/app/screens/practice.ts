@@ -354,7 +354,7 @@ export class GuPractice extends LitElement {
   private back() {
     const ctx = getContext()
     leaveSession(ctx)
-    ctx.route('#/songs')
+    ctx.route(ctx.returnTo ?? '#/songs')
   }
 
   /** Animation frame scheduler; tests swap it. */
