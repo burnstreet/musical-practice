@@ -65,17 +65,26 @@ export interface LiveDeviation {
   note: Note
   sungMidiFolded: number
   cents: number
+  /** Mean over the last 0.5 s; `sungMidiFolded` and `level` follow it. */
+  meanCents: number
   level: 'ok' | 'slight' | 'far'
 }
 
-/** Live readout: the latest voiced frame (`t`) within 150 ms before the heard time `t` vs my note sounding at that moment. Cents rounded. */
+const mineAt = (song: Song, roles: RoleId[], t: number) => [...song.notes].reverse().find((n) => roles.includes(n.role) && n.start <= t && t <= n.end)
+
+/** Live readout: the latest voiced frame (`t`) within 150 ms before the heard time `t` vs my note sounding at that moment, plus the mean of the last 0.5 s. Cents rounded. */
 export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null {
   const sung = [...frames].reverse().find((f) => f.midi !== null && f.t >= t - 0.15 && f.t <= t)
-  const note = sung && [...song.notes].reverse().find((n) => roles.includes(n.role) && n.start <= sung.t && sung.t <= n.end)
+  const note = sung && mineAt(song, roles, sung.t)
   if (!note || !sung || note.spoken) return null
   const cents = Math.round(foldCents(sung.midi!, note.midi))
-  const level = Math.abs(cents) <= 15 ? 'ok' : Math.abs(cents) <= tol ? 'slight' : 'far'
-  return { note, sungMidiFolded: note.midi + cents / 100, cents, level }
+  const recent = frames.flatMap((f) => {
+    const n = f.midi !== null && f.t >= t - 0.5 && f.t <= t && mineAt(song, roles, f.t)
+    return n && !n.spoken ? [foldCents(f.midi!, n.midi)] : []
+  })
+  const meanCents = Math.round(mean(recent)!) // never empty: holds `sung`
+  const level = Math.abs(meanCents) <= 15 ? 'ok' : Math.abs(meanCents) <= tol ? 'slight' : 'far'
+  return { note, sungMidiFolded: note.midi + meanCents / 100, cents, meanCents, level }
 }
 
 /** Voiced frames after the onset grace of 0.1 s. */

@@ -13,6 +13,8 @@ export interface DrawState {
   t: number
   /** Pitch frames of the last 1.5 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
+  /** Semitones the roll adds to every sung pitch: the singer's octave for the song. Unset: each frame folds to its nearest note. */
+  octave?: number | null
   tolerance: Tolerance
   /** Active repeat: everything outside start…end is dimmed; flags [time, label] mark it. Drawing only. */
   repeat?: Marks | null

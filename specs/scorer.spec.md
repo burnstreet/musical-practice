@@ -32,6 +32,7 @@ export interface PassResult {
 export function foldCents(sungMidi: number, targetMidi: number): number        // (-600, 600]
 export function scoreNote(note: Note, frames: PitchFrame[], tol: Tolerance): NoteResult
 export function scorePass(song: Song, roles: RoleId[], framesByNote: Map<number, PitchFrame[]>, tol: Tolerance): PassResult
+export interface LiveDeviation { note: Note; sungMidiFolded: number; cents: number; meanCents: number; level: 'ok' | 'slight' | 'far' }
 export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: PitchFrame[], tol: Tolerance): LiveDeviation | null
 
 export class Session {
@@ -217,6 +218,7 @@ Feature: Pass result
 - `startPass` clears entered set and frames. `endPass` scores, appends, returns. Pass number = `passes().length`.
 - `myNotes` = my notes of `visibleNotes(song.notes, roles)`, without spoken ones. `enter` ignores the dropped unison copies, so a duet note counts once, and spoken notes, so rap is never scored.
 - `liveDeviation` (cents readout) treats a spoken note like no note: null.
+- `liveDeviation.cents` = latest voiced frame (`t`) within 150 ms before `t` vs my note at that moment. `meanCents` = rounded mean over voiced frames with `t` in the last 0.5 s, each folded against my sung note at its `t` (frames outside one left out). `level` and `sungMidiFolded` follow `meanCents`: newest frame jumps, the half second can be read.
 - A tie chain (`tie`, see content-format) is one note: its first note spans to the chain's end and takes the frames of the whole chain; `enter` ignores the notes tied into it.
   `[@test] ../tests/steps/scorer.steps.ts`
 
@@ -262,4 +264,9 @@ Feature: Session
     Given a spoken maria note [1.0,2.0] and a frame at 1.5
     When I take the live deviation at 1.5 for [maria]
     Then there is no live deviation
+
+  Scenario: live readout averages the last half second
+    Given a maria note [1.0,2.0] midi 67 and frames at 100, 0 and 40 cents from 1.0 to 1.9
+    When I take the live deviation at 1.9 for [maria]
+    Then cents is 40 and meanCents is 20 and level is slight
 ```
