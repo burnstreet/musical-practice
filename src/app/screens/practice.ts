@@ -225,7 +225,7 @@ export class GuPractice extends LitElement {
   /** The role set only raps here: spoken notes, shown and muted like singing, never scored (`rapOnly` hint). */
   rapsHere = false
   session!: Session
-  /** Pitch frames of the last 1.5 s, oldest first. */
+  /** Pitch frames of the last 2 s (the roll's zoom hold), oldest first. */
   frames: PitchFrame[] = []
   /** Octave shift (semitones) -> frames voting for it, this song; the roll draws the sung line in the winner (the voice stays in its octave). */
   private octaves = new Map<number, number>()
@@ -367,7 +367,7 @@ export class GuPractice extends LitElement {
     const vote = f.midi === null ? null : octaveVote(f.midi, f.t, this.session.myNotes())
     if (vote !== null) this.octaves.set(vote, (this.octaves.get(vote) ?? 0) + 1)
     this.frames.push(f)
-    while (this.frames[0].t < f.t - 1.5) this.frames.shift()
+    while (this.frames[0].t < f.t - 2) this.frames.shift()
     if (this.playing || this.redrawQueued) return
     this.redrawQueued = true
     this.requestFrame(() => {

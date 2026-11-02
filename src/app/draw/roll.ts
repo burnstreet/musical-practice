@@ -7,16 +7,30 @@ const BEHIND_SHARE = 0.3
 const MIN_ROWS = 10
 /** Lyric strip under the rows, px. */
 const LYRICS = 22
-/** A sung pitch lands up to a tritone from its note, so every pitch class gets a row. */
-const MARGIN = 6
+const MARGIN = 2
+/** Seconds a sung pitch outside the rows keeps them zoomed out. */
+const ZOOM_HOLD = 2
+/** Most semitones the zoom shows either side of the centre: an octave slip of the pitch detector must not squash the rows. */
+const ZOOM_MAX = 12
+/** Time constant of the zoom easing, ms: there in about a quarter second. */
+const ZOOM_EASE_MS = 80
+/** Rows each roll canvas drew last, for the easing. */
+const shown = new WeakMap<CanvasRenderingContext2D, { lo: number; hi: number; at: number }>()
 
-/** Inclusive midi range of the rows: notes ±6 semitones, padded to at least 10 rows (G4 area when empty). */
+/** Inclusive midi range of the rows: notes ±2 semitones, padded to at least 10 rows (G4 area when empty). */
 export function rowRange(midis: number[]): [number, number] {
   let lo = midis.length ? Math.min(...midis) - MARGIN : 67
   let hi = midis.length ? Math.max(...midis) + MARGIN : 67
   const short = MIN_ROWS - (hi - lo + 1)
   if (short > 0) [lo, hi] = [lo - Math.ceil(short / 2), hi + Math.floor(short / 2)]
   return [lo, hi]
+}
+
+/** `rows` widened about their centre so every sung pitch outside them fits with a semitone to spare, at most ZOOM_MAX either side. */
+export function zoomRange([lo, hi]: [number, number], sung: number[]): [number, number] {
+  const c = (lo + hi) / 2
+  const half = Math.max(hi - c, ...sung.map((m) => (Math.abs(m - c) > hi - c ? Math.min(ZOOM_MAX, Math.abs(m - c) + 1) : 0)))
+  return [Math.floor(c - half), Math.ceil(c + half)]
 }
 
 /** Sung midi folded into the octave of my note nearest in time to `t` (the one sounding, if any). */
@@ -64,24 +78,41 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   // whole phrases, so the rows change only when a phrase comes or goes
   const phrases = new Set(mineInView.map((n) => n.phrase))
   const myPhrases = notes.filter((n) => roles.includes(n.role) && !n.spoken && phrases.has(n.phrase))
-  const [lo, hi] = rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi))
+  const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
+  const { octave } = state
+  const pitch = (midi: number, time: number) => (octave == null ? foldToTargetOctave(midi, time, mine) : midi + octave)
+  const recent = frames.flatMap((f) => (f.midi !== null && f.t >= t - ZOOM_HOLD ? [pitch(f.midi, f.t)] : []))
+  const [toLo, toHi] = zoomRange(rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi)), recent)
+  // ease from the rows drawn last towards these (fractional while it moves)
+  const now = performance.now()
+  const was = shown.get(ctx)
+  const k = was ? 1 - Math.exp(-(now - was.at) / ZOOM_EASE_MS) : 1
+  const ease = (from: number, to: number) => {
+    const v = from + (to - from) * k
+    return Math.abs(to - v) < 0.01 ? to : v
+  }
+  const lo = ease(was?.lo ?? toLo, toLo)
+  const hi = ease(was?.hi ?? toHi, toHi)
+  shown.set(ctx, { lo, hi, at: now })
   const rowH = h / (hi - lo + 1)
   const y = (midi: number) => (hi - midi + 0.5) * rowH // centre of the row
 
-  // Rows and labels
+  // Rows (lines at each row's top edge, plus the bottom one) and labels
   ctx.strokeStyle = COLORS.line
   ctx.lineWidth = 1
   ctx.beginPath()
-  for (let r = 0; r <= hi - lo + 1; r++) {
-    ctx.moveTo(34, r * rowH)
-    ctx.lineTo(w, r * rowH)
+  for (let m = Math.floor(lo) - 1; m <= Math.ceil(hi); m++) {
+    const top = (hi - m) * rowH
+    if (top < 0 || top > h + 0.01) continue
+    ctx.moveTo(34, top)
+    ctx.lineTo(w, top)
   }
   ctx.stroke()
   ctx.fillStyle = COLORS.muted
   ctx.font = `${Math.min(11, rowH * 0.7)}px ${FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  for (let m = lo; m <= hi; m++) ctx.fillText(noteName(m), 2, y(m))
+  for (let m = Math.ceil(lo); m <= Math.floor(hi); m++) ctx.fillText(noteName(m), 2, y(m))
 
   // Bar lines over the rows, moving with the notes
   ctx.strokeStyle = COLORS.muted
@@ -184,9 +215,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
-  const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
-  const { octave } = state
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(octave == null ? foldToTargetOctave(f.midi, f.t, mine) : f.midi + octave)]))
+  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(pitch(f.midi, f.t))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
     [COLORS.surface, 8],
