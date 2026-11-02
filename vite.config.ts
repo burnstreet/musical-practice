@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) =>
         // relative base: works under the GitHub Pages project path
         base: './',
         publicDir,
+        server: { watch: { ignored: ['**/tools/.venv*/**'] } }, // tools/.venv-tts holds torch: tens of thousands of files
         define,
         plugins: [
           {
