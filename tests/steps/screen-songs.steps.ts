@@ -35,7 +35,11 @@ function fake(ctx: any) {
       isReady: (id: string) => !ctx.notReady.has(id),
       hasScript: () => false,
       onProgress: (fn: (p: DownloadProgress) => void) => {
-        ctx.emit = fn
+        const prev = ctx.emit
+        ctx.emit = (p: DownloadProgress) => {
+          prev?.(p)
+          fn(p)
+        }
       },
     },
     history: { badge: async (id: string) => ctx.badges[id] ?? null },
