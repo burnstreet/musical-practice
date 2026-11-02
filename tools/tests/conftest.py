@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SPECS = [ROOT / "specs" / "builder.spec.md", ROOT / "specs" / "content-format.spec.md"]
+SPECS = [ROOT / "specs" / f"{n}.spec.md" for n in ("builder", "content-format", "script-format", "script-parser", "tts-renderer")]
 FEATURES_DIR = Path(__file__).resolve().parent / ".features"
 
 BLOCK = re.compile(r"\[@test\]\s+([^`\s]+)|^```gherkin\n(.*?)^```", re.M | re.S)
