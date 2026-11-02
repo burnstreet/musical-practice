@@ -11,7 +11,7 @@ targets:
 
 # Dialog trainer: overview
 
-Supersedes `musical-dialog-trainer-prd.md`. Same app, vault, library and role selection as the pitch trainer (overview.spec.md). UI German, designed on a Claude Design canvas before `screen-dialog.spec.md` is written.
+Supersedes `musical-dialog-trainer-prd.md`. Same app, vault, library and role selection as the pitch trainer (overview.spec.md). UI German. Design: canvas "Dialog-Trainer – Entwürfe", copy in `design/dialog/`, screens in screen-dialog.spec.md. The role selection is one collapsible bar for songs and text.
 
 ## Problem Statement
 
@@ -71,7 +71,7 @@ Grilling and listening test of 2026-11-02.
 | voice detect | voice-detect | business, pure |
 | library, pack | library, builder | business |
 | script editor | script-editor | ops pure, view presentation |
-| dialog screen | screen-dialog (after design) | presentation |
+| role bar, scene selection, run-through, text settings | screen-dialog | presentation |
 
 ## Testing Decisions
 
@@ -97,7 +97,6 @@ Run on iOS Safari (installed PWA) and Android Chrome:
 
 - Python environment for the renderer: `coqui-tts` with CUDA torch is heavy and may conflict with the tools venv pins. To decide before implementation: tools venv extra vs. own venv managed by `mp.ps1`.
 - Production repo: add `speaks`, `aliases`, `voice` to `sources/config.json`, add roles `erzaehler1`, `erzaehler2`, `roemer`.
-- `screen-dialog.spec.md` after the canvas.
 
 ## Out of Scope
 
