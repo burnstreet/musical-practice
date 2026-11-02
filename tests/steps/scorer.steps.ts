@@ -329,16 +329,17 @@ export default steps(({ Given, When, Then }) => {
     ctx.song.notes[0].spoken = true
     ctx.frames = frames([67], 1.5, 1.5)
   })
-  Given(/^a maria note \[1.0,2.0\] midi 67 and frames at (-?\d+), (-?\d+) and (-?\d+) cents from 1.0 to 1.9$/, (ctx, a, b, c) => {
+  Given(/^a maria note \[1.0,3.0\] midi 67 and frames at (-?\d+), (-?\d+) and (-?\d+) cents from 1.0 to 2.8$/, (ctx, a, b, c) => {
     ctx.song = song([{}])
+    ctx.song.notes[0].end = 3
     ctx.frames = frames(
       [a, b, c].map((x) => 67 + +x / 100),
       1.0,
-      1.9,
+      2.8,
     )
   })
   When(/^I take the live deviation at ([\d.]+) for \[maria\]$/, (ctx, t) => {
-    ctx.result = liveDeviation(ctx.song, ['maria'], +t, ctx.frames, 50)
+    ctx.result = liveDeviation(ctx.song, ['maria'], +t, ctx.frames)
   })
   Then(/^there is no live deviation$/, (ctx) => {
     expect(ctx.result).toBeNull()

@@ -508,23 +508,15 @@ export class GuPractice extends LitElement {
     if (!this.repeat) return ''
     return `${this.repeatName()} · ${clock(this.repeat.start)}–${clock(this.repeat.end)}`
   }
-  /** Big note, target label and cents text from the last half second; meter dot (newest frame) and mark (that mean). */
+  /** Big note of the last second, target label, countdown or rap text; meter dot (newest frame) and mark (the mean). */
   private readout() {
     const s = getContext().settings.get()
     const { song } = this.loaded!
     const t = this.heard()
-    const d = liveDeviation(song, s.roles, t, this.frames, s.tolerance)
+    const d = liveDeviation(song, s.roles, t, this.frames)
     const rap = song.notes.some((n) => n.spoken && s.roles.includes(n.role) && n.start <= t && t < n.end)
     if (!d) return { big: '–', label: '', text: rap ? 'Rap · ohne Bewertung' : entryCountdown(song, s.roles, t, this.tempo), cents: null, mean: null }
-    const dir = d.meanCents > 0 ? 'zu hoch' : 'zu tief'
-    const word = { ok: 'sauber', slight: `leicht ${dir}`, far: dir }[d.level]
-    return {
-      big: noteName(d.sungMidiFolded),
-      label: `Ziel ${noteName(d.note.midi)}`,
-      text: `${d.meanCents > 0 ? '+' : ''}${d.meanCents} Cent · ${word}`,
-      cents: d.cents,
-      mean: d.meanCents,
-    }
+    return { big: noteName(d.sungMidiFolded), label: `Ziel ${noteName(d.note.midi)}`, text: '', cents: d.cents, mean: d.meanCents }
   }
 
   render() {
