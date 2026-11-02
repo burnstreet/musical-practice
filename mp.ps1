@@ -6,6 +6,8 @@ param(
   [string]$Command = 'help',
   [switch]$Full,
   [switch]$Staged,
+  # setup only: also create tools/.venv-tts (coqui-tts + CUDA torch), the Admin's machine only.
+  [switch]$Tts,
   # Content root (a production repo): serve, pack and tool run there; dev, build and preview use its production.json.
   [string]$Content = '',
   [Parameter(ValueFromRemainingArguments)] [string[]]$Rest = @()
@@ -15,6 +17,7 @@ $ErrorActionPreference = 'Stop'
 $venvBin = Join-Path $PSScriptRoot 'tools/.venv/Scripts'
 $venvPython = Join-Path $venvBin 'python.exe'
 $py = if (Test-Path $venvPython) { $venvPython } else { 'python' }
+$ttsPython = Join-Path $PSScriptRoot 'tools/.venv-tts/Scripts/python.exe'
 $contentRoot = if ($Content) { (Resolve-Path $Content).Path } else { $PSScriptRoot }
 if ($Content) { $env:MP_PRODUCTION = $contentRoot }
 
@@ -107,7 +110,14 @@ function Setup {
   Step $venvPython @('-m', 'pip', 'install', '-r', 'tools/requirements-dev.txt')
   Step npm @('ci')
   Step npx @('playwright', 'install', 'chromium')
+  if ($Tts) { SetupTts }
   Doctor
+}
+
+# tools/.venv-tts: coqui-tts and CUDA torch for tools/script_render.py. Never needed by CI or the other tools.
+function SetupTts {
+  if (-not (Test-Path $ttsPython)) { Step python @('-m', 'venv', 'tools/.venv-tts') }
+  Step $ttsPython @('-m', 'pip', 'install', '-r', 'tools/requirements-tts.txt')
 }
 
 function Lint {
@@ -137,9 +147,11 @@ function Help {
 Usage: ./mp.ps1 <command> [args]
 
   setup       install mise + pinned tools, tools/.venv, npm ci, Playwright chromium, then doctor
+              -Tts also creates tools/.venv-tts (coqui-tts + CUDA torch, for tool script_render; Admin machine only)
   doctor      check prerequisites (one line each, exit 1 on any problem)
   dev         Vite dev server; with -Content (a production's mp.ps1) also its songs, packed with password "dev",
-              packed again and reloaded when web/data or sources/config.json change
+              packed again and reloaded when web/data or sources/config.json change;
+              --lan: HTTPS on every address (mkcert certificate) with a random password, for a phone in the network
   build       tsc --noEmit + vite build (to dist/) + editor view (to web/lib/)
   preview     serve the build output (vite preview)
   test        vitest
@@ -148,7 +160,7 @@ Usage: ./mp.ps1 <command> [args]
   lint        Biome check + Ruff check + Ruff format --check
   format      Biome check --write + Ruff check --fix + Ruff format
   precommit   lint, tsc, vitest, pytest (add -Full to also run e2e; -Staged = git hook: Biome only on staged files via lint-staged)
-  serve [port]      editor (tools/serve.py) with song data from the content root
+  serve [port] [--lan] editor (tools/serve.py) with song data from the content root; --lan: every address
   tool <name> [args] tools/<name>.py in the content root, e.g. tool align_check 04
   pack [args]       tools/pack.py in the content root, args passed through, e.g. --out content --strict
                     prompts for PITCH_PASSWORD if it is not set (never printed or stored)
@@ -166,7 +178,7 @@ try {
     'help' { Help }
     'setup' { Setup }
     'doctor' { Doctor }
-    'dev' { if ($Content) { Step node @('tools/dev.mjs') } else { Step npm @('run', 'dev') } }
+    'dev' { if ($Content) { Step node (@('tools/dev.mjs') + $Rest) } else { Step npm @('run', 'dev') } }
     'build' { Step npm @('run', 'build') }
     'preview' { Step npx @('vite', 'preview') }
     'test' { Step npx @('vitest', 'run') }
@@ -192,7 +204,12 @@ try {
       $script = Join-Path $PSScriptRoot "tools/$($Rest[0]).py"
       if (-not (Test-Path $script)) { throw "no such tool: $script" }
       $env:PYTHONUTF8 = '1' # song titles and lyrics on a Windows console
-      InContent { Step $py (@($script) + @($Rest | Select-Object -Skip 1)) }
+      $python = $py
+      if ($Rest[0] -eq 'script_render') {
+        if (-not (Test-Path $ttsPython)) { throw 'no tools/.venv-tts: run ./mp.ps1 setup -Tts' }
+        $python = $ttsPython
+      }
+      InContent { Step $python (@($script) + @($Rest | Select-Object -Skip 1)) }
     }
     default { Help; throw "unknown command: $Command" }
   }
