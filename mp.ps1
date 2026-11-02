@@ -138,8 +138,7 @@ Usage: ./mp.ps1 <command> [args]
 
   setup       install mise + pinned tools, tools/.venv, npm ci, Playwright chromium, then doctor
   doctor      check prerequisites (one line each, exit 1 on any problem)
-  dev         Vite dev server; with -Content (a production's mp.ps1) also its songs, packed with password "dev",
-              packed again and reloaded when web/data or sources/config.json change
+  dev         Vite dev server
   build       tsc --noEmit + vite build (to dist/) + editor view (to web/lib/)
   preview     serve the build output (vite preview)
   test        vitest
@@ -166,7 +165,7 @@ try {
     'help' { Help }
     'setup' { Setup }
     'doctor' { Doctor }
-    'dev' { if ($Content) { Step node @('tools/dev.mjs') } else { Step npm @('run', 'dev') } }
+    'dev' { Step npm @('run', 'dev') }
     'build' { Step npm @('run', 'build') }
     'preview' { Step npx @('vite', 'preview') }
     'test' { Step npx @('vitest', 'run') }
