@@ -8,12 +8,23 @@ import { leaveSession } from './screens/practice'
 import './screens/results'
 import './screens/start'
 import './screens/songs'
+import './screens/text'
+import './screens/run'
 
-/** Guarded target for a hash: start while not unlocked, songs unless practice/results of a ready song; results without its live session go to practice. */
+/**
+ * Guarded target for a hash: start while not unlocked; songs, text (library with script) and a run-through (script ready, else text);
+ * practice/results of a ready song, else songs; results without its live session go to practice; anything else the last tab.
+ */
 export function guard(ctx: AppContext, hash: string): Route {
   if (ctx.vault.state() !== 'unlocked') return '#/start'
+  if (hash === '#/songs') return hash
+  if (/^#\/text(\/|$)/.test(hash)) {
+    if (!ctx.library.hasScript()) return '#/songs'
+    return hash === '#/text' || ctx.library.scriptReady() ? (hash as Route) : '#/text'
+  }
   const m = hash.match(/^#\/(practice|results)\/(.+)$/)
-  if (!m || !ctx.library.isReady(m[2])) return '#/songs'
+  if (!m) return settings.get().tab === 'text' && ctx.library.hasScript() ? '#/text' : '#/songs'
+  if (!ctx.library.isReady(m[2])) return '#/songs'
   return m[1] === 'results' && ctx.live?.songId !== m[2] ? `#/practice/${m[2]}` : (hash as Route)
 }
 
@@ -56,6 +67,7 @@ export class GuApp extends LitElement {
       ...deps,
       settings,
       live: null,
+      returnTo: null,
       route: (to) => {
         location.hash = to
       },
@@ -102,7 +114,10 @@ export class GuApp extends LitElement {
   private onHash = () => {
     const to = guard(this.ctx, location.hash)
     if (to !== location.hash) history.replaceState(null, '', to)
-    if (to === '#/songs' || to === '#/start') leaveSession(this.ctx) // clears live
+    if (!/^#\/(practice|results)\//.test(to)) {
+      leaveSession(this.ctx) // clears live
+      this.ctx.returnTo = null
+    }
     this.hash = to
   }
 
@@ -132,6 +147,11 @@ export class GuApp extends LitElement {
         return html`<gu-start></gu-start>`
       case 'songs':
         return html`<gu-songs></gu-songs>`
+      case 'text': {
+        if (!id) return html`<gu-text></gu-text>`
+        const [sceneId, itemId = ''] = id.split('/')
+        return html`<gu-run .sceneId=${sceneId} .itemId=${itemId}></gu-run>`
+      }
       case 'practice':
         return html`<gu-practice .songId=${id}></gu-practice>`
       case 'results':
