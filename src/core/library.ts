@@ -1,13 +1,14 @@
-import { type Library as LibraryData, type Manifest, parseLibrary, parseManifest, parseSong, type Role, type SongMeta } from './content'
+import { type Library as LibraryData, type Manifest, parseLibrary, parseManifest, parseScript, parseSong, type Role, type SongMeta } from './content'
 import { openDb, withStore } from './db'
-import type { LoadedSong } from './types'
+import type { LoadedScript, LoadedSong } from './types'
 import type { Vault } from './vault'
 
-export type { LoadedSong }
+export type { LoadedScript, LoadedSong }
 export interface DownloadProgress {
   doneBytes: number
   totalBytes: number
   readySongs: string[]
+  scriptReady: boolean
   done: boolean
   error?: string
 }
@@ -23,6 +24,9 @@ export interface Library {
   roles(): Role[]
   isReady(songId: string): boolean
   getSong(songId: string): Promise<LoadedSong>
+  hasScript(): boolean
+  scriptReady(): boolean
+  getScript(): Promise<LoadedScript>
   wipe(): Promise<void>
 }
 
@@ -62,6 +66,7 @@ export function createLibrary(deps: LibraryDeps): Library {
   }
 
   const ready = (s: SongMeta) => Object.values(s.files).every((id) => stored.has(id))
+  const scriptReady = () => unlocked() && !!data?.script && [data.script.file, ...data.script.audio].every((id) => stored.has(id))
   const readySongs = () => (unlocked() ? (data?.songs ?? []).filter(ready).map((s) => s.id) : [])
 
   async function download(id: string): Promise<ArrayBuffer | null> {
@@ -82,7 +87,7 @@ export function createLibrary(deps: LibraryDeps): Library {
     const m = manifest
     const emit = (p: Partial<DownloadProgress>) =>
       listeners.forEach((l) => {
-        l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), done: false, ...p })
+        l({ doneBytes, totalBytes: m?.totalBytes ?? 0, readySongs: readySongs(), scriptReady: scriptReady(), done: false, ...p })
       })
     let doneBytes = 0
     if (!m) return emit({ done: true, error: 'no manifest' })
@@ -100,6 +105,7 @@ export function createLibrary(deps: LibraryDeps): Library {
     await fetchFile(m.library)
     await load()
     for (const s of data?.songs ?? []) for (const id of [s.files.notes, s.files.voices, s.files.backing]) await fetchFile(id)
+    for (const id of data?.script ? [data.script.file, ...data.script.audio] : []) await fetchFile(id)
     for (const id of stored) if (!(id in m.files)) await idb('files', 'readwrite', (s) => s.delete(id))
     await load()
     emit({ done: true, error: failed.length ? `failed: ${failed.join(', ')}` : undefined })
@@ -146,6 +152,21 @@ export function createLibrary(deps: LibraryDeps): Library {
       const song = parseSong(JSON.parse(new TextDecoder().decode(await plain(meta.files.notes))))
       const blob = async (fid: string) => new Blob([await plain(fid)], { type: 'audio/mpeg' })
       return { meta, song, voices: await blob(meta.files.voices), backing: await blob(meta.files.backing) }
+    },
+    hasScript: () => unlocked() && !!data?.script,
+    scriptReady,
+    async getScript() {
+      if (!data?.script || !scriptReady()) throw new Error('script not ready')
+      const script = parseScript(JSON.parse(new TextDecoder().decode(await plain(data.script.file))), data.roles)
+      const audioOf = new Map(script.scenes.flatMap((s) => s.items.flatMap((i) => (i.type === 'line' ? [[i.id, i.audio] as const] : []))))
+      return {
+        script,
+        async audio(itemId) {
+          const id = audioOf.get(itemId)
+          if (!id) throw new Error(`no audio for ${itemId}`)
+          return new Blob([await plain(id)], { type: 'audio/mpeg' })
+        },
+      }
     },
     async wipe() {
       await idb('files', 'readwrite', (s) => s.clear())

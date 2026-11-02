@@ -42,13 +42,14 @@ interface Server {
   manifest: Manifest
   files: Map<string, ArrayBuffer>
   ids: Record<string, { notes: string; voices: string; backing: string }>
+  script?: { file: string; audio: string[] }
   fetched: string[]
   failures: Map<string, number>
   down: boolean
 }
 
-/** Builds a server for the given song numbers. notesIds overrides a song's notes file id. */
-async function build(nums: string[], notesIds: Record<string, string> = {}): Promise<Server> {
+/** Builds a server for the given song numbers. notesIds overrides a song's notes file id. scriptLines: item ids of the script's lines, one audio file each. */
+export async function build(nums: string[], notesIds: Record<string, string> = {}, scriptLines?: string[]): Promise<Server> {
   const files = new Map<string, ArrayBuffer>()
   const ids: Server['ids'] = {}
   const put = async (plain: Uint8Array, id = hash(plain)) => {
@@ -62,9 +63,16 @@ async function build(nums: string[], notesIds: Record<string, string> = {}): Pro
       backing: await put(enc(`backing-${n}`)),
     }
   }
+  let script: Server['script']
+  if (scriptLines) {
+    const audio = await Promise.all(scriptLines.map((l) => put(enc(`audio-${l}`))))
+    const items = scriptLines.map((id, i) => ({ id, type: 'line', role: 'erz', text: 'Hallo', audio: audio[i] }))
+    script = { file: await put(enc(JSON.stringify({ scenes: [{ id: 's1', title: '', items }] }))), audio }
+  }
   const lib = {
-    roles: [{ id: 'chor', name: 'Chor', sings: true }],
+    roles: [{ id: 'chor', name: 'Chor', sings: true }, ...(script ? [{ id: 'erz', name: 'Erzähler', sings: false, speaks: true }] : [])],
     songs: nums.map((n, i) => ({ id: n, number: i + 1, title: `Song ${n}`, durationSec: 10, roles: ['chor'], files: ids[n] })),
+    ...(script && { script }),
   }
   const library = await put(enc(JSON.stringify(lib)))
   const files$ = Object.fromEntries([...files].map(([id, c]) => [id, c.byteLength]))
@@ -79,7 +87,7 @@ async function build(nums: string[], notesIds: Record<string, string> = {}): Pro
     totalBytes: Object.values(files$).reduce((a, b) => a + b, 0),
     files: files$,
   }
-  return { manifest, files, ids, fetched: [], failures: new Map(), down: false }
+  return { manifest, files, ids, script, fetched: [], failures: new Map(), down: false }
 }
 
 const serverFetch = (ctx: any) =>
@@ -99,7 +107,7 @@ const serverFetch = (ctx: any) =>
   }) as typeof fetch
 
 let n = 0
-const setup = (ctx: any, st: VaultState = 'unlocked') => {
+export const setup = (ctx: any, st: VaultState = 'unlocked') => {
   ctx.vault = fakeVault(st)
   ctx.db = () => {
     ctx.dbName ??= ++n

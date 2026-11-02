@@ -39,6 +39,11 @@ function deps(ctx: any): ShellDeps {
       getSong: async () => {
         throw new Error('fake')
       },
+      hasScript: () => false,
+      scriptReady: () => false,
+      getScript: async () => {
+        throw new Error('fake')
+      },
       wipe: async () => {},
     },
     history: { record: async () => {}, list: async () => [], badge: async () => null, recordPass: async () => {}, days: async () => [], wipe: async () => {} },

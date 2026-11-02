@@ -1,4 +1,6 @@
-export type { PitchFrame } from './types'
+import type { Script } from './types'
+
+export type { PitchFrame, Scene, Script, ScriptItem } from './types'
 
 // Role ids are defined by the production (builder config), not by the app.
 export type RoleId = string
@@ -19,6 +21,7 @@ export interface Role {
   id: RoleId
   name: string
   sings: boolean
+  speaks: boolean
 }
 export interface SongMeta {
   id: string
@@ -31,6 +34,7 @@ export interface SongMeta {
 export interface Library {
   roles: Role[]
   songs: SongMeta[]
+  script?: { file: string; audio: string[] }
 }
 export interface Note {
   start: number
@@ -118,7 +122,41 @@ export function parseLibrary(input: unknown): Library {
     need(Array.isArray(s.roles) && s.roles.every((r: unknown) => isStr(r) && inLibrary.has(r)), 'roles')
     need(isObj(s.files) && ['voices', 'backing', 'notes'].every((k) => isStr(s.files[k]) && ID.test(s.files[k])), 'files')
   }
-  return { roles: json.roles, songs: [...json.songs].sort((a, b) => a.number - b.number) }
+  const { script } = json
+  need(
+    script === undefined ||
+      (isObj(script) &&
+        isStr(script.file) &&
+        ID.test(script.file) &&
+        Array.isArray(script.audio) &&
+        script.audio.every((a: unknown) => isStr(a) && ID.test(a))),
+    'script',
+  )
+  const roles = json.roles.map((r: Role) => ({ ...r, speaks: r.speaks === true }))
+  return { roles, songs: [...json.songs].sort((a, b) => a.number - b.number), ...(script && { script }) }
+}
+
+export function parseScript(input: unknown, roles: Role[]): Script {
+  const json = input as Record<string, any>
+  need(isObj(input) && Array.isArray(json.scenes), 'script')
+  const speaking = new Set(roles.filter((r) => r.speaks).map((r) => r.id))
+  const sceneIds = new Set<string>()
+  const itemIds = new Set<string>()
+  for (const s of json.scenes) {
+    need(isObj(s) && isStr(s.id) && !sceneIds.has(s.id) && isStr(s.title) && Array.isArray(s.items), 'scenes')
+    sceneIds.add(s.id)
+    for (const i of s.items) {
+      need(isObj(i) && isStr(i.id) && /^[a-z0-9]{4}$/.test(i.id) && !itemIds.has(i.id), 'items')
+      itemIds.add(i.id)
+      if (i.type === 'line') {
+        need(isStr(i.role) && speaking.has(i.role), 'role')
+        need(isStr(i.text) && i.text !== '', 'text')
+        need(isStr(i.audio) && ID.test(i.audio), 'audio')
+      } else if (i.type === 'direction') need(isStr(i.text) && i.text !== '', 'text')
+      else need(i.type === 'song' && isStr(i.songId), 'type')
+    }
+  }
+  return json as Script
 }
 
 export function parseSong(input: unknown): Song {
