@@ -226,7 +226,7 @@ export class GuPractice extends LitElement {
   session!: Session
   /** Pitch frames of the last 1.5 s, oldest first. */
   frames: PitchFrame[] = []
-  /** [first bar, count] of the staff page last drawn; null before the first draw. */
+  /** [first bar, count] of the bars the scrolling staff last showed; null before the first draw. */
   private page: [number, number] | null = null
   /** Redraws the canvases when the layout changes size; happy-dom may not have it. */
   private resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => this.requestUpdate())
@@ -274,6 +274,7 @@ export class GuPractice extends LitElement {
       frames: this.frames,
       tolerance: s.tolerance,
       repeat: this.marks(),
+      scroll: true,
     }
     const ctx2d = (sel: string) => this.renderRoot.querySelector<HTMLCanvasElement>(sel)?.getContext('2d') ?? null
     const page = drawStaff(ctx2d('.staff canvas'), state)
@@ -524,7 +525,7 @@ export class GuPractice extends LitElement {
     const { library, settings, openSettings, route } = getContext()
     const s = settings.get()
     const { bars, key, bpm } = loaded.song
-    // the staff page the canvas drew; before that (and without a canvas context) the regular page of the canvas width
+    // the bars the canvas shows; before that (and without a canvas context) the regular page of the canvas width
     const per = barsPerPage(this.renderRoot.querySelector<HTMLElement>('.staff canvas')?.clientWidth ?? 0)
     const [first, count] = this.page ?? [pageOf(bars, this.heard(), per) * per, per]
     const firstBar = first + 1

@@ -73,6 +73,17 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.textBaseline = 'middle'
   for (let m = lo; m <= hi; m++) ctx.fillText(noteName(m), 2, y(m))
 
+  // Bar lines over the rows, moving with the notes
+  ctx.strokeStyle = COLORS.muted
+  ctx.globalAlpha = 0.5
+  ctx.beginPath()
+  for (const b of song.bars.filter((b) => b <= t1 && x(b) >= 34)) {
+    ctx.moveTo(x(b), 0)
+    ctx.lineTo(x(b), h)
+  }
+  ctx.stroke()
+  ctx.globalAlpha = 1
+
   // Target bars: others dashed, mine with elapsed fill
   const barH = Math.max(2, rowH - 4)
   const rect = (n: Note, x0: number, x1: number) => {
