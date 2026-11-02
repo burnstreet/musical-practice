@@ -5,9 +5,19 @@ import { COLORS, type DrawState, dimOutside, FONT, fit } from './staff'
 /** Playhead at 30 % of the window. */
 const BEHIND_SHARE = 0.3
 const MIN_ROWS = 10
+/** Above this many rows only the natural notes are labelled: the labels get too small to tell apart. */
+const SHARP_LABELS_MAX = 12
 /** Lyric strip under the rows, px. */
 const LYRICS = 22
 const MARGIN = 2
+/** Seconds a sung pitch outside the rows keeps them zoomed out. */
+const ZOOM_HOLD = 2
+/** Most semitones the zoom shows either side of the centre: an octave slip of the pitch detector must not squash the rows. */
+const ZOOM_MAX = 12
+/** Time constant of the zoom easing, ms: there in about a quarter second. */
+const ZOOM_EASE_MS = 80
+/** Rows each roll canvas drew last, for the easing. */
+const shown = new WeakMap<CanvasRenderingContext2D, { lo: number; hi: number; at: number }>()
 
 /** Inclusive midi range of the rows: notes ±2 semitones, padded to at least 10 rows (G4 area when empty). */
 export function rowRange(midis: number[]): [number, number] {
@@ -18,11 +28,54 @@ export function rowRange(midis: number[]): [number, number] {
   return [lo, hi]
 }
 
+/** `rows` widened about their centre so every sung pitch outside them fits with a semitone to spare, at most ZOOM_MAX either side. */
+export function zoomRange([lo, hi]: [number, number], sung: number[]): [number, number] {
+  const c = (lo + hi) / 2
+  const half = Math.max(hi - c, ...sung.map((m) => (Math.abs(m - c) > hi - c ? Math.min(ZOOM_MAX, Math.abs(m - c) + 1) : 0)))
+  return [Math.floor(c - half), Math.ceil(c + half)]
+}
+
 /** Sung midi folded into the octave of my note nearest in time to `t` (the one sounding, if any). */
 export function foldToTargetOctave(midi: number, t: number, mine: Note[]): number {
   const gap = (n: Note) => Math.max(n.start - t, t - n.end, 0)
   const target = mine.reduce<Note | null>((a, n) => (!a || gap(n) < gap(a) ? n : a), null)
   return target ? target.midi + foldCents(midi, target.midi) / 100 : midi
+}
+
+/** Semitones (whole octaves) that put a sung pitch into the octave of my note sounding at `t`; null between notes. */
+export function octaveVote(midi: number, t: number, mine: Note[]): number | null {
+  const n = mine.find((n) => n.start <= t && t <= n.end)
+  return n ? 12 * Math.round((n.midi - midi) / 12) + 0 : null // + 0: no -0
+}
+
+/** Longest piece of a voiced stretch, s, that can be an octave slip of the detector; a voice cannot leap that far in one frame. */
+const SLIP_MAX = 0.3
+
+/**
+ * Midi per frame with the detector's octave slips folded back: a voiced stretch splits where it jumps more than half an
+ * octave between two frames; each piece shorter than SLIP_MAX moves by whole octaves to the longest piece's octave.
+ */
+export function foldSlips(frames: { t: number; midi: number | null }[]): (number | null)[] {
+  const out = frames.map((f) => f.midi)
+  const mean = (p: number[]) => p.reduce((a, i) => a + out[i]!, 0) / p.length
+  const span = (p: number[]) => frames[p.at(-1)!].t - frames[p[0]].t
+  let pieces: number[][] = []
+  const fold = () => {
+    const ref = pieces.reduce((a, p) => (p.length > a.length ? p : a), [])
+    for (const p of pieces.filter((p) => p !== ref && span(p) < SLIP_MAX)) {
+      const o = 12 * Math.round((mean(p) - mean(ref)) / 12)
+      for (const i of p) out[i]! -= o
+    }
+    pieces = []
+  }
+  frames.forEach((f, i) => {
+    const prev = out[i - 1]
+    if (f.midi === null) fold()
+    else if (prev == null || Math.abs(f.midi - prev) > 6) pieces.push([i])
+    else pieces.at(-1)!.push(i)
+  })
+  fold()
+  return out
 }
 
 /** Seconds the roll shows at a canvas width: 72 px per second, 5…8 s (a wider screen shows more of what comes). */
@@ -54,24 +107,57 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const inView = notes.filter((n) => n.end > t0 && n.start < t1)
   const sungInView = inView.filter((n) => !n.spoken) // a spoken note has no pitch: no bar, no row, only its syllable
   const mineInView = sungInView.filter((n) => roles.includes(n.role))
-  const [lo, hi] = rowRange((mineInView.length ? mineInView : sungInView).map((n) => n.midi))
+  // whole phrases, so the rows change only when a phrase comes or goes
+  const phrases = new Set(mineInView.map((n) => n.phrase))
+  const myPhrases = notes.filter((n) => roles.includes(n.role) && !n.spoken && phrases.has(n.phrase))
+  const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
+  const { octave } = state
+  const pitch = (midi: number, time: number) => (octave == null ? foldToTargetOctave(midi, time, mine) : midi + octave)
+  const midis = foldSlips(frames)
+  const recent = frames.flatMap((f, i) => (midis[i] != null && f.t >= t - ZOOM_HOLD ? [pitch(midis[i], f.t)] : []))
+  const [toLo, toHi] = zoomRange(rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi)), recent)
+  // ease from the rows drawn last towards these (fractional while it moves)
+  const now = performance.now()
+  const was = shown.get(ctx)
+  const k = was ? 1 - Math.exp(-(now - was.at) / ZOOM_EASE_MS) : 1
+  const ease = (from: number, to: number) => {
+    const v = from + (to - from) * k
+    return Math.abs(to - v) < 0.01 ? to : v
+  }
+  const lo = ease(was?.lo ?? toLo, toLo)
+  const hi = ease(was?.hi ?? toHi, toHi)
+  shown.set(ctx, { lo, hi, at: now })
   const rowH = h / (hi - lo + 1)
   const y = (midi: number) => (hi - midi + 0.5) * rowH // centre of the row
 
-  // Rows and labels
+  // Rows (lines at each row's top edge, plus the bottom one) and labels
   ctx.strokeStyle = COLORS.line
   ctx.lineWidth = 1
   ctx.beginPath()
-  for (let r = 0; r <= hi - lo + 1; r++) {
-    ctx.moveTo(34, r * rowH)
-    ctx.lineTo(w, r * rowH)
+  for (let m = Math.floor(lo) - 1; m <= Math.ceil(hi); m++) {
+    const top = (hi - m) * rowH
+    if (top < 0 || top > h + 0.01) continue
+    ctx.moveTo(34, top)
+    ctx.lineTo(w, top)
   }
   ctx.stroke()
   ctx.fillStyle = COLORS.muted
   ctx.font = `${Math.min(11, rowH * 0.7)}px ${FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  for (let m = lo; m <= hi; m++) ctx.fillText(noteName(m), 2, y(m))
+  const crowded = hi - lo + 1 > SHARP_LABELS_MAX
+  for (let m = Math.ceil(lo); m <= Math.floor(hi); m++) if (!(crowded && noteName(m).includes('#'))) ctx.fillText(noteName(m), 2, y(m))
+
+  // Bar lines over the rows, moving with the notes
+  ctx.strokeStyle = COLORS.muted
+  ctx.globalAlpha = 0.5
+  ctx.beginPath()
+  for (const b of song.bars.filter((b) => b <= t1 && x(b) >= 34)) {
+    ctx.moveTo(x(b), 0)
+    ctx.lineTo(x(b), h)
+  }
+  ctx.stroke()
+  ctx.globalAlpha = 1
 
   // Target bars: others dashed, mine with elapsed fill
   const barH = Math.max(2, rowH - 4)
@@ -163,8 +249,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.setLineDash([])
 
   // Sung line: dark outline under a 4 px white line, null frames break it
-  const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
-  const pts = frames.map((f) => (f.midi === null ? null : [x(f.t), y(foldToTargetOctave(f.midi, f.t, mine))]))
+  const pts = frames.map((f, i) => (midis[i] == null ? null : [x(f.t), y(pitch(midis[i], f.t))]))
   ctx.lineCap = ctx.lineJoin = 'round'
   for (const [colour, width] of [
     [COLORS.surface, 8],
