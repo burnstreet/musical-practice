@@ -39,4 +39,22 @@ https://claude.ai/artifact/7CZmN8NxVA5vztViGPY1j4. Added next to the boards abov
 | repeat-and-skip/Editor.dc.html | Admin-Editor · Phrasen, Abschnitte, Noten | 1440×1040, fluid |
 | repeat-and-skip/canvas.json | board index | |
 
+## Dialog trainer (`dialog/`)
+
+Snapshot of the Claude Design canvas "Dialog-Trainer – Entwürfe" (spec `specs/screen-dialog.spec.md`):
+https://claude.ai/artifact/JepLkpUgQLtk1PHKB1UrxH. Lines, scene and song titles in the boards are invented placeholders.
+
+| file | screen | size |
+|---|---|---|
+| dialog/Main.dc.html | Handy D1 Rollen (eingeklappt, gemeinsam für Lieder und Text) und Szene wählen | 390×1000 |
+| dialog/Play.dc.html | Handy D2 Durchlauf · andere sprechen | 390×844 |
+| dialog/Turn.dc.html | Handy D3 Durchlauf · du bist dran | 390×844 |
+| dialog/Cue.dc.html | Handy D4 Durchlauf · Lied-Hinweis, Regie, nichts gehört | 390×844 |
+| dialog/Settings.dc.html | Handy D5 Einstellungen Text | 390×844 |
+| dialog/PlayDesktop.dc.html | Desktop D2 Durchlauf | 1280×800, fluid |
+| dialog/Editor.dc.html | Admin-Editor · Skript | 1440×1040, fluid |
+| dialog/canvas.json | board index | |
+
+## Pending
+
 Pending edits (see `specs/overview.spec.md` → Design deltas): remove "Aufnahme anhören", add download size line, progress bar, badges, settings sheet, headphone sheet, install hint, trend line, reduce voicetrack modes to three.

@@ -1,5 +1,7 @@
 # Musical Dialog Trainer
 
+> Superseded by [specs/dialog-overview.spec.md](specs/dialog-overview.spec.md) (2026-11-02). Kept for history.
+
 Companion to [musical-pitch-trainer-prd.md](musical-pitch-trainer-prd.md). Same app, same vault, second practice mode.
 
 ## Problem Statement

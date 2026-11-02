@@ -55,7 +55,7 @@ A named stretch of a song made of whole phrases and bars: a *Strophe* (numbered)
 _Avoid_: Part, verse, chorus (use the German names Strophe and Refrain for the two kinds)
 
 **Role**:
-A character or group of the musical that sings, taken from the global cast list. Each note belongs to exactly one role. Only roles with notes in some song can be selected.
+A character or group of the musical, taken from the global cast list. A role sings, speaks, or both (flags `sings`, `speaks`). Each note and each line belongs to exactly one role. Only roles with notes in some song can be selected for singing.
 _Avoid_: Part, voice, character, player
 
 **Role set**:
@@ -175,6 +175,50 @@ _Avoid_: Log, stats, record
 
 **Badge**:
 The hit percentage of the latest session for a song and role set, shown in the song list.
+
+## Dialog
+
+**Actor**:
+A cast member practising the spoken script in the dialog trainer. The same person may be a Singer in the pitch trainer.
+_Avoid_: User, speaker (that is a role in the DOCX)
+
+**Script**:
+The spoken text of the musical: scenes with lines, directions and song cues in play order. Source `web/data/script.json`.
+_Avoid_: Book, libretto, dialog (that is the mode)
+
+**Scene**:
+A numbered part of the script, as headed in the DOCX (*Szene n*).
+
+**Item**:
+One entry of a scene: a line, a direction or a song cue. Has a stable four-character id.
+_Avoid_: Entry, paragraph
+
+**Line**:
+An item spoken by one role. Has audio once rendered. Not a Phrase, which is sung.
+_Avoid_: Sentence, utterance
+
+**Direction**:
+A stage direction item. Shown, never spoken.
+_Avoid_: Instruction, note
+
+**Song cue**:
+An item that marks where a song sits in the script. Links to the song in the pitch trainer.
+
+**TTS voice**:
+The synthetic voice that speaks a role's lines, set per role in the production config (engine and speaker).
+_Avoid_: Voice (alone; voices are the sung Voicetrack)
+
+**Turn**:
+The unit the cue engine moves through: one item, or a run of consecutive lines of the actor's roles. The actor's turn waits for the actor.
+_Avoid_: Step, cue
+
+**Silence time**:
+How long the actor must be quiet after speaking before the next turn starts. Shown as *Pause bis weiter*.
+_Avoid_: Timeout (the hard timeout is the separate fallback)
+
+**Vorsprechen**:
+Playing the actor's own line with its TTS voice on request.
+_Avoid_: Hint, prompt (in UI text)
 
 ## Access
 

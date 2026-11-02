@@ -28,6 +28,7 @@ Strings:
 | settings | aria `Einstellungen` |
 
 - Role chips: roles with `sings = true`, in library order. Multi-select, `aria-pressed`. Selection saved to `settings.roles`. Empty selection allowed.
+- Planned (screen-dialog, design/dialog D1): the chips move into the shared, collapsible role bar `<gu-roles>` above a `Lieder` | `Text` switch; the bar offers roles that sing or speak.
 - Progress bar at top while `sync` runs. Hidden when done without error.
 - Song rows: number, title, roles of the song as names joined by ` · `. Accent dot when the song has a selected role. Badge `{n} %` from `history.badge` for the current selection, hidden when null. Row not ready: muted, `loading` text, not expandable.
 - Tapping a ready row expands it: three mode options (radio, default `settings.mode`), then `start`. One row expanded at a time.

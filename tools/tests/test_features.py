@@ -8,6 +8,7 @@ def test_pytest_bdd_parses_every_feature():
         "completeness": 2,
         "packing": 4,
         "phrase-derivation": 3,
+        "script-packing": 3,
         "section-detection": 7,
         "stem-preparation": 2,
         "stored-sections": 5,
@@ -16,7 +17,15 @@ def test_pytest_bdd_parses_every_feature():
 
 def test_only_py_linked_features_are_generated():
     names = sorted(p.stem for p in FEATURES_DIR.glob("*.feature"))
-    assert names == ["completeness", "packing", "phrase-derivation", "section-detection", "stem-preparation", "stored-sections"]
+    assert names == [
+        "completeness",
+        "packing",
+        "phrase-derivation",
+        "script-packing",
+        "section-detection",
+        "stem-preparation",
+        "stored-sections",
+    ]
 
 
 def test_feature_file_keeps_scenarios_and_german_text():

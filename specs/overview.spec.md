@@ -146,7 +146,7 @@ Run on iOS Safari (installed PWA and browser tab) and Android Chrome before each
 
 ## Out of Scope
 
-- Streaming services. Accounts, sync, upload UI. Forced alignment. Recording own voice. Protection against password sharing. Auto voicetrack mode. OCR of scanned lyrics. Transposition. Dialog trainer (own spec later).
+- Streaming services. Accounts, sync, upload UI. Forced alignment. Recording own voice. Protection against password sharing. Auto voicetrack mode. OCR of scanned lyrics. Transposition. Dialog trainer (see dialog-overview.spec.md).
 
 ## Further Notes
 
