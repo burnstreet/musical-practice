@@ -12,7 +12,7 @@ const UPDATED = `${production.storageId}.sw-updated`
 export function registerSw(url = `${import.meta.env.BASE_URL}sw.js`): SwControl {
   return {
     async activateWaiting() {
-      if (!('serviceWorker' in navigator)) return false
+      if (!('serviceWorker' in navigator) || import.meta.env.DEV) return false // the dev server builds no worker
       const updated = sessionStorage.getItem(UPDATED) === '1'
       sessionStorage.removeItem(UPDATED)
       const wb = new Workbox(url)

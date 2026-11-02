@@ -11,8 +11,10 @@ export interface DrawState {
   names: Partial<Record<RoleId, string>>
   /** Song time of the playhead in seconds. */
   t: number
-  /** Pitch frames of the last 1.5 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
+  /** Pitch frames of the last 2 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
+  /** Semitones the roll adds to every sung pitch: the singer's octave for the song. Unset: each frame folds to its nearest note. */
+  octave?: number | null
   tolerance: Tolerance
   /** Active repeat: everything outside start…end is dimmed; flags [time, label] mark it. Drawing only. */
   repeat?: Marks | null
@@ -20,6 +22,8 @@ export interface DrawState {
   colours?: Partial<Record<RoleId, string>>
   /** Bars per page, fixed (the editor's zoom); without it `staffPages` picks them. */
   bars?: number
+  /** The player: one endless row moving past a fixed playhead instead of pages. */
+  scroll?: boolean
 }
 
 /** Colour of a note, syllable or rest: its role's colour when `colours` has one, else mine or other. */
@@ -356,6 +360,47 @@ export function layoutPage(bars: number[], onsets: PageOnset[], o: PageOptions):
   return last
 }
 
+/**
+ * The scrolling staff's endless row, lyric font at full size. Room ∝ time up to a quarter, so the row moves at one
+ * speed through sixteenths, eighths and quarters, over bar lines too; longer values get less (^SPACING), the row slows
+ * there. Per bar, px per quarter = the least that keeps every minimum distance, at least `o.width`.
+ */
+export function layoutStrip(bars: number[], onsets: PageOnset[], o: PageOptions): PageLayout {
+  const mins = pageMins(
+    bars,
+    onsets,
+    onsets.map((p) => p.label),
+    onsets.map((p) => p.hyphen ?? 0),
+    o,
+  )
+  const weight = (d: number) => (d <= 1 ? d : d ** SPACING)
+  const [barX, barW, xs]: number[][] = [[], [], []]
+  let x = 0
+  bars.forEach((b, i) => {
+    barX.push(x)
+    const m = mins[i]
+    if (!m.length) {
+      barW.push(o.empty)
+      x += o.empty
+      return
+    }
+    const beats = onsets.filter((p) => p.bar === b).map((p) => p.beat)
+    const w = beats.map((beat, j) => weight(Math.max((beats[j + 1] ?? o.barQ) - beat, 1e-3)))
+    // the room after the last onset runs over the bar line up to the next bar's first onset
+    const lead = mins[i + 1]?.[0] ?? 0
+    const need = beats.map((_, j) => m[j + 1] + (j === beats.length - 1 ? lead : 0))
+    const scale = Math.max(o.width, ...need.map((n, j) => n / w[j]))
+    let at = x + m[0]
+    for (const wj of w) {
+      xs.push(at)
+      at += wj * scale
+    }
+    barW.push(at - lead - x)
+    x = at - lead
+  })
+  return { barX, barW, xs, scale: 1, fits: true }
+}
+
 /** Pages as [first bar, bar count]: each takes up to `max` bars, fewer while its layout does not `fit`, at least 1. */
 export function splitPages(barCount: number, max: number, fits: (first: number, count: number) => boolean): [number, number][] {
   const pages: [number, number][] = []
@@ -443,36 +488,34 @@ export function pageContent(song: Song, roles: RoleId[], first: number, count: n
   return { bars, notes, onsets, lyric }
 }
 
-/** Page layout of `content` on a canvas `w` wide at drawing scale `s`; measures the syllables in the bold lyric font. */
-export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number) {
+/** Page layout of `content` on a canvas `w` wide at drawing scale `s` (`strip`: the scrolling row); measures the syllables in the bold lyric font. */
+export function measurePage(ctx: CanvasRenderingContext2D, song: Song, content: ReturnType<typeof pageContent>, w: number, s: number, strip = false) {
   const fifths = keyFifths(song.key)
   ctx.font = `700 ${12 * s}px ${FONT}` // measured bold: the current note's syllable is drawn bold
   const startX = 46 * s + Math.abs(fifths) * 8 * s
-  const page = layoutPage(
-    content.bars,
-    content.onsets.map(({ bar, beat, here }, k) => {
-      const { text, hyphen } = splitHyphen(content.lyric[k]?.syllable ?? '')
-      return {
-        bar,
-        beat,
-        label: text ? ctx.measureText(text).width : 0,
-        acc: here.some((n) => notePos(n, song, fifths).acc !== ''),
-        hyphen: hyphen ? ctx.measureText('-').width + 4 * s : 0,
-      }
-    }),
-    {
-      barQ: (song.timeSig[0] * 4) / song.timeSig[1],
-      width: w - 4 - startX,
-      leftRoom: startX - 4,
-      head: 20 * s, // a flag reaches 11 px right of its head, a rest or head 6 px left of its x
-      acc: 12 * s,
-      pad: 18 * s,
-      tail: 10 * s,
-      sep: 4 * s,
-      empty: 40 * s,
-      minScale: 10 / 12,
-    },
-  )
+  const onsets = content.onsets.map(({ bar, beat, here }, k) => {
+    const { text, hyphen } = splitHyphen(content.lyric[k]?.syllable ?? '')
+    return {
+      bar,
+      beat,
+      label: text ? ctx.measureText(text).width : 0,
+      acc: here.some((n) => notePos(n, song, fifths).acc !== ''),
+      hyphen: hyphen ? ctx.measureText('-').width + 4 * s : 0,
+    }
+  })
+  const o = {
+    barQ: (song.timeSig[0] * 4) / song.timeSig[1],
+    width: w - 4 - startX,
+    leftRoom: startX - 4,
+    head: 20 * s, // a flag reaches 11 px right of its head, a rest or head 6 px left of its x
+    acc: 12 * s,
+    pad: 18 * s,
+    tail: 10 * s,
+    sep: 4 * s,
+    empty: 40 * s,
+    minScale: 10 / 12,
+  }
+  const page = strip ? layoutStrip(content.bars, onsets, { ...o, width: 35 * s }) : layoutPage(content.bars, onsets, o) // 35 px per quarter: about a page bar on a phone
   return { s, startX, ...page }
 }
 
@@ -514,7 +557,38 @@ export function staffPages(ctx: CanvasRenderingContext2D, song: Song, roles: Rol
   return pages
 }
 
-/** Treble staff, pages of `staffPages`, lyric-aware spacing on one row. Returns the page drawn; no-op without a context (happy-dom). */
+/** The whole song as one row, per song, canvas height, roles and font state; laying it out each frame would be too slow. */
+type Strip = { content: ReturnType<typeof pageContent>; L: ReturnType<typeof measurePage>; points: [number, number][] }
+const stripCache = new WeakMap<Song, Map<string, Strip>>()
+/** Where the scrolling staff's playhead stands: this share into the room right of clef and key. */
+const SCROLL_AT = 0.25
+
+/** The bars of the scrolling row in view at `t` as a page: the row shifted so the playhead stands at `SCROLL_AT`. */
+function scrolled(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number, t: number) {
+  const key = `${h}|${roles.join()}|${globalThis.document?.fonts?.status}`
+  const byKey = stripCache.get(song) ?? new Map<string, Strip>()
+  stripCache.set(song, byKey)
+  if (!byKey.has(key)) {
+    const content = pageContent(song, roles, 0, song.bars.length)
+    const L = measurePage(ctx, song, content, w, h / BASE, true)
+    byKey.set(key, { content, L, points: pagePoints(song, content, L) })
+  }
+  const { content: c, L, points } = byKey.get(key)!
+  const off = playheadX(points, t) - L.startX - SCROLL_AT * (w - 4 - L.startX)
+  const bars = c.bars.filter((_, i) => L.barX[i] + L.barW[i] - off > 0 && L.startX + L.barX[i] - off < w)
+  const [first, end] = [bars[0], bars[0] + bars.length]
+  const k0 = c.onsets.findIndex((o) => o.bar >= first)
+  const k1 = k0 + c.onsets.filter((o) => o.bar >= first && o.bar < end).length
+  return {
+    content: { bars, notes: c.notes.filter((n) => n.bar >= first && n.bar < end), onsets: c.onsets.slice(k0, k1), lyric: c.lyric.slice(k0, k1) },
+    L: { ...L, barX: L.barX.slice(first, end).map((x) => x - off), barW: L.barW.slice(first, end), xs: L.xs.slice(k0, k1).map((x) => x - off) },
+  }
+}
+
+/**
+ * Treble staff, pages of `staffPages` or (`scroll`) one row moving past a fixed playhead, lyric-aware spacing on one row.
+ * Returns the bars drawn; no-op without a context (happy-dom).
+ */
 export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [number, number] | null {
   if (!ctx) return null
   const { song, roles, names, t } = state
@@ -523,13 +597,19 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   const barQ = (song.timeSig[0] * 4) / song.timeSig[1]
   const mine = (n: Note) => roles.includes(n.role)
   const { w, h } = fit(ctx)
-  const shown = pageAt(staffPages(ctx, song, roles, w, h, state.bars), song.bars, t)
-  const [first, per] = shown
-  const content = pageContent(song, roles, first, per)
+  let content: ReturnType<typeof pageContent>
+  let L: ReturnType<typeof measurePage>
+  if (state.scroll) ({ content, L } = scrolled(ctx, song, roles, w, h, t))
+  else {
+    const [first, per] = pageAt(staffPages(ctx, song, roles, w, h, state.bars), song.bars, t)
+    content = pageContent(song, roles, first, per)
+    L = measurePage(ctx, song, content, w, h / BASE)
+  }
   const { bars, notes, onsets, lyric } = content
+  const first = bars[0]
+  const shown: [number, number] = [first, bars.length]
   const index = new Map(onsets.map((o, k) => [`${o.bar}:${o.beat}`, k]))
   const at = (n: Note) => index.get(`${n.bar}:${n.beat}`)!
-  const L = measurePage(ctx, song, content, w, h / BASE)
   const { s, startX } = L
   const gap = 10 * s
   const y = (step: number) => 70 * s - (step * gap) / 2
@@ -559,6 +639,13 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   ctx.textBaseline = 'middle'
   const sig = fifths > 0 ? SHARP_STEPS : FLAT_STEPS
   for (let i = 0; i < Math.min(7, Math.abs(fifths)); i++) ctx.fillText(GLYPH[fifths > 0 ? '#' : 'b'], 40 * s + i * 8 * s, y(sig[i]))
+  if (state.scroll) {
+    // the row slides away under clef and key
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(startX, 0, w - startX, h)
+    ctx.clip()
+  }
 
   // Bar lines at every bar start after the first and at the page end, bar numbers over each bar's start
   ctx.strokeStyle = COLORS.text
@@ -602,18 +689,21 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   ctx.stroke()
   ctx.setLineDash([])
 
-  // Role name above each run of same-role notes; one that would overprint the previous is left out
+  // Role name above each run of same-role notes; one that would overprint the previous is left out. Scrolling: over
+  // the run's first note, none for a run begun out of view, so names do not jump as bars come and go
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
   ctx.font = `700 ${11 * s}px ${FONT}`
+  const all = visibleNotes(song.notes, roles)
   let right = -Infinity
   for (let i = 0; i < notes.length; ) {
     let j = i
     while (j + 1 < notes.length && notes[j + 1].role === notes[i].role) j++
     const label = names[notes[i].role] ?? notes[i].role
-    const cx = (x(notes[i]) + x(notes[j])) / 2
+    const cx = state.scroll ? x(notes[i]) : (x(notes[i]) + x(notes[j])) / 2
+    const goesOn = state.scroll && all[all.indexOf(notes[i]) - 1]?.role === notes[i].role
     const half = ctx.measureText(label).width / 2
-    if (cx - half > right + 4 * s) {
+    if (!goesOn && cx - half > right + 4 * s) {
       ctx.fillStyle = colour(notes[i])
       ctx.fillText(label, cx, 18 * s)
       right = cx + half
@@ -732,9 +822,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   // Ties and slurs: an arc to the next note of the same role, below the heads when the stem points up, else above;
   // over a page turn the arc runs out at the page end and comes in at the next page's start
   ctx.lineWidth = 1.5 * s
-  const all = visibleNotes(song.notes, roles)
   const follow = (n: Note) => all[arcTarget(all, all.indexOf(n))] as Note | undefined
-  const [pageL, pageR] = [startX, startX + L.barX.at(-1)! + L.barW.at(-1)!]
+  const [pageL, pageR] = [startX + L.barX[0], startX + L.barX.at(-1)! + L.barW.at(-1)!]
   const arc = (n: Note, x0: number, x1: number, a: number, b: number) => {
     const dir = a < 4 ? 1 : -1
     const [y0, y1] = [y(a) + dir * 6 * s, y(b) + dir * 6 * s]
@@ -811,5 +900,6 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
       ctx.stroke()
     }
   }
+  if (state.scroll) ctx.restore()
   return shown
 }
