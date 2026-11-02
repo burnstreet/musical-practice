@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { ContentError, parseLibrary, parseManifest, parseSong, type RoleId, roleSpans, visibleNotes } from '../../src/core/content'
+import { ContentError, parseLibrary, parseManifest, parseScript, parseSong, type RoleId, roleSpans, visibleNotes } from '../../src/core/content'
 import { steps } from '../gherkin'
 
 const SALT = Buffer.alloc(16, 7).toString('base64')
@@ -145,4 +145,34 @@ export default steps(({ Given, When, Then }) => {
   Then(/^I get (\w+ \d+ at .*)$/, (ctx, s) => {
     expect(ctx.result.map(({ role, midi, start, end }: any) => ({ role, midi, start, end }))).toEqual(voiced(s))
   })
+
+  const scriptLib = (extra: object = {}, role: object = { sings: true }) => ({
+    roles: [{ id: 'maria', name: 'Maria', ...role }],
+    songs: [],
+    ...extra,
+  })
+  Given(/^a library JSON with script file "(.*)" and audio \["(.*)"\]$/, (ctx, file, audio) => {
+    ctx.json = scriptLib({ script: { file, audio: [audio] } })
+  })
+  Given(/^a library JSON without a script field$/, (ctx) => {
+    ctx.json = scriptLib()
+  })
+  Given(/^a library JSON with role maria without speaks$/, (ctx) => {
+    ctx.json = scriptLib()
+  })
+  Then(/^library.script.file is "(.*)"$/, (ctx, file) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result.script.file).toBe(file)
+  })
+  Then(/^library.script is undefined$/, (ctx) => {
+    expect(ctx.error).toBeUndefined()
+    expect(ctx.result.script).toBeUndefined()
+  })
+  Then(/^role maria has speaks false$/, (ctx) => {
+    expect(ctx.result.roles[0].speaks).toBe(false)
+  })
+  Given(/^a script JSON with a line of erzaehler1 without audio$/, (ctx) => {
+    ctx.json = { scenes: [{ id: 's1', title: '', items: [{ id: 'p0x2', type: 'line', role: 'erzaehler1', text: 'Es schneit.' }] }] }
+  })
+  When(/^I parse it as a script$/, (ctx) => attempt(ctx, () => parseScript(ctx.json, [{ id: 'erzaehler1', name: 'Erzähler 1', sings: false, speaks: true }])))
 })

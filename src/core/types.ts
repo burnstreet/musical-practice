@@ -9,9 +9,25 @@ export interface PitchFrame {
   clarity: number
   rms: number
 }
+export type ScriptItem =
+  | { id: string; type: 'line'; role: string; text: string; audio: string }
+  | { id: string; type: 'direction'; text: string }
+  | { id: string; type: 'song'; songId: string }
+export interface Scene {
+  id: string
+  title: string
+  items: ScriptItem[]
+}
+export interface Script {
+  scenes: Scene[]
+}
 export interface LoadedSong {
   meta: SongMeta
   song: Song
   voices: Blob
   backing: Blob
+}
+export interface LoadedScript {
+  script: Script
+  audio(itemId: string): Promise<Blob>
 }
