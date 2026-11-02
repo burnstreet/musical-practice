@@ -5,6 +5,8 @@ import { COLORS, type DrawState, dimOutside, FONT, fit } from './staff'
 /** Playhead at 30 % of the window. */
 const BEHIND_SHARE = 0.3
 const MIN_ROWS = 10
+/** Above this many rows only the natural notes are labelled: the labels get too small to tell apart. */
+const SHARP_LABELS_MAX = 12
 /** Lyric strip under the rows, px. */
 const LYRICS = 22
 const MARGIN = 2
@@ -112,7 +114,8 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.font = `${Math.min(11, rowH * 0.7)}px ${FONT}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
-  for (let m = Math.ceil(lo); m <= Math.floor(hi); m++) ctx.fillText(noteName(m), 2, y(m))
+  const crowded = hi - lo + 1 > SHARP_LABELS_MAX
+  for (let m = Math.ceil(lo); m <= Math.floor(hi); m++) if (!(crowded && noteName(m).includes('#'))) ctx.fillText(noteName(m), 2, y(m))
 
   // Bar lines over the rows, moving with the notes
   ctx.strokeStyle = COLORS.muted

@@ -502,7 +502,7 @@ describe('piano roll', () => {
     const song = { notes: [mineAt(1, 60, 0), mineAt(20, 72, 0), mineAt(30, 84, 1)], bars: [0], timeSig: [4, 4] } as unknown as Song
     const { ctx, calls } = recorder()
     drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 })
-    expect(labels(calls)).toBe(17) // 60…72 ± 2; phrase 1 (84) not in view
+    expect(labels(calls)).toBe(10) // 60…72 ± 2 = 17 rows, over 12: only the 10 without sharp; phrase 1 (84) not in view
   })
   it('draws the sung line in the octave given for the song, not folded per note', () => {
     const song = { notes: [mineAt(1, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
@@ -520,7 +520,7 @@ describe('piano roll', () => {
       drawRoll(ctx, { song, roles: ['maria'], names: {}, t, frames, tolerance: 50, octave: 0 })
       return labels(calls)
     }
-    expect(rows(3.4)).toBe(14) // 60…73 about the same centre
+    expect(rows(3.4)).toBe(8) // 60…73 about the same centre: 14 rows, labelled without sharps
     expect(rows(3.6)).toBe(10)
   })
   it('eases into the zoom instead of jumping', () => {
@@ -536,7 +536,7 @@ describe('piano roll', () => {
     }
     expect(rows(0, [])).toBe(10)
     expect(rows(16, out)).toBe(10) // one animation frame in: still close to 62…71
-    expect(rows(1000, out)).toBe(14)
+    expect(rows(1000, out)).toBe(8) // 60…73, no sharps
     now.mockRestore()
   })
   it('draws a bar line at each bar start in view', () => {
