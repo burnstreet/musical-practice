@@ -90,7 +90,7 @@ body.script-mode main > :not(header):not(#scriptView):not(#status) { display:non
 .srow.direction { grid-template-columns:130px minmax(0,1fr) auto; align-items:center; background:transparent; border:1px dashed #3F78BF; }
 .srow.song { grid-template-columns:auto minmax(0,1fr) auto; align-items:center; background:#0F2F57; }
 .srow.picked { border:2px solid #fff; }
-.srow textarea, .srow input { font:inherit; background:#1F5FAB; color:#fff; border:0; border-radius:10px; padding:8px 10px; min-width:0; width:100%; resize:vertical; }
+.srow textarea, .srow input { font:inherit; background:#1F5FAB; color:#fff; border:0; border-radius:10px; padding:8px 10px; min-width:0; width:100%; resize:none; overflow:hidden; box-sizing:border-box; }
 .srow.direction textarea { font-style:italic; background:#17498C; resize:none; }
 .srow input { height:38px; }
 .swho { display:flex; flex-direction:column; gap:6px; }
