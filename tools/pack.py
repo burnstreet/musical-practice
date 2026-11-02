@@ -1,6 +1,6 @@
 """Builds content/: public manifest + AES-GCM encrypted library, song files and stems.
 
-Usage: PITCH_PASSWORD=... python tools/pack.py [--strict] [--out content] [--new-salt] [--root .]
+Usage: PITCH_PASSWORD=... python tools/pack.py [--strict] [--out content] [--new-salt] [--root .] [--cache dir]
 Format: specs/content-format.spec.md. Incomplete songs go to <out>/report.txt and are not packed.
 """
 
@@ -9,6 +9,7 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -72,7 +73,23 @@ def seconds(path):
     return len(pcm) / 2 / RATE
 
 
-def check_song(root, cfg_roles, s, work):
+def stem(src, dst, af=None, cache=None):
+    """`encode` to dst, returns (file, seconds); with a cache dir both are reused for the same source bytes and filter."""
+    if cache:
+        key = sha16(src.read_bytes() + (af or "").encode())
+        hit, sec = cache / f"{key}.mp3", cache / f"{key}.sec"
+        if hit.exists() and sec.exists():
+            return hit, float(sec.read_text())
+    encode(src, dst, af)
+    dur = seconds(dst)
+    if cache:
+        cache.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(dst, hit)
+        sec.write_text(repr(dur))
+    return dst, dur
+
+
+def check_song(root, cfg_roles, s, work, cache=None):
     """Returns (problem or None, prepared) where prepared = (notes, voices_mp3, backing_mp3, duration)."""
     nid = s["id"]
     data = root / "web" / "data"
@@ -96,17 +113,13 @@ def check_song(root, cfg_roles, s, work):
     for f in (mix, back):
         if not f.exists():
             return f"{nid}: rule 4, {f.name} missing", None
-    voices = work / f"{nid}_voices.mp3"
-    encode(mix, voices)
-    dur = seconds(voices)
-    backing = work / f"{nid}_backing.mp3"
+    voices, dur = stem(mix, work / f"{nid}_voices.mp3", cache=cache)
+    af = None
     if s["backing"] == "playback":
         off = s.get("playbackOffsetSec", 0.0)
         trim = f"atrim=start={off},asetpts=N/SR/TB" if off > 0 else f"adelay={int(-off * 1000)}:all=1"
-        encode(back, backing, f"{trim},apad,atrim=end={dur}")
-    else:
-        encode(back, backing)
-    bd = seconds(backing)
+        af = f"{trim},apad,atrim=end={dur}"
+    backing, bd = stem(back, work / f"{nid}_backing.mp3", af, cache)
     if abs(bd - dur) > TOL:
         return f"{nid}: rule 5, stem lengths differ ({dur:.3f} s vs {bd:.3f} s)", None
     return None, (notes, voices, backing, dur)
@@ -180,7 +193,9 @@ def main(argv=None):
     ap.add_argument("--out", default="content")
     ap.add_argument("--new-salt", action="store_true")
     ap.add_argument("--root", default=".")  # content root
+    ap.add_argument("--cache")  # dir for encoded stems (dev server); none in CI
     a = ap.parse_args(argv)
+    cache = Path(a.cache) if a.cache else None
     password = os.environ.get("PITCH_PASSWORD")
     if not password:
         print("PITCH_PASSWORD is not set", file=sys.stderr)
@@ -214,7 +229,7 @@ def main(argv=None):
 
     problems, songs = [], []
     for s in sorted(cfg["songs"], key=lambda s: s["number"]):
-        problem, prepared = check_song(root, role_ids, s, work)
+        problem, prepared = check_song(root, role_ids, s, work, cache)
         if problem:
             problems.append(problem)
             continue
