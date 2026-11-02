@@ -1,8 +1,9 @@
 ---
 name: Builder
-description: Python pipeline end. Phrase derivation, section detection, role painting and section editing in the editor, completeness check, encryption and packing into content/.
+description: Python pipeline end. Phrase derivation, section detection, role painting and section editing in the editor, completeness check, encryption and packing into content/, script packing.
 targets:
   - ../tools/pack.py
+  - ../tools/script_format.py
   - ../tools/phrases.py
   - ../tools/sections.py
   - ../web/edit-ops.js
@@ -244,6 +245,40 @@ Feature: Stem preparation
     Given song 08 with backing demucs and a no-vocals stem at 880 Hz
     When I run pack
     Then the backing stem is 10.0 s at 880 Hz
+```
+
+## Script (`pack.py`)
+
+Only when `web/data/script.json` exists. Format, hash and audio files: script-format.
+
+Script is complete when all hold:
+
+1. It loads (`script_format.load`).
+2. Every line has audio for its current hash.
+
+- Incomplete script: `content/report.txt` lists `script: rule <n>, <detail>` (item id, role). Script not packed, songs packed as usual. Exit 0. With `--strict` exit 1.
+- Complete: each MP3 encrypted as is; the script file is the source without `say`, every line with `audio` = file id of its MP3; library gets `script` and the roles get `speaks` from config.
+  `[@test] ../tools/tests/steps_pack.py`
+
+```gherkin
+Feature: Script packing
+  Scenario: complete script packed
+    Given one complete song and a script with two lines, both with audio
+    When I run pack
+    Then the decrypted library has script with 2 audio ids
+    And the decrypted script file has no say and each line's audio id decrypts to its MP3
+
+  Scenario: line without audio blocks the script
+    Given one complete song and a script whose line "aaaa" has no audio
+    When I run pack
+    Then report.txt lists "script: rule 2, aaaa"
+    And the library has no script and the song is packed
+    And the exit code is 0
+
+  Scenario: no script file
+    Given one complete song and no web/data/script.json
+    When I run pack
+    Then the library has no script
 ```
 
 ## Packing
