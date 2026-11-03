@@ -13,6 +13,10 @@ import { lineCount, sceneNo } from './text'
 /** Line text with its inline directions `[x]` as italic direction spans, brackets removed. */
 const inline = (text: string) => text.split(/(\[[^\]]*\])/).map((p) => (p.startsWith('[') ? html`<span class="inl">${p.slice(1, -1)}</span>` : p))
 
+/** A direction names one of my roles as a whole word (directions carry no role). */
+const forMe = (text: string, myNames: string[]) =>
+  myNames.some((n) => new RegExp(`(?<![\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'u').test(text))
+
 const icon = (body: ReturnType<typeof svg>, size = 22) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
 const BACK = icon(svg`<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`, 20)
 const PREV = icon(
@@ -109,8 +113,11 @@ export class GuRun extends LitElement {
     .level { display: flex; align-items: center; gap: 8px; font-size: 12px; }
     .meter { flex: 1; height: 6px; border-radius: 3px; background: #b3cb45; overflow: hidden; }
     .meter i { display: block; height: 100%; border-radius: 3px; background: var(--ink); }
+    .dir.me { color: var(--accent); }
     .direction { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; gap: 6px; }
     .label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .direction.me { border: 2px solid var(--accent); }
+    .direction.me .label { color: var(--accent); }
     .direction p { margin: 0; font-size: 16px; font-style: italic; line-height: 1.4; }
     .run { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
     .run i { display: block; height: 100%; background: var(--muted); transform-origin: left; animation: run linear forwards; }
@@ -282,6 +289,7 @@ export class GuRun extends LitElement {
     const past = flow.slice(Math.max(0, at - PAST), Math.max(0, at))
     const names = new Map(library.roles().map((r) => [r.id, r.name]))
     const mine = (i: ScriptItem) => i.type === 'line' && s.roles.includes(i.role)
+    const myNames = s.roles.map((id) => names.get(id) ?? id)
     const no = sceneNo(scene, si)
     return html`<header>
         <button class="round" aria-label="Zurück zur Auswahl" @click=${() => getContext().route('#/text')}>${BACK}</button>
@@ -309,8 +317,8 @@ export class GuRun extends LitElement {
           )}
         </nav>
         <main>
-          <div class="past">${past.map((i, k) => this.pastItem(i, mine(i), names, 0.35 + (0.5 * (k + 1)) / past.length))}</div>
-          ${this.current(names)}
+          <div class="past">${past.map((i, k) => this.pastItem(i, mine(i) || (i.type === 'direction' && forMe(i.text, myNames)), names, 0.35 + (0.5 * (k + 1)) / past.length))}</div>
+          ${this.current(names, myNames)}
           ${cue.state === 'playing' ? this.upNext(flow.slice(last + 1), mine, names) : ''}
         </main>
       </div>
@@ -319,7 +327,7 @@ export class GuRun extends LitElement {
   }
 
   private pastItem(i: ScriptItem, me: boolean, names: Map<string, string>, fade: number) {
-    if (i.type === 'direction') return html`<div class="dir" style="opacity:${fade}">${i.text}</div>`
+    if (i.type === 'direction') return html`<div class="dir ${me ? 'me' : ''}" style="opacity:${fade}">${i.text}</div>`
     if (i.type === 'song') return html`<div class="dir" style="opacity:${fade}">${this.songTitle(i.songId)}</div>`
     const name = names.get(i.role) ?? i.role
     return html`<div style="opacity:${fade}"><div class="who ${me ? 'me' : ''}">${me ? `${name} · du` : name}</div><div class="said">${inline(i.text)}</div></div>`
@@ -332,7 +340,7 @@ export class GuRun extends LitElement {
     return song ? `Lied ${song.number} · ${song.title}` : `Lied ${songId}`
   }
 
-  private current(names: Map<string, string>) {
+  private current(names: Map<string, string>, myNames: string[]) {
     const d = this.dialog!
     const { cue } = d
     const first = cue.turn[0]
@@ -340,7 +348,7 @@ export class GuRun extends LitElement {
     const s = getContext().settings.get()
     const paused = cue.state === 'paused'
     if (first.type === 'direction')
-      return html`<div class="current direction"><span class="label">Regie</span><p>${first.text}</p>
+      return html`<div class="current direction ${forMe(first.text, myNames) ? 'me' : ''}"><span class="label">Regie</span><p>${first.text}</p>
         ${paused ? '' : html`<div class="run">${keyed(first.id + cue.state, html`<i style="animation-duration:${CUE_DEFAULTS.directionMs}ms"></i>`)}</div>`}</div>`
     if (first.type === 'song') {
       const { library } = getContext()
