@@ -189,6 +189,30 @@ export default steps(({ Given, When, Then }) => {
     const em = all(ctx).find((e) => e.matches('.current .inl'))
     expect(em?.textContent).toBe(dir)
   })
+  Given(/^roles \[anna\] and scene s1 with directions "([^"]+)", "([^"]+)", "([^"]+)" and a line of mutter$/, (ctx, a, b, c) => {
+    fake(ctx)
+    settings.set({ roles: ['anna'] })
+    ctx.dirs = { [a]: 'd001', [b]: 'd002', [c]: 'd003' }
+    ctx.script = {
+      scenes: [scene('s1', [...[a, b, c].map((text, i): ScriptItem => ({ id: `d00${i + 1}`, type: 'direction', text })), line('m001', 'mutter', 'Hallo.')])],
+    }
+  })
+  When(/^the run-through starts at "([^"]+)"$/, (ctx, t) => run(ctx, ctx.dirs[t]))
+  When(/^the run-through starts at the line$/, (ctx) => run(ctx, 'm001'))
+  Then(/^the direction card is highlighted$/, (ctx) => {
+    expect(ctx.el.dialog.cue.state).toBe('direction')
+    expect(
+      all(ctx)
+        .find((e) => e.matches('.current.direction'))
+        ?.classList.contains('me'),
+    ).toBe(true)
+  })
+  Then(/^in the flow "([^"]+)" is highlighted and "([^"]+)" and "([^"]+)" are not$/, (ctx, yes, no1, no2) => {
+    const dir = (t: string) => all(ctx).find((e) => e.matches('.past .dir') && e.textContent === t)!
+    expect(dir(yes).classList.contains('me')).toBe(true)
+    expect(dir(no1).classList.contains('me')).toBe(false)
+    expect(dir(no2).classList.contains('me')).toBe(false)
+  })
   Given(/^settings\.dialog\.hint "(\w+)" and the cue state waiting with my line "([^"]+)"$/, async (ctx, hint, t) => {
     fake(ctx)
     settings.set({ roles: ['anna'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })
