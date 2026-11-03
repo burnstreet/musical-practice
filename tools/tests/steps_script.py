@@ -103,3 +103,20 @@ def _(hashed, voice):
 @then("the hash differs")
 def _(hashed):
     assert hashed["new"] != hashed["hash"]
+
+
+@then(parsers.parse('its direction is "{direction}"'))
+def _(line, direction):
+    assert script_format.direction(line) == direction
+
+
+@then(parsers.parse('with voice {voice} its hash differs from the hash of a line with text "{text}"'))
+def _(line, voice, text):
+    v = json.loads(voice)
+    assert script_format.line_hash(line, v) != script_format.line_hash({"text": text}, v)
+
+
+@then(parsers.parse('with voice {voice} its hash equals the hash of a line with text "{text}"'))
+def _(line, voice, text):
+    v = json.loads(voice)
+    assert script_format.line_hash(line, v) == script_format.line_hash({"text": text}, v)

@@ -8,6 +8,7 @@ Spec: specs/tts-renderer.spec.md. Runs in tools/.venv-tts; script_format.py is s
 """
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -15,6 +16,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 import wave
 from pathlib import Path
 
@@ -100,14 +103,92 @@ def xtts(text, voice):
     return np.asarray(wav, dtype=np.float32), _model.synthesizer.output_sample_rate
 
 
-ENGINES = {"xtts": xtts}
+OPENAI_URL = "https://api.openai.com/v1/audio/speech"
+
+
+def instructions(voice):
+    """The voice's instructions plus the line's direction (set by render_line)."""
+    d = voice.get("direction")
+    return voice.get("instructions", "") + (f"\nRegie zu dieser Zeile: {d}" if d else "")
+
+
+def openai(text, voice):
+    """OpenAI speech API, whole line in one call."""
+    body = {"model": voice["model"], "voice": voice["voice"], "input": text, "instructions": instructions(voice), "response_format": "pcm"}
+    req = urllib.request.Request(
+        OPENAI_URL,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            pcm = r.read()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"OpenAI {e.code}: {e.read().decode('utf-8', 'replace')}") from e
+    return np.frombuffer(pcm, dtype="<i2").astype(np.float32) / 32768, 24000
+
+
+def realtime_exchange(model, messages):
+    """Sends messages over one Realtime WebSocket, returns the server events up to response.done or error. aiohttp loads on first use."""
+    import asyncio
+
+    import aiohttp
+
+    async def run():
+        url = f"wss://api.openai.com/v1/realtime?model={model}"
+        headers = {"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"}
+        async with aiohttp.ClientSession() as session, session.ws_connect(url, headers=headers) as ws:
+            for m in messages:
+                await ws.send_json(m)
+            events = []
+            async for msg in ws:
+                events.append(json.loads(msg.data))
+                if events[-1]["type"] in ("response.done", "error"):
+                    break
+            return events
+
+    return asyncio.run(run())
+
+
+def openai_realtime(text, voice, tries=3):
+    """OpenAI Realtime API, whole line in one session; spoken again while the transcript's words differ from the text."""
+    say = {"type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}
+    messages = [
+        {
+            "type": "session.update",
+            "session": {
+                "type": "realtime",
+                "output_modalities": ["audio"],
+                "instructions": instructions(voice),
+                "audio": {"output": {"voice": voice["voice"], "format": {"type": "audio/pcm", "rate": 24000}}},
+            },
+        },
+        {"type": "conversation.item.create", "item": say},
+        {"type": "response.create"},
+    ]
+    for _ in range(tries):
+        pcm, heard = bytearray(), ""
+        for ev in realtime_exchange(voice["model"], messages):
+            if ev["type"] == "error":
+                raise RuntimeError(f"OpenAI Realtime: {ev['error']}")
+            if ev["type"] == "response.output_audio.delta":
+                pcm += base64.b64decode(ev["delta"])
+            elif ev["type"] == "response.output_audio_transcript.delta":
+                heard += ev["delta"]
+        if re.findall(r"\w+", heard.lower()) == re.findall(r"\w+", text.lower()):
+            return np.frombuffer(bytes(pcm), dtype="<i2").astype(np.float32) / 32768, 24000
+    raise RuntimeError(f"OpenAI Realtime did not read the text after {tries} tries, last heard: {heard!r}")
+
+
+ENGINES = {"xtts": xtts, "openai": openai, "openai-realtime": openai_realtime}
+WHOLE_LINE = {"openai", "openai-realtime"}  # engines that take a whole line, never chunked
 
 
 def render_text(text, voice, dst):
     """Chunks through the engine, joined with GAP silence, post-processed to MP3 at dst (written under a temp name, then renamed)."""
     synth = ENGINES[voice["engine"]]
     parts, rate = [], None
-    for c in chunk(text):
+    for c in [text] if voice["engine"] in WHOLE_LINE else chunk(text):
         audio, rate = synth(c, voice)
         parts += [np.zeros(int(GAP * rate), dtype=np.float32), np.asarray(audio, dtype=np.float32)]
     audio = np.concatenate(parts[1:])
@@ -150,17 +231,21 @@ def render_text(text, voice, dst):
 
 def render_line(line, voice, out_dir):
     """Renders the line to <out_dir>/<hash>.mp3 and returns that path."""
-    return render_text(sf.spoken(line), voice, Path(out_dir) / f"{sf.line_hash(line, voice)}.mp3")
+    dst = Path(out_dir) / f"{sf.line_hash(line, voice)}.mp3"
+    return render_text(sf.spoken(line), {**voice, "direction": sf.direction(line)}, dst)
 
 
 def voice_problems(roles, script):
-    """Speaking roles with lines but no voice or an unknown engine."""
+    """Speaking roles with lines but no voice or an unknown engine; openai voices without a key."""
     used = {i["role"] for i in sf.lines(script)}
-    return [
+    problems = [
         f"{r}: no voice" if not (v := roles[r].get("voice")) else f"{r}: unknown engine {v.get('engine')}"
         for r in sorted(used)
         if not (v := roles[r].get("voice")) or v.get("engine") not in ENGINES
     ]
+    if not os.environ.get("OPENAI_API_KEY") and any((roles[r].get("voice") or {}).get("engine") in WHOLE_LINE for r in used):
+        problems.append("engine openai: OPENAI_API_KEY not set")
+    return problems
 
 
 def run_all(config, script):

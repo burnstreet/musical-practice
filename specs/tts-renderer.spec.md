@@ -1,6 +1,6 @@
 ---
 name: TTS renderer
-description: Renders every script line to MP3 with the voice of its role, at build time on the Admin's machine. XTTS-v2 engine, chunking, idempotency by line hash, orphan cleanup, voice test.
+description: Renders every script line to MP3 with the voice of its role, at build time on the Admin's machine. Engines XTTS-v2 and OpenAI, chunking, idempotency by line hash, orphan cleanup, voice test.
 targets:
   - ../tools/script_render.py
 ---
@@ -23,12 +23,54 @@ ENGINES: dict[str, Callable[[str, dict], tuple[np.ndarray, int]]]  # name -> syn
 
 - `voice` per role in `sources/config.json` (see script-format). Engine `xtts`: `{ "engine": "xtts", "speaker": "<built-in XTTS-v2 speaker>", "speed": 1.0 }`, `speed` optional.
 - `xtts`: XTTS-v2 through `coqui-tts`, language `de`, built-in speaker, `split_sentences=False` (its own splitting makes it babble between sentences, listening test 2026-11-02). CUDA when available, else CPU with a warning. Model loaded once per process.
+- Engine `openai`: `{ "engine": "openai", "model": "<speech model>", "voice": "<built-in voice>", "instructions": "<how to speak>" }`. `POST https://api.openai.com/v1/audio/speech` with `model`, `voice`, `input` = spoken text, `instructions`, `response_format: "pcm"` (16-bit mono 24 kHz), key from env `OPENAI_API_KEY`. The line's `direction` (script-format), when not empty, goes after the instructions as `\nRegie zu dieser Zeile: <direction>`. HTTP error: fails with status and body. Standard library only.
+- Engine `openai-realtime`: same fields, `model` a Realtime model. One WebSocket session per line (`wss://api.openai.com/v1/realtime?model=<model>`, bearer key): `session.update` (audio output only, PCM 24 kHz, `voice`, instructions with direction as above), the spoken text as one user message, `response.create`; audio from `response.output_audio.delta` up to `response.done`. A conversational model may change the text: the transcript (`response.output_audio_transcript.delta`) must have the spoken text's words (lowercase, punctuation ignored), else the line is spoken again, at most 3 sessions, then the run fails naming the line's transcript. `aiohttp` loads on first use (TTS venv).
 - An engine is one function in `ENGINES`. Tests register a fake engine `sine`.
-- Before rendering anything: a speaking role with lines but no `voice`, or an unknown engine, is listed and the tool exits 1.
+- Before rendering anything: a speaking role with lines but no `voice`, or an unknown engine, or a voice on `openai` or `openai-realtime` without `OPENAI_API_KEY`, is listed and the tool exits 1.
+  `[@test] ../tools/tests/steps_script_render.py`
+
+```gherkin
+Feature: OpenAI engine
+  Scenario: line with direction, in one call
+    Given role josef on engine openai with model "m", voice "echo" and instructions "Sanft."
+    And a line of josef with text "[fleht] Aber meine Frau." followed by 4 sentences of 100 characters
+    When I render against a fake OpenAI answering 1 s of PCM
+    Then OpenAI got one request with model "m", voice "echo", response format "pcm" and the spoken text
+    And its instructions are "Sanft.\nRegie zu dieser Zeile: fleht"
+    And the line has audio
+
+  Scenario: no key stops the run
+    Given role josef on engine openai with model "m", voice "echo" and instructions "Sanft."
+    And a line of josef with text "Hallo."
+    And no OPENAI_API_KEY
+    When I render
+    Then the exit code is 1, the output names OPENAI_API_KEY, and nothing is rendered
+
+Feature: OpenAI Realtime engine
+  Scenario: line with direction, in one session
+    Given role josef on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
+    And a line of josef with text "[fleht] Aber meine Frau." followed by 4 sentences of 100 characters
+    When I render against a fake Realtime that reads the text
+    Then Realtime got one session for model "m" with voice "echo", audio output and the spoken text as user message
+    And its instructions are "Sanft.\nRegie zu dieser Zeile: fleht"
+    And the line has audio
+
+  Scenario: case and punctuation do not matter
+    Given role josef on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
+    And a line of josef with text "„Hallo, Wirt!“"
+    When I render against a fake Realtime that says "hallo Wirt."
+    Then Realtime got 1 sessions and the line has audio
+
+  Scenario: changed words are spoken again, then fail
+    Given role josef on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
+    And a line of josef with text "Hallo Wirt."
+    When I render against a fake Realtime that says "Hallo Welt."
+    Then Realtime got 3 sessions, the run failed naming "Hallo Welt.", and the line has no audio
+```
 
 ## Chunking
 
-XTTS takes about 250 characters per call and invents sounds on very short input.
+XTTS takes about 250 characters per call and invents sounds on very short input. Engines `openai` and `openai-realtime` take the whole line in one call (up to about 2000 tokens), so they are never chunked.
 
 - Spoken text = `say` or `text`. Split into sentences after `.`, `!`, `?`, `…` (with closing quotes) followed by a space.
 - Pack sentences greedily into chunks of at most 250 characters. A sentence over 250 splits after `,`, `;`, `:` or `–`, last resort between words.
@@ -115,3 +157,4 @@ Feature: Voice test
 - Editor server (`serve.py`, tools venv): the first `/render-line` starts `tools/.venv-tts` with `script_render.py --worker`, which loads the model once and answers one JSON line per request on stdin/stdout (`{item, voice}` in, `{hash}` or `{error}` out). The worker ends with the server. No TTS venv: `/render-line` answers 503 with a message naming `setup -Tts`.
 - The XTTS-v2 model (about 2 GB) downloads on first use into the user cache, never into a repo.
 - XTTS-v2 is under the Coqui Public Model License: non-commercial use only. The production is non-commercial. The tool sets `COQUI_TOS_AGREED=1`. See ADR 0008.
+- Engine `openai` sends the spoken text and directions to OpenAI and costs per call (whole play about 0.50 USD with `gpt-4o-mini-tts`). Key in env `OPENAI_API_KEY` (user environment, so the editor's worker gets it), never in a file. OpenAI shuts the speech models down on 2027-01-06. See ADR 0008.
