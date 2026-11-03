@@ -1,6 +1,6 @@
 ---
 name: Screen Songs
-description: Role and song selection. Artboards Songs.dc.html and SongsDesktop.dc.html. Download progress, role chips, song rows with markers and badges, voicetrack mode, start.
+description: Role and song selection. Artboards Songs.dc.html and SongsDesktop.dc.html, top from design/dialog Main. Download progress, role bar, song rows with markers and badges, voicetrack mode, start.
 targets:
   - ../src/app/screens/songs.ts
 ---
@@ -13,8 +13,6 @@ Strings:
 
 | id | text |
 |---|---|
-| title | `Wer bist du im Stück?` |
-| subtitle | `Du kannst mehrere Rollen wählen.` |
 | listTitle | `Lied zum Üben` |
 | legend | `deine Rolle singt mit` |
 | progress | `Lädt … {done} von {total} MB` |
@@ -27,8 +25,7 @@ Strings:
 | start | `Üben starten` |
 | settings | aria `Einstellungen` |
 
-- Role chips: roles with `sings = true`, in library order. Multi-select, `aria-pressed`. Selection saved to `settings.roles`. Empty selection allowed.
-- Planned (screen-dialog, design/dialog D1): the chips move into the shared, collapsible role bar `<gu-roles>` above a `Lieder` | `Text` switch; the bar offers roles that sing or speak.
+- Top (design/dialog D1): kicker and settings button, then the shared, collapsible role bar `<gu-roles>` (screen-dialog) and the `Lieder` | `Text` switch. The bar offers roles that sing or speak, in library order, multi-select, `aria-pressed`, saved to `settings.roles`.
 - Progress bar at top while `sync` runs. Hidden when done without error.
 - Song rows: number, title, roles of the song as names joined by ` · `. Accent dot when the song has a selected role. Badge `{n} %` from `history.badge` for the current selection, hidden when null. Row not ready: muted, `loading` text, not expandable.
 - Tapping a ready row expands it: three mode options (radio, default `settings.mode`), then `start`. One row expanded at a time.

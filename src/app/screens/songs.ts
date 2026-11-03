@@ -3,6 +3,7 @@ import type { Mode } from '../../core/audio-engine'
 import type { RoleId } from '../../core/content'
 import type { DownloadProgress } from '../../core/library'
 import { getContext } from '../context'
+import { topHeader, topStyles } from './roles'
 
 const MB = 1_000_000
 const MODES: [Mode, string, string][] = [
@@ -13,24 +14,17 @@ const MODES: [Mode, string, string][] = [
 
 /** Role and song selection. */
 export class GuSongs extends LitElement {
-  static styles = css`
+  static styles = [
+    topStyles,
+    css`
     :host { display: block; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-body); }
-    main { max-width: 720px; margin: 0 auto; padding: 36px 20px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; }
-    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-    h1 { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 600; line-height: 1.1; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px 20px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; }
     h2 { margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 600; }
-    .sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
     button { font: inherit; color: inherit; cursor: pointer; }
-    .gear { width: 44px; height: 44px; border-radius: 22px; border: 1px solid var(--line); background: transparent; font-size: 20px; flex: none; }
     .progress { background: var(--surface); border-radius: 12px; padding: 10px 14px; font-size: 13px; color: var(--muted); }
     .bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 8px; overflow: hidden; }
     .bar > i { display: block; height: 100%; background: var(--accent); }
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-    .chip { height: 44px; padding: 0 18px; border-radius: 22px; border: 2px solid var(--other); background: transparent; font-size: 14px; font-weight: 500; display: inline-flex; flex-direction: column; justify-content: center; align-items: center; }
-    /* invisible bold copy keeps the width the same when the chip turns bold */
-    .chip::after { content: attr(data-label); font-weight: 700; height: 0; overflow: hidden; visibility: hidden; }
-    .chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--ink); font-weight: 700; }
-    .listhead { display: flex; align-items: baseline; justify-content: space-between; margin-top: 8px; }
+    .listhead { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
     .legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
     ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     li { background: var(--surface); border-radius: 16px; border: 2px solid transparent; }
@@ -50,7 +44,8 @@ export class GuSongs extends LitElement {
     .mode label { font-size: 14px; font-weight: 700; display: flex; gap: 10px; align-items: center; cursor: pointer; }
     .mode small { font-size: 12px; line-height: 1.4; color: var(--muted); padding-left: 30px; }
     .start { height: 52px; border-radius: 26px; border: 0; background: var(--accent); color: var(--ink); font-size: 15px; font-weight: 700; margin-top: 6px; }
-  `
+  `,
+  ]
   static properties = {
     selected: { state: true },
     badges: { state: true },
@@ -90,9 +85,8 @@ export class GuSongs extends LitElement {
     if (sel === this.selected) this.badges = Object.fromEntries(entries)
   }
 
-  private toggle(id: RoleId) {
-    this.selected = this.selected.includes(id) ? this.selected.filter((r) => r !== id) : [...this.selected, id]
-    getContext().settings.set({ roles: this.selected })
+  private onRoles(e: CustomEvent<RoleId[]>) {
+    this.selected = e.detail
     void this.loadBadges()
   }
 
@@ -108,10 +102,7 @@ export class GuSongs extends LitElement {
     const p = this.progress
     const showProgress = p && (!p.done || p.error)
     return html`<main>
-      <header>
-        <div><h1>Wer bist du im Stück?</h1><div class="sub">Du kannst mehrere Rollen wählen.</div></div>
-        <button class="gear" aria-label="Einstellungen" @click=${() => openSettings()}>⚙</button>
-      </header>
+      ${topHeader(() => openSettings())}
       ${
         showProgress
           ? html`<div class="progress">${
@@ -122,15 +113,8 @@ export class GuSongs extends LitElement {
             <div class="bar"><i style="width:${p.totalBytes ? (100 * p.doneBytes) / p.totalBytes : 0}%"></i></div></div>`
           : ''
       }
-      <div class="chips">
-        ${library
-          .roles()
-          .filter((r) => r.sings)
-          .map(
-            (r) =>
-              html`<button class="chip" data-label=${r.name} aria-pressed=${this.selected.includes(r.id)} @click=${() => this.toggle(r.id)}>${r.name}</button>`,
-          )}
-      </div>
+      <gu-roles @change=${this.onRoles}></gu-roles>
+      <gu-mode-tabs active="songs"></gu-mode-tabs>
       <div class="listhead"><h2>Lied zum Üben</h2><span class="legend"><span class="dot"></span>deine Rolle singt mit</span></div>
       <ul>${library.songs().map((s) => this.song(s, names))}</ul>
     </main>`

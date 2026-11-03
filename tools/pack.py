@@ -15,6 +15,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+import script_format
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -187,6 +188,31 @@ def build_song(s, notes, dur):
     return {"id": s["id"], "bpm": bpm, "key": s["key"], "timeSig": [beats, 4], "bars": bars, "notes": out, "phrases": phrases}
 
 
+def pack_script(root, cfg, put, put_json, library):
+    """Sets library["script"] when web/data/script.json is complete; returns the problems."""
+    path = root / script_format.SCRIPT
+    if not path.exists():
+        return []
+    try:
+        script = script_format.load(cfg, path)
+    except (script_format.ScriptError, ValueError) as e:
+        return [f"script: rule 1, {e}"]
+    speakers = script_format.speaking_roles(cfg)
+    files = {}
+    for line in script_format.lines(script):
+        mp3 = script_format.audio_path(line, speakers[line["role"]].get("voice"), root)
+        files[line["id"]] = mp3
+    missing = [f"script: rule 2, {i['id']} ({i['role']}) has no audio" for i in script_format.lines(script) if not files[i["id"]].exists()]
+    if missing:
+        return missing
+    ids = {lid: put(mp3.read_bytes()) for lid, mp3 in files.items()}
+    for line in script_format.lines(script):
+        line.pop("say", None)
+        line["audio"] = ids[line["id"]]
+    library["script"] = {"file": put_json(script), "audio": list(dict.fromkeys(ids.values()))}
+    return []
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--strict", action="store_true")
@@ -249,7 +275,9 @@ def main(argv=None):
                 "files": {"voices": put(voices.read_bytes()), "backing": put(backing.read_bytes()), "notes": put_json(song)},
             }
         )
-    library = put_json({"roles": cfg["roles"], "songs": songs})
+    library = {"roles": [{**r, "speaks": bool(r.get("speaks"))} for r in cfg["roles"]], "songs": songs}
+    problems += pack_script(root, cfg, put, put_json, library)
+    library = put_json(library)
 
     for f in work.iterdir():
         f.unlink()

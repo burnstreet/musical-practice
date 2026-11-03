@@ -33,8 +33,13 @@ function fake(ctx: any) {
       songs: () => ctx.songs,
       roles: () => ctx.roles,
       isReady: (id: string) => !ctx.notReady.has(id),
+      hasScript: () => false,
       onProgress: (fn: (p: DownloadProgress) => void) => {
-        ctx.emit = fn
+        const prev = ctx.emit
+        ctx.emit = (p: DownloadProgress) => {
+          prev?.(p)
+          fn(p)
+        }
       },
     },
     history: { badge: async (id: string) => ctx.badges[id] ?? null },
@@ -59,8 +64,11 @@ async function mount(ctx: any) {
 const q = (ctx: any, sel: string) => ctx.el.shadowRoot.querySelector(sel) as HTMLElement | null
 const text = (ctx: any) => ctx.el.shadowRoot.textContent.replace(/\s+/g, ' ')
 const row = (ctx: any, n: string) => q(ctx, `[data-song="${n.padStart(2, '0')}"]`)!
+/** Role chips live in the shared role bar `<gu-roles>`. */
 const chip = (ctx: any, name: string) =>
-  [...ctx.el.shadowRoot.querySelectorAll('.chip')].find((b: any) => b.textContent.trim() === name) as HTMLElement | undefined
+  [...(ctx.el.shadowRoot.querySelector('gu-roles')?.shadowRoot?.querySelectorAll('.chip') ?? [])].find((b: any) => b.textContent.trim() === name) as
+    | HTMLElement
+    | undefined
 const button = (ctx: any, name: string) =>
   [...ctx.el.shadowRoot.querySelectorAll('button, label')].find((b: any) => b.textContent.trim() === name) as HTMLElement
 

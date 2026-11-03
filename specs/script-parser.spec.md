@@ -10,24 +10,26 @@ targets:
 Admin runs it once per production. Afterwards `web/data/script.json` is the source and is kept in the editor. Paths relative to the content root, as in builder.
 
 ```
-python tools/script_parse.py <docx> [--force] [--direction-color 0070C0] [--drop-color 00B050]
+python tools/script_parse.py <docx> [--force] [--direction-colors 0070C0,00B050] [--song-color 00B050]
 ```
 
 - Reads paragraphs in order with python-docx. Text = all runs joined, whitespace runs collapsed to one space, trimmed. Empty paragraphs skipped.
-- Colour of a paragraph = font colour of its first run with text (`None` when unset or auto).
+- Every coloured text is a direction: blue (stage direction) and green (light, sound, props, song notes) by default. Colour of a run = its font colour (`None` when unset or auto).
+- Segments of a paragraph: runs with text grouped into stretches of direction colour and of other colour; whitespace-only runs join the stretch they sit in. Segment text as above. A segment that is empty after trimming is left out.
 - Speaker names: role `name` and `aliases` from `sources/config.json`, roles with `speaks: true`, compared case-insensitively.
+- Speaker prefix of the first segment (when it is not a direction): a speaker name at its start, followed by `:`, `.`, a tab, or the segment's end. Matched on the raw text before collapsing whitespace.
 
 Rules per paragraph, first match wins:
 
 1. Before the first scene header: ignored (title, cast list, props).
 2. `^Szene\s+(\d+)\s*[-–:]?\s*(.*)$`: new scene, id `s<n>`, title = rest (may be empty). Resets the current speaker.
 3. `^Lied\s+(\d+)\s*:`: song item, `songId` = the number zero-padded to two digits. Any colour.
-4. Colour = drop colour (technical cue, props): dropped.
-5. Colour = direction colour: direction item.
-6. `^([^:]{1,30}):\s*(.*)$` and group 1 is a speaker name: that role becomes the current speaker. Rest non-empty: line item of that role. Rest empty: the next paragraph that rule 7 takes is the line.
-7. Otherwise, with a current speaker in this scene: line item of the current speaker (continuation, one item per paragraph). Without one: dropped (props list under a scene header).
+3a. Paragraphs wholly in the song colour (`--song-color`, default green `00B050`) right after a song item, up to the first paragraph of another kind: they belong to the song (who sings, its props; the app takes the singers from the song): dropped.
+4. Every segment a direction: one direction item, the paragraph's text.
+5. First segment has a speaker prefix: that role becomes the current speaker; the prefix is cut off. The rest is one line item of that role: its segments joined with a space, each direction segment written as an inline direction `[<text>]` (script-format). A paragraph that is only the prefix makes no item; the next paragraph rule 6 takes is the line. Only inline directions left: one direction item of their text.
+6. Otherwise, with a current speaker in this scene: line item of the current speaker as in rule 5 (continuation, one item per paragraph). Without one: dropped (props list under a scene header).
 
-- Rule 6 pattern matches but the name is no speaker: warning `maybe speaker "<name>" at paragraph <n>`, the paragraph goes through rule 7.
+- `^([^:]{1,30}):` matches the first segment but the name is no speaker: warning `maybe speaker "<name>" at paragraph <n>`, the paragraph goes through rule 6.
 - Song number not in config songs: warning, item kept.
 - Item ids: random, 4 chars `[a-z0-9]`, unique.
 - Writes `web/data/script.json` (UTF-8, 2-space indent). File exists and no `--force`: exit 1, file untouched.
@@ -44,11 +46,26 @@ Feature: Script parsing
     And a DOCX with paragraphs "Titel", "Anna Darstellerin", "Szene 1 - Im Zimmer", "Stuhl, Schal"
     And green paragraphs "Lied 1: Schnee", "1+4 Anna & 2+3 Chor"
     And a blue paragraph "Sie sitzt am Fenster."
+    And a green paragraph "Musik leiser"
     And paragraphs "Erzähler 1: Es schneit.", "Es schneit sehr.", "Anna:", "Wir gehen gleich"
     When I parse it
     Then scene s1 has title "Im Zimmer"
-    And its items are song "01", direction "Sie sitzt am Fenster.", line erzaehler1 "Es schneit.", line erzaehler1 "Es schneit sehr.", line anna "Wir gehen gleich"
+    And its items are song "01", direction "Sie sitzt am Fenster.", direction "Musik leiser", line erzaehler1 "Es schneit.", line erzaehler1 "Es schneit sehr.", line anna "Wir gehen gleich"
     And the report lists "Stuhl, Schal" and "1+4 Anna & 2+3 Chor" as dropped
+
+  Scenario: inline directions stay in the line
+    Given a config with speaking roles anna "Anna" and mutter "Mutter"
+    And a DOCX with "Szene 1" and a paragraph of runs "Anna: Da hinten. ", blue "zeigt nach rechts", " Komm."
+    And a paragraph of runs "Mutter", blue "gähnt", "Na gut."
+    And a paragraph of runs "Mutter: Oh. ", green "Donnergrollen"
+    When I parse it
+    Then scene s1 has line anna "Da hinten. [zeigt nach rechts] Komm.", line mutter "[gähnt] Na gut." and line mutter "Oh. [Donnergrollen]"
+
+  Scenario: speaker before a tab or a full stop
+    Given a config with speaking roles benjamin "Benjamin" and mutter "Mutter"
+    And a DOCX with "Szene 1", "Benjamin\tWer kommt mit?" and a paragraph of runs "Mutter", ".", blue "Verwundert", "Echt?"
+    When I parse it
+    Then scene s1 has line benjamin "Wer kommt mit?" and line mutter "[Verwundert] Echt?"
 
   Scenario: unknown speaker is a warning, not a role
     Given a config with speaking role anna "Anna"

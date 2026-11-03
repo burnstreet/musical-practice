@@ -205,7 +205,7 @@ _Avoid_: Instruction, note
 An item that marks where a song sits in the script. Links to the song in the pitch trainer.
 
 **TTS voice**:
-The synthetic voice that speaks a role's lines, set per role in the production config (engine and speaker).
+The synthetic voice that speaks a role's lines, set per role in the production config (engine and its settings, e.g. XTTS speaker or OpenAI voice and instructions).
 _Avoid_: Voice (alone; voices are the sung Voicetrack)
 
 **Turn**:

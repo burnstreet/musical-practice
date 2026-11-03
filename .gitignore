@@ -6,8 +6,10 @@ web/data/*.mp3
 web/data/*.json
 web/data/*.png
 web/data/*.musicxml
+web/data/script/
 work/
 tools/.venv/
+tools/.venv-tts/
 __pycache__/
 node_modules/
 dist/

@@ -2,6 +2,7 @@ import { css, html, LitElement } from 'lit'
 import { type Calibration, type CalibrationRun, delayFor, runCalibration } from '../core/calibration'
 import { noteName, type Tolerance } from '../core/scorer'
 import { getContext } from './context'
+import type { DialogSettings } from './settings'
 import { sheetStyles } from './sheet'
 
 export const HEADPHONE_TEXT = 'Bitte mit Kopfhörern üben, sonst hört das Mikrofon die Aufnahme mit.'
@@ -238,3 +239,144 @@ export class GuSettingsSheet extends LitElement {
 }
 
 customElements.define('gu-settings-sheet', GuSettingsSheet)
+
+const HINTS: [DialogSettings['hint'], string][] = [
+  ['show', 'Zeigen'],
+  ['start', 'Anfang'],
+  ['hide', 'Verstecken'],
+]
+const RATES = [0.8, 0.9, 1, 1.1, 1.2, 1.3]
+/** German decimal with one digit: 1.2 -> "1,2". */
+export const de1 = (n: number) => n.toFixed(1).replace('.', ',')
+
+/** Text settings sheet (artboard D5), opened from scene selection and run-through. Saves settings.dialog at once; fires `close`. */
+export class GuTextSettings extends LitElement {
+  static properties = { mic: { state: true }, level: { state: true } }
+  static styles = [
+    sheetStyles,
+    css`
+    .sheet { background: var(--bg); border-radius: 24px 24px 0 0; padding: 12px 20px 24px; display: flex; flex-direction: column; gap: 18px; border-top: 0; }
+    .grip { width: 40px; height: 5px; border-radius: 3px; background: var(--line); align-self: center; }
+    .head { display: flex; align-items: center; justify-content: space-between; }
+    h2 { margin: 0; }
+    .done { height: 40px; min-height: 40px; border-radius: 20px; border: 0; background: var(--accent); color: var(--ink); font-size: 14px; font-weight: 700; }
+    section { display: flex; flex-direction: column; gap: 8px; }
+    .t { font-size: 14px; font-weight: 700; }
+    small { font-size: 12px; color: var(--muted); }
+    .seg { display: flex; background: var(--surface); border-radius: 14px; padding: 3px; gap: 3px; }
+    .seg button { flex: 1; height: 40px; min-height: 40px; border-radius: 11px; border: 0; font-size: 14px; font-weight: 400; }
+    .line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .val { font-size: 14px; font-weight: 700; color: var(--accent); }
+    input[type='range'] { width: 100%; min-height: 32px; margin: 0; accent-color: var(--accent); }
+    .rates { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    .rates button { height: 44px; padding: 0; border: 2px solid var(--line); font-size: 13px; font-weight: 400; }
+    button[aria-pressed='true'] { font-weight: 700; }
+    .box { display: flex; flex-direction: column; background: var(--surface); border-radius: 16px; }
+    .box label { justify-content: space-between; gap: 12px; min-height: 52px; padding: 0 14px; font-size: 14px; }
+    .box hr { height: 1px; border: 0; background: var(--bg); margin: 0 14px; }
+    .phones { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 16px; padding: 12px 14px; font-size: 13px; line-height: 1.45; color: var(--accent); }
+    .phones div { flex: 1; color: var(--text); }
+    .meter { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; }
+    .meter div { height: 100%; border-radius: 5px; background: var(--accent); }
+  `,
+  ]
+
+  declare mic: 'off' | 'on' | 'failed'
+  declare level: number
+  private timer = 0
+
+  constructor() {
+    super()
+    this.mic = 'off'
+    this.level = 0
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this.stopMic()
+  }
+
+  private set(p: Partial<DialogSettings>) {
+    const { settings } = getContext()
+    settings.set({ dialog: { ...settings.get().dialog, ...p } })
+    this.requestUpdate()
+  }
+
+  private async startMic() {
+    const { pitch, settings } = getContext()
+    if ((await pitch.start(() => performance.now() / 1000, undefined, settings.get().micDeviceId)) !== 'ok') {
+      this.mic = 'failed'
+      return
+    }
+    this.mic = 'on'
+    this.timer = window.setInterval(() => (this.level = pitch.level()), 100)
+  }
+
+  private stopMic() {
+    if (this.mic !== 'on') return
+    clearInterval(this.timer)
+    getContext().pitch.stop()
+    this.mic = 'off'
+    this.level = 0
+  }
+
+  private close() {
+    this.stopMic()
+    this.dispatchEvent(new Event('close'))
+  }
+
+  render() {
+    const d = getContext().settings.get().dialog
+    return html`<div class="backdrop" @click=${(e: Event) => e.target === e.currentTarget && this.close()}>
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="tt">
+        <div class="grip"></div>
+        <div class="head"><h2 id="tt">Einstellungen Text</h2><button class="done" @click=${this.close}>Fertig</button></div>
+
+        <section>
+          <div class="t">Eigene Zeile</div>
+          <div class="seg" role="group" aria-label="Eigene Zeile">
+            ${HINTS.map(([h, label]) => html`<button aria-pressed=${d.hint === h} @click=${() => this.set({ hint: h })}>${label}</button>`)}
+          </div>
+          <small>Anfang: die ersten drei Wörter, der Rest zum Aufdecken.</small>
+        </section>
+
+        <section>
+          <div class="line"><label for="silence" class="t">Pause bis weiter</label><span class="val">${de1(d.silenceMs / 1000)} s</span></div>
+          <input id="silence" type="range" min="500" max="3000" step="100" .value=${String(d.silenceMs)}
+            @input=${(e: Event) => this.set({ silenceMs: +(e.target as HTMLInputElement).value })} />
+          <div class="line"><small>0,5 s</small><small>So lange still, dann geht es weiter.</small><small>3 s</small></div>
+        </section>
+
+        <section>
+          <div class="t">Sprechtempo der anderen</div>
+          <div class="rates" role="group" aria-label="Sprechtempo">
+            ${RATES.map((r) => html`<button aria-pressed=${Math.abs(d.rate - r) < 0.01} @click=${() => this.set({ rate: r })}>${de1(r)}×</button>`)}
+          </div>
+        </section>
+
+        <div class="box">
+          <label>Regieanweisungen anzeigen<input type="checkbox" .checked=${d.showDirections} @change=${(e: Event) => this.set({ showDirections: (e.target as HTMLInputElement).checked })} /></label>
+          <hr />
+          <label>Szene wiederholen<input type="checkbox" .checked=${d.loopScene} @change=${(e: Event) => this.set({ loopScene: (e.target as HTMLInputElement).checked })} /></label>
+        </div>
+
+        <div class="phones">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0118 0v2"/><rect x="3" y="14" width="4" height="7" rx="2"/><rect x="17" y="14" width="4" height="7" rx="2"/></svg>
+          <div>Mit Kopfhörern üben. Sonst hört das Mikro die anderen Stimmen und geht zu früh weiter.</div>
+        </div>
+
+        <section>
+          ${
+            this.mic === 'on'
+              ? html`<div class="line"><span class="t">Mikro testen</span><small>sprich etwas</small></div>
+                <div class="meter" role="meter" aria-label="Mikrofonpegel" aria-valuemin="0" aria-valuemax="1" aria-valuenow=${this.level}><div style="width:${Math.min(100, this.level * 300)}%"></div></div>`
+              : html`<button @click=${this.startMic}>Mikro testen</button>
+                ${this.mic === 'failed' ? html`<p role="alert">Kein Zugriff auf das Mikrofon.</p>` : ''}`
+          }
+        </section>
+      </div>
+    </div>`
+  }
+}
+
+customElements.define('gu-text-settings', GuTextSettings)

@@ -10,6 +10,7 @@ from pytest_bdd import given, parsers, then, when
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pack  # noqa: E402
+import script_format  # noqa: E402
 
 ROLES = [{"id": r, "name": r.title(), "sings": True} for r in ("maria", "josef", "chor")]
 
@@ -307,3 +308,75 @@ def test_repeat_gets_later_bar_and_bars_increase():
     assert first == 0 and second > 0
     assert song["bars"][second] == 10.0
     assert all(a < b for a, b in zip(song["bars"], song["bars"][1:]))
+
+
+VOICE = {"engine": "xtts", "speaker": "a"}
+
+
+def make_script(ctx, lines, with_audio):
+    """Script of maria lines (id, text); with_audio ids get an MP3 for their current hash."""
+    make_song(ctx)
+    root = ctx["root"]
+    cfg = json.loads((root / "sources" / "config.json").read_text(encoding="utf-8"))
+    cfg["roles"][0].update(speaks=True, voice=VOICE)
+    (root / "sources" / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    items = [{"id": i, "type": "line", "role": "maria", "text": t, "say": t + "!"} for i, t in lines]
+    (root / "web" / "data" / "script.json").write_text(
+        json.dumps({"scenes": [{"id": "s1", "title": "", "items": items}]}), encoding="utf-8"
+    )
+    for n, item in enumerate(items):
+        if item["id"] in with_audio:
+            mp3 = script_format.audio_path(item, VOICE, root)
+            mp3.parent.mkdir(parents=True, exist_ok=True)
+            sine(mp3, 1, 300 + 100 * n)
+            ctx.setdefault("mp3", {})[item["id"]] = mp3.read_bytes()
+
+
+@given("one complete song and a script with two lines, both with audio")
+def _(ctx):
+    make_script(ctx, [("aaaa", "Hallo"), ("bbbb", "Welt")], {"aaaa", "bbbb"})
+
+
+@given(parsers.parse('one complete song and a script whose line "{lid}" has no audio'))
+def _(ctx, lid):
+    make_script(ctx, [(lid, "Hallo"), ("bbbb", "Welt")], {"bbbb"})
+
+
+@given("one complete song and no web/data/script.json")
+def _(ctx):
+    make_song(ctx)
+
+
+@then("the decrypted library has script with 2 audio ids")
+def _(ctx):
+    assert len(library(ctx)["script"]["audio"]) == 2
+
+
+@then("the decrypted script file has no say and each line's audio id decrypts to its MP3")
+def _(ctx):
+    script = json.loads(decrypt_file(ctx, library(ctx)["script"]["file"]))
+    lines = script_format.lines(script)
+    assert len(lines) == 2 and all("say" not in i for i in lines)
+    for i in lines:
+        assert decrypt_file(ctx, i["audio"]) == ctx["mp3"][i["id"]]
+    assert [i["audio"] for i in lines] == library(ctx)["script"]["audio"]
+    m = read_manifest(ctx)
+    assert m["totalBytes"] == sum(p.stat().st_size for p in ctx["out"].glob("*.bin")) and len(m["files"]) == 7
+
+
+@then("the library has no script and the song is packed")
+def _(ctx):
+    lib = library(ctx)
+    assert "script" not in lib and [s["id"] for s in lib["songs"]] == ["08"]
+
+
+@then("the library has no script")
+def _(ctx):
+    assert "script" not in library(ctx)
+
+
+def test_strict_fails_on_incomplete_script(ctx):
+    make_script(ctx, [("aaaa", "Hallo")], set())
+    ctx["args"] = ["--strict"]
+    run(ctx)
+    assert ctx["exit"] == 1

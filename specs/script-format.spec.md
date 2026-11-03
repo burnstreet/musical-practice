@@ -32,6 +32,7 @@ export function parseScript(json: unknown, roles: Role[]): Script   // throws Co
 - Scene: `id` = `s` plus the scene number from the DOCX, unique. `title` string, may be empty.
 - Item `id`: 4 chars `[a-z0-9]`, unique in the file. Stable: edits keep it, split and insert make new ones, nothing is renumbered.
 - `type` `line`: `role` = role id with `speaks: true`, `text` non-empty. `say` optional: text the TTS speaks instead of `text` (pronunciation of names). Display always uses `text`.
+- Inline direction: `[…]` inside a line's `text` (no nesting). Shown as a direction inside the line, never spoken. Spoken text = `say`, else `text` without its inline directions, whitespace collapsed, trimmed. A line whose spoken text is empty is rejected.
 - `type` `direction`: `text` non-empty. Stage direction, shown, never spoken.
 - `type` `song`: `songId` = a song id of the config. Shown as song cue.
 - Order of scenes and items = order of the play.
@@ -60,7 +61,8 @@ Feature: Script source
 
 ## Line hash and audio files
 
-- `line_hash(line, voice)` = first 16 hex chars of SHA-256 over the UTF-8 bytes of canonical JSON `{"text": <say or text>, "voice": <voice of the role>}` (keys sorted, no whitespace, non-ASCII kept).
+- `line_hash(line, voice)` = first 16 hex chars of SHA-256 over the UTF-8 bytes of canonical JSON `{"text": <spoken text>, "voice": <voice of the role>}` (keys sorted, no whitespace, non-ASCII kept). Engines `openai` and `openai-realtime` play the inline directions (see tts-renderer): there the JSON also holds `"direction": <direction(line)>` when that is not empty.
+- `direction(line)` = the contents of the inline directions in `text`, in order, joined with `"; "`, whitespace collapsed. Empty when none.
 - Audio of a line: `web/data/script/<hash>.mp3`. A line has audio when that file exists. Changing text, `say` or the role's voice changes the hash: the old file no longer counts.
 - Audio: MP3, mono, 64 kbps, 44.1 kHz, silence at both ends trimmed to at most 100 ms.
 - Python only. The editor asks the server, never hashes in JS.
@@ -72,10 +74,20 @@ Feature: Line hash
     Given a line with text "Hallo Jo" and say "Hallo Joh"
     Then its hash equals the hash of a line with text "Hallo Joh" and the same voice
 
+  Scenario: inline directions are not spoken
+    Given a line with text "Da hinten. [zeigt nach rechts] Komm." and no say
+    Then its hash equals the hash of a line with text "Da hinten. Komm." and the same voice
+
   Scenario: voice change changes the hash
     Given a line hashed with voice {"engine":"xtts","speaker":"a"}
     When the role's voice becomes {"engine":"xtts","speaker":"b"}
     Then the hash differs
+
+  Scenario: inline directions count for engine openai
+    Given a line with text "[fleht] Bitte. [leise] Nur heute." and no say
+    Then its direction is "fleht; leise"
+    And with voice {"engine":"openai"} its hash differs from the hash of a line with text "Bitte. Nur heute."
+    And with voice {"engine":"xtts"} its hash equals the hash of a line with text "Bitte. Nur heute."
 ```
 
 ## Config additions (`sources/config.json`)
