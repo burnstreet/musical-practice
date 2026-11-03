@@ -4,7 +4,9 @@ from pytest_bdd.parser import FeatureParser
 COUNTS = {
     "chunking": 4,
     "completeness": 2,
-    "line-hash": 3,
+    "line-hash": 4,
+    "openai-engine": 2,
+    "openai-realtime-engine": 3,
     "packing": 4,
     "phrase-derivation": 3,
     "rendering": 5,

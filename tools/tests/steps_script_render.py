@@ -1,3 +1,5 @@
+import base64
+import io
 import json
 import subprocess
 import sys
@@ -14,6 +16,8 @@ import script_render  # noqa: E402
 scenarios(str(FEATURES_DIR / "chunking.feature"))
 scenarios(str(FEATURES_DIR / "rendering.feature"))
 scenarios(str(FEATURES_DIR / "voice-test.feature"))
+scenarios(str(FEATURES_DIR / "openai-engine.feature"))
+scenarios(str(FEATURES_DIR / "openai-realtime-engine.feature"))
 
 RATE = 22050
 VOICE = {"engine": "sine"}
@@ -198,10 +202,10 @@ def _(rctx, text):
     assert rctx["texts"] == [text]
 
 
-@then("the exit code is 1, the output names anna, and nothing is rendered")
-def _(rctx, capsys):
+@then(parsers.parse("the exit code is 1, the output names {name}, and nothing is rendered"))
+def _(rctx, capsys, name):
     out = capsys.readouterr()
-    assert rctx["exit"] == 1 and "anna" in out.out + out.err
+    assert rctx["exit"] == 1 and name in out.out + out.err
     assert rctx["texts"] == [] and not mp3s(rctx)
 
 
@@ -230,6 +234,121 @@ def _(rctx):
     assert (info["codec_name"], info["channels"], info["sample_rate"], int(info["bit_rate"])) == ("mp3", 1, "44100", 64000)
     head, tail = silence_at_ends(file)
     assert head <= 0.13 and tail <= 0.13  # 0.1 s plus encoder padding
+
+
+# --- openai engine ---
+
+
+@given(parsers.parse('role josef on engine {engine} with model "{model}", voice "{voice}" and instructions "{instructions}"'))
+def _(rctx, monkeypatch, engine, model, voice, instructions):
+    rctx["roles"]["josef"] = {"engine": engine, "model": model, "voice": voice, "instructions": instructions}
+    rctx["instructions"] = []
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+
+@given(parsers.parse('a line of josef with text "{text}" followed by {n:d} sentences of {size:d} characters'))
+def _(rctx, text, n, size):
+    more = [sentence(size, "bcdefg"[i]) for i in range(n)]
+    line(rctx, "a", " ".join([text, *more]), role="josef")
+    rctx["spoken"] = " ".join(["Nur noch kurz.", *more])
+
+
+@given(parsers.parse('a line of josef with text "{text}"'))
+def _(rctx, text):
+    line(rctx, "a", text, role="josef")
+
+
+@given("no OPENAI_API_KEY")
+def _(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+
+@when("I render against a fake OpenAI answering 1 s of PCM")
+def _(rctx, monkeypatch):
+    rctx["requests"] = []
+
+    def urlopen(req, timeout=None):
+        rctx["requests"].append({"url": req.full_url, "auth": req.get_header("Authorization"), "body": json.loads(req.data)})
+        rctx["instructions"].append(rctx["requests"][-1]["body"]["instructions"])
+        return io.BytesIO(PCM_1S)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    render(rctx)
+
+
+PCM_1S = (0.5 * np.sin(2 * np.pi * 440 * np.arange(24000) / 24000) * 32767).astype("<i2").tobytes()
+
+
+def fake_realtime(rctx, monkeypatch, says=None):
+    """Fake Realtime session: records model and sent messages, answers 1 s of PCM and a transcript (the user message unless says)."""
+    rctx["sessions"] = []
+
+    def exchange(model, messages):
+        rctx["sessions"].append({"model": model, "messages": messages})
+        rctx["instructions"].append(messages[0]["session"]["instructions"])
+        heard = says if says is not None else messages[1]["item"]["content"][0]["text"]
+        return [
+            {"type": "response.output_audio.delta", "delta": base64.b64encode(PCM_1S).decode()},
+            {"type": "response.output_audio_transcript.delta", "delta": heard},
+            {"type": "response.done"},
+        ]
+
+    monkeypatch.setattr(script_render, "realtime_exchange", exchange)
+    try:
+        render(rctx)
+    except RuntimeError as e:
+        rctx["error"] = str(e)
+
+
+@when("I render against a fake Realtime that reads the text")
+def _(rctx, monkeypatch):
+    fake_realtime(rctx, monkeypatch)
+
+
+@when(parsers.parse('I render against a fake Realtime that says "{says}"'))
+def _(rctx, monkeypatch, says):
+    fake_realtime(rctx, monkeypatch, says)
+
+
+@then(parsers.parse('Realtime got one session for model "{model}" with voice "{voice}", audio output and the spoken text as user message'))
+def _(rctx, model, voice):
+    (s,) = rctx["sessions"]
+    update, message, create = s["messages"]
+    assert s["model"] == model
+    assert update["type"] == "session.update" and update["session"]["output_modalities"] == ["audio"]
+    assert update["session"]["audio"]["output"]["voice"] == voice
+    assert message["item"]["role"] == "user" and message["item"]["content"][0]["text"] == rctx["spoken"]
+    assert create["type"] == "response.create"
+
+
+@then(parsers.parse("Realtime got {n:d} sessions and the line has audio"))
+def _(rctx, n):
+    assert len(rctx["sessions"]) == n and "error" not in rctx
+    assert mp3s(rctx) == {f"{hash_of(rctx, 'a')}.mp3"}
+
+
+@then(parsers.parse('Realtime got {n:d} sessions, the run failed naming "{text}", and the line has no audio'))
+def _(rctx, n, text):
+    assert len(rctx["sessions"]) == n and text in rctx["error"]
+    assert not audio_dir(rctx).exists() or not mp3s(rctx)
+
+
+@then(parsers.parse('OpenAI got one request with model "{model}", voice "{voice}", response format "{fmt}" and the spoken text'))
+def _(rctx, model, voice, fmt):
+    (req,) = rctx["requests"]
+    assert req["url"] == "https://api.openai.com/v1/audio/speech" and req["auth"] == "Bearer test-key"
+    b = req["body"]
+    assert (b["model"], b["voice"], b["response_format"], b["input"]) == (model, voice, fmt, rctx["spoken"])
+
+
+@then(parsers.parse('its instructions are "{text}"'))
+def _(rctx, text):
+    assert rctx["instructions"][0] == text.replace("\\n", "\n")
+
+
+@then("the line has audio")
+def _(rctx):
+    assert mp3s(rctx) == {f"{hash_of(rctx, 'a')}.mp3"}
 
 
 # --- voice test ---

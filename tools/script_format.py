@@ -65,8 +65,16 @@ def spoken(line):
     return line.get("say") or " ".join(re.sub(r"\[[^\]]*\]", " ", line["text"]).split())
 
 
+def direction(line):
+    """Contents of the inline directions in text, joined with "; "."""
+    return "; ".join(" ".join(d.split()) for d in re.findall(r"\[([^\]]*)\]", line["text"]))
+
+
 def line_hash(line, voice):
-    canon = json.dumps({"text": spoken(line), "voice": voice}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    data = {"text": spoken(line), "voice": voice}
+    if (voice or {}).get("engine") in ("openai", "openai-realtime") and (d := direction(line)):
+        data["direction"] = d  # these engines play it; other engines ignore it, so their hashes stay
+    canon = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:16]
 
 
