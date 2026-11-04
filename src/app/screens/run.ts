@@ -1,6 +1,6 @@
 import { css, html, LitElement, svg } from 'lit'
 import { keyed } from 'lit/directives/keyed.js'
-import { CUE_DEFAULTS, hintText } from '../../core/cue'
+import { CUE_DEFAULTS, groupTurns, hintText } from '../../core/cue'
 import type { ScriptItem } from '../../core/types'
 import { getContext } from '../context'
 import { type Dialog, type DialogDeps, openDialog, unlockAudio } from '../dialog'
@@ -287,6 +287,8 @@ export class GuRun extends LitElement {
     const at = first ? flow.indexOf(first) : flow.length
     const last = first ? flow.indexOf(cue.turn.at(-1)!) : flow.length
     const past = flow.slice(Math.max(0, at - PAST), Math.max(0, at))
+    const turns = groupTurns(flow, s.roles)
+    const turnAt = first ? turns.findIndex((t) => t.includes(first)) : turns.length
     const names = new Map(library.roles().map((r) => [r.id, r.name]))
     const mine = (i: ScriptItem) => i.type === 'line' && s.roles.includes(i.role)
     const myNames = s.roles.map((id) => names.get(id) ?? id)
@@ -295,7 +297,7 @@ export class GuRun extends LitElement {
         <button class="round" aria-label="Zurück zur Auswahl" @click=${() => getContext().route('#/text')}>${BACK}</button>
         <div>
           <h1>Szene ${no}${scene.title ? ` · ${scene.title}` : ''}</h1>
-          <div class="progress" role="img" aria-label="Fortschritt in der Szene: ${at + 1} von ${flow.length}"><i style="width:${flow.length ? (100 * (at + 1)) / flow.length : 0}%"></i></div>
+          <div class="progress" role="img" aria-label="Fortschritt in der Szene: ${turnAt + 1} von ${turns.length}"><i style="width:${turns.length ? (100 * (turnAt + 1)) / turns.length : 0}%"></i></div>
         </div>
         <button class="round" aria-label="Einstellungen" @click=${this.openSettings}>${SLIDERS}</button>
       </header>

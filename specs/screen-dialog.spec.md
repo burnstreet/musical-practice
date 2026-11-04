@@ -48,7 +48,7 @@ Artboard D1.
 
 - `resume` only when a stored position exists for the current role set; tap starts there.
 - Scene rows: number, title, meta, count of lines of the selected roles (accent, hidden at 0). Tap: route `#/text/{sceneId}`.
-- Script not ready (`library.scriptReady` false): rows muted, `notReady`, not tappable. No script in the library: the `Text` tab is hidden.
+- Script not ready (`library.scriptReady` false): one muted row `notReady`, not tappable (scenes are unknown until the script file is stored). No script in the library: the `Text` tab is hidden.
 
 ## Run-through (`#/text/{sceneId}[/{itemId}]`)
 
@@ -74,7 +74,7 @@ Artboards D2 (others speak), D3 (my turn), D4 (song cue, direction, missed hint)
 | missed | `Nichts gehört, nach {s} s weitergemacht.` |
 | again | `Nochmal` |
 
-- Header: back (to `#/text`), title with a thin progress bar (turn index of the scene), settings.
+- Header: back (to `#/text`), title with a thin progress bar (turn index of the scene, turns as the cue engine groups them: my consecutive lines are one turn), settings.
 - Flow fills the space between header and controls, anchored at the bottom: past items above the current one, older ones fainter, as many as fit. Directions in italics. My lines labelled `me` in accent colour.
 - Inline directions (`[…]` in a line, script-format) show in the flow, the cards and the hint in italics in the direction style, without the brackets.
 - Direction for me: a `direction` item whose text holds the `name` of a selected role as a whole word (case-sensitive; directions have no role field). Shown in accent colour in the flow, `direction` card with accent border and label. Inline directions never.
@@ -166,6 +166,16 @@ Feature: Run-through
     Given the cue state waiting
     When I press "Weiter"
     Then the cue engine receives tap
+
+  Scenario: progress counts turns
+    Given roles [anna] and scene s1 with a line of mutter, two lines of anna and a line of mutter
+    When the run-through starts at the last line
+    Then the progress reads "3 von 3"
+
+  Scenario: not ready, one muted row
+    Given a script not ready yet
+    When the text screen renders
+    Then one disabled row reads "Text wird geladen"
 
   Scenario: missed hint
     Given the cue effect missed

@@ -257,7 +257,8 @@ Script is complete when all hold:
 2. Every line has audio for its current hash.
 
 - Incomplete script: `content/report.txt` lists `script: rule <n>, <detail>` (item id, role). Script not packed, songs packed as usual. Exit 0. With `--strict` exit 1.
-- Complete: each MP3 encrypted as is; the script file is the source without `say`, every line with `audio` = file id of its MP3; library gets `script` and the roles get `speaks` from config.
+- Complete: each MP3 encrypted as is; the script file is the source without `say`, every line with `audio` = file id of its MP3; library gets `script`.
+- Library roles: `id`, `name`, `sings`, `speaks` (false when missing) from config, nothing else (`voice` and `aliases` stay on the Admin's machine).
   `[@test] ../tools/tests/steps_pack.py`
 
 ```gherkin
@@ -267,6 +268,7 @@ Feature: Script packing
     When I run pack
     Then the decrypted library has script with 2 audio ids
     And the decrypted script file has no say and each line's audio id decrypts to its MP3
+    And the library role maria has only id, name, sings and speaks true
 
   Scenario: line without audio blocks the script
     Given one complete song and a script whose line "aaaa" has no audio

@@ -275,7 +275,8 @@ def main(argv=None):
                 "files": {"voices": put(voices.read_bytes()), "backing": put(backing.read_bytes()), "notes": put_json(song)},
             }
         )
-    library = {"roles": [{**r, "speaks": bool(r.get("speaks"))} for r in cfg["roles"]], "songs": songs}
+    roles = [{"id": r["id"], "name": r["name"], "sings": r["sings"], "speaks": bool(r.get("speaks"))} for r in cfg["roles"]]
+    library = {"roles": roles, "songs": songs}
     problems += pack_script(root, cfg, put, put_json, library)
     library = put_json(library)
 

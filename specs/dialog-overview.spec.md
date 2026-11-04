@@ -19,7 +19,7 @@ Besides the songs a musical has a spoken script (first production: a DOCX of abo
 
 ## Solution
 
-Dialog mode in the PWA. The actor picks role(s). The app speaks every other role's lines with a synthetic voice per role (pre-rendered on the Admin's machine), shows the actor's own lines (shown, hidden or first words), and waits until the actor has finished speaking. "Finished" = on-device level detection (speech start, then silence), tap as fallback. No speech-to-text, no cloud, offline like the songs.
+Dialog mode in the PWA. The actor picks role(s). The app speaks every other role's lines with a synthetic voice per role (pre-rendered on the Admin's machine), shows the actor's own lines (shown, hidden or first words), and waits until the actor has finished speaking. "Finished" = on-device level detection (speech start, then silence), tap as fallback. No speech-to-text, no cloud at runtime, offline like the songs.
 
 ## User Stories
 
@@ -50,7 +50,7 @@ Grilling and listening test of 2026-11-02.
 - All stories in v1. No scoring, no history. Last position per role set only.
 - Module specs: script-format, script-parser, tts-renderer, cue-engine, voice-detect, script-editor; library and builder extended. Screen after the design.
 - Detection: energy threshold with hysteresis on the pitch engine's `rms` frames (voice-detect). Same mic, no second capture. Silero VAD only if this fails on devices.
-- TTS: XTTS-v2 (`coqui-tts`), built-in speakers, `split_sentences=False`, local GPU, chunks of at most 250 characters with no tiny chunk. Piper, Chatterbox and Kokoro lost the listening test (Piper: quality; Chatterbox: garbage in some outputs, slower; Kokoro: no official German). Cloud TTS not needed: cost would be trivial, quality of XTTS sufficient.
+- TTS: XTTS-v2 (`coqui-tts`), built-in speakers, `split_sentences=False`, local GPU, chunks of at most 250 characters with no tiny chunk. Piper, Chatterbox and Kokoro lost the listening test (Piper: quality; Chatterbox: garbage in some outputs, slower; Kokoro: no official German). Amended 2026-11-04: engine per role in the config, XTTS-v2 or OpenAI (`openai` speech API, `openai-realtime`); a listening comparison preferred `gpt-realtime-2.1` for most roles. Cloud only at render time on the Admin's machine, never in the app or CI. tts-renderer.spec.md, ADR 0008.
 - Renderer in its own venv `tools/.venv-tts` (`mp.ps1 setup -Tts`), so CI's tools venv never pulls torch. The editor server talks to a long-lived worker in that venv.
 - Rendering only local. MP3 mono 64 kbps in the production repo under `web/data/script/<hash>.mp3`; the hash covers spoken text and voice, so render is idempotent without a manifest. CI never renders. ADR 0008.
 - Roles: one global list for songs and script, flags `sings` and `speaks`; one role selection for both modes. Narrators are roles (`erzaehler1`, `erzaehler2`). DOCX speaker names map through `name` and `aliases`. Voice per role in the config.
@@ -100,7 +100,7 @@ Run on iOS Safari (installed PWA) and Android Chrome:
 
 ## Out of Scope
 
-- Speech-to-text or checking the spoken words. Runtime TTS in the browser. Recording the actor. Multi-user rehearsal. Editing roles or voices in the editor. Cloud TTS.
+- Speech-to-text or checking the spoken words. Runtime TTS in the browser. Recording the actor. Multi-user rehearsal. Editing roles or voices in the editor. TTS at runtime (cloud or local).
 
 ## Further Notes
 
