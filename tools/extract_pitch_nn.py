@@ -13,7 +13,8 @@ import json
 import librosa
 import numpy as np
 import torch
-from extract_pitch import OUT, clean, fold_octaves, midi_name, plot, segment_notes
+from extract_pitch import OUT, clean, fold_octaves, plot, segment_notes
+from music import midi_name
 from scipy import signal
 
 SR = 16000

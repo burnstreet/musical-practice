@@ -11,11 +11,11 @@ import re
 import string
 import sys
 from collections import Counter
-from pathlib import Path
 
 from docx import Document
+from script_format import SCRIPT as OUT
+from script_format import load_config
 
-OUT = Path("web/data/script.json")
 SCENE = re.compile(r"^Szene\s+(\d+)\s*[-–:]?\s*(.*)$")
 SONG = re.compile(r"^Lied\s+(\d+)\s*:")
 SPEAKER = re.compile(r"^([^:]{1,30}):")
@@ -127,7 +127,7 @@ def main(argv=None):
     ap.add_argument("--direction-colors", default="0070C0,00B050")
     ap.add_argument("--song-color", default="00B050")
     a = ap.parse_args(argv)
-    config = json.loads(Path("sources/config.json").read_text(encoding="utf-8"))
+    config = load_config()
     if not any(r.get("speaks") for r in config["roles"]):
         print("no speaking role in sources/config.json", file=sys.stderr)
         return 1

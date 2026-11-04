@@ -23,6 +23,7 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+from music import hz_to_midi, midi_name
 
 HOP_S = 0.01
 FORM_MARGIN = 100  # frames (1 s) around a found block when --form aligns it again
@@ -186,13 +187,6 @@ def apply_form(notes, form):
             n["role"] = role[(n["section"], n["pass"])]
 
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-
-def midi_name(m):
-    return f"{NOTE_NAMES[m % 12]}{m // 12 - 1}"
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("score")
@@ -221,7 +215,7 @@ def main():
 
     t_audio = np.array([p[0] for p in pitch["pitch"]])
     hz = np.array([p[1] if p[1] else np.nan for p in pitch["pitch"]], dtype=float)
-    audio_midi = np.where(np.isfinite(hz), 69 + 12 * np.log2(np.where(np.isfinite(hz), hz, 440) / 440), np.nan)
+    audio_midi = np.where(np.isfinite(hz), hz_to_midi(np.where(np.isfinite(hz), hz, 440)), np.nan)
     if abs(t_audio[1] - t_audio[0] - HOP_S) > 1e-4:
         raise SystemExit("pitch track must have a 10 ms hop")
 

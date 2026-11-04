@@ -77,21 +77,17 @@ class Handler(RangeRequestHandler):
 
     def do_GET(self):
         if self.path == "/config.json":  # lives outside web/ (gitignored)
-            cfg = ROOT / "sources" / "config.json"
+            cfg = ROOT / script_format.CONFIG
             if not cfg.is_file():
                 self.send_error(404)
                 return
-            body = cfg.read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self.reply(200, cfg.read_bytes())
             return
         super().do_GET()
 
     def reply(self, code, obj):
-        out = json.dumps(obj).encode()
+        """JSON response; bytes are sent as they are."""
+        out = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(out)))
@@ -100,7 +96,7 @@ class Handler(RangeRequestHandler):
 
     def script_status(self):
         try:
-            config = json.loads((ROOT / "sources" / "config.json").read_text(encoding="utf-8"))
+            config = script_format.load_config(ROOT)
             script = script_format.validate(json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0)))), config)
             roles = script_format.speaking_roles(config)
             hashes = {i["id"]: script_format.line_hash(i, roles[i["role"]].get("voice")) for i in script_format.lines(script)}
@@ -113,7 +109,7 @@ class Handler(RangeRequestHandler):
     def render_line(self):
         try:
             item = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))["item"]
-            config = json.loads((ROOT / "sources" / "config.json").read_text(encoding="utf-8"))
+            config = script_format.load_config(ROOT)
             voice = script_format.speaking_roles(config)[item["role"]].get("voice")
             assert voice, f"role {item['role']} has no voice in sources/config.json"
         except Exception as e:  # noqa: BLE001
@@ -153,12 +149,7 @@ class Handler(RangeRequestHandler):
         backup = edits / f"{dst.stem}-{time.strftime('%Y%m%d-%H%M%S')}.json"
         backup.write_bytes(body)
         dst.write_bytes(body)
-        out = json.dumps({"ok": True, "saved": str(dst.relative_to(ROOT)), "backup": str(backup.relative_to(ROOT))}).encode()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(out)))
-        self.end_headers()
-        self.wfile.write(out)
+        self.reply(200, {"ok": True, "saved": str(dst.relative_to(ROOT)), "backup": str(backup.relative_to(ROOT))})
         print(f"saved {dst.name} ({len(data[key])} {key}) -> {backup.name}")
 
     def detect_sections(self):
@@ -167,15 +158,11 @@ class Handler(RangeRequestHandler):
             req = json.loads(body)
             derive_phrases(req["notes"], [])  # phrase from the current phraseStart flags; no flags: stored phrases stay
             bars = bar_grid(req["notes"], song_bpm(ROOT, req["id"]), song_beats(ROOT, req["id"]))
-            out = json.dumps({"sections": detect_sections(req["notes"], bars), "bars": bars}).encode()
+            out = {"sections": detect_sections(req["notes"], bars), "bars": bars}
         except Exception as e:  # noqa: BLE001
             self.send_error(400, f"cannot detect: {e}")
             return
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(out)))
-        self.end_headers()
-        self.wfile.write(out)
+        self.reply(200, out)
 
 
 def main():

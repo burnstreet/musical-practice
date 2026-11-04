@@ -18,8 +18,6 @@ from pathlib import Path
 
 from music21 import chord, converter, expressions, note, spanner, stream
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
 
 def main():
     ap = argparse.ArgumentParser()

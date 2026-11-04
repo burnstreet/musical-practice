@@ -8,16 +8,15 @@ import sys
 
 import matplotlib
 import numpy as np
+from music import hz_to_midi, midi_name
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 out = sys.argv[2]
 ranges = [(float(sys.argv[i]), float(sys.argv[i + 1])) for i in range(3, len(sys.argv), 2)]
-p = np.array([[t, 69 + 12 * np.log2(f / 440) if f else np.nan] for t, f, c in d["pitch"]])
+p = np.array([[t, hz_to_midi(f) if f else np.nan] for t, f, c in d["pitch"]])
 fig, axes = plt.subplots(len(ranges), 1, figsize=(40, 4.5 * len(ranges)), squeeze=False)
 for ax, (t0, t1) in zip(axes[:, 0], ranges):
     sel = (p[:, 0] >= t0) & (p[:, 0] <= t1)
@@ -34,7 +33,7 @@ for ax, (t0, t1) in zip(axes[:, 0], ranges):
     ax.set_ylim(lo, hi)
     ticks = [m for m in range(lo, hi + 1) if m % 12 in (0, 5, 7)]
     ax.set_yticks(ticks)
-    ax.set_yticklabels([f"{NAMES[m % 12]}{m // 12 - 1}" for m in ticks])
+    ax.set_yticklabels([midi_name(m) for m in ticks])
     ax.grid(alpha=0.3)
 fig.suptitle(f"{d['title']}: score notes (blue; red = pitch snapped to the sung pitch) over sung pitch (orange)")
 fig.tight_layout()

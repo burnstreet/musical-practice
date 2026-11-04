@@ -1,4 +1,4 @@
-"""The production's spoken script: load and validate web/data/script.json, line hash.
+"""The production's spoken script: load and validate web/data/script.json, line hash; load sources/config.json.
 
 Format: specs/script-format.spec.md. Standard library only: both tools/.venv and tools/.venv-tts import it.
 """
@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 
+CONFIG = Path("sources/config.json")
 SCRIPT = Path("web/data/script.json")
 AUDIO_DIR = Path("web/data/script")
 TYPES = {"line", "direction", "song"}
@@ -15,6 +16,11 @@ TYPES = {"line", "direction", "song"}
 
 class ScriptError(ValueError):
     pass
+
+
+def load_config(root=Path(".")):
+    """The production config under the content root."""
+    return json.loads((Path(root) / CONFIG).read_text(encoding="utf-8"))
 
 
 def speaking_roles(config):
