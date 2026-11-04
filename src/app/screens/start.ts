@@ -13,13 +13,13 @@ export class GuStart extends LitElement {
     :host { display: flex; box-sizing: border-box; min-height: 100vh; align-items: center; justify-content: center; padding: 48px 24px 32px; background: var(--bg); color: var(--text); font-family: var(--font-body); }
     .wrap { width: 100%; max-width: 1100px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 32px 64px; }
     .head { display: flex; flex-direction: column; align-items: center; gap: 28px; text-align: center; }
-    .logo { width: 260px; max-width: 100%; height: auto; border-radius: 20px; background: #fff; padding: 12px; box-sizing: border-box; object-fit: contain; }
+    .logo { width: 260px; max-width: 100%; height: auto; border-radius: 20px; background: var(--card); padding: 12px; box-sizing: border-box; object-fit: contain; }
     .kicker { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
     h1 { margin: 8px 0 0; font-family: var(--font-display); font-size: 36px; font-weight: 600; line-height: 1.1; }
     .sub { font-size: 14px; color: var(--muted); margin-top: 8px; }
     form { flex: 1 1 340px; max-width: 440px; display: flex; flex-direction: column; gap: 14px; background: var(--surface); border-radius: 24px; padding: 22px 20px; box-sizing: border-box; }
     label { font-size: 14px; font-weight: 700; }
-    .field { display: flex; align-items: center; height: 56px; border-radius: 16px; background: #fff; padding: 0 6px 0 16px; gap: 10px; color: var(--bg); }
+    .field { display: flex; align-items: center; height: 56px; border-radius: 16px; background: var(--card); padding: 0 6px 0 16px; gap: 10px; color: var(--bg); }
     input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: var(--ink); }
     input::placeholder { color: #5B6F8C; }
     .toggle { width: 44px; height: 44px; border: 0; background: transparent; color: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer; }

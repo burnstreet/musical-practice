@@ -247,7 +247,8 @@ const HINTS: [DialogSettings['hint'], string][] = [
 ]
 const RATES = [0.8, 0.9, 1, 1.1, 1.2, 1.3]
 /** German decimal with one digit: 1.2 -> "1,2". */
-export const de1 = (n: number) => n.toFixed(1).replace('.', ',')
+/** `n` with one decimal and a German comma: 1.2 → "1,2". */
+export const oneDecimalDe = (n: number) => n.toFixed(1).replace('.', ',')
 
 /** Text settings sheet (artboard D5), opened from scene selection and run-through. Saves settings.dialog at once; fires `close`. */
 export class GuTextSettings extends LitElement {
@@ -341,7 +342,7 @@ export class GuTextSettings extends LitElement {
         </section>
 
         <section>
-          <div class="line"><label for="silence" class="t">Pause bis weiter</label><span class="val">${de1(d.silenceMs / 1000)} s</span></div>
+          <div class="line"><label for="silence" class="t">Pause bis weiter</label><span class="val">${oneDecimalDe(d.silenceMs / 1000)} s</span></div>
           <input id="silence" type="range" min="500" max="3000" step="100" .value=${String(d.silenceMs)}
             @input=${(e: Event) => this.set({ silenceMs: +(e.target as HTMLInputElement).value })} />
           <div class="line"><small>0,5 s</small><small>So lange still, dann geht es weiter.</small><small>3 s</small></div>
@@ -350,7 +351,7 @@ export class GuTextSettings extends LitElement {
         <section>
           <div class="t">Sprechtempo der anderen</div>
           <div class="rates" role="group" aria-label="Sprechtempo">
-            ${RATES.map((r) => html`<button aria-pressed=${Math.abs(d.rate - r) < 0.01} @click=${() => this.set({ rate: r })}>${de1(r)}×</button>`)}
+            ${RATES.map((r) => html`<button aria-pressed=${Math.abs(d.rate - r) < 0.01} @click=${() => this.set({ rate: r })}>${oneDecimalDe(r)}×</button>`)}
           </div>
         </section>
 

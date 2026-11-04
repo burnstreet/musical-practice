@@ -236,6 +236,10 @@ CSS custom properties in `tokens.css`, from the canvas:
 | `--text` | #FFFFFF |
 | `--muted` | #CFE0F5 |
 | `--other` | #A9D3F7 |
+| `--high` / `--low` | #FFB35C / #8FE3FF (results) |
+| `--card` | #FFFFFF (white cards) |
+| `--warn` | #FFD166 (missed hint) |
+| `--accent-deep` | #B3CB45 (level track on accent) |
 | `--font-body` | 'DM Sans', system-ui, sans-serif |
 | `--font-display` | 'Fraunces', serif |
 

@@ -2,12 +2,9 @@ import { css, html, LitElement, svg } from 'lit'
 import type { RoleId } from '../../core/content'
 import { production } from '../../production'
 import { getContext } from '../context'
+import { icon, shapes } from '../icons'
 
-const icon = (body: ReturnType<typeof svg>, size = 20) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
-/** Sliders: the settings button of the songs, text and run-through screens. */
-export const SLIDERS = icon(
-  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g>`,
-)
+const SLIDERS = icon(shapes.sliders, 20)
 const CHECK = icon(svg`<path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`, 16)
 const chevron = (open: boolean) =>
   icon(

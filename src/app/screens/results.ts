@@ -3,6 +3,7 @@ import { joinSyllables, type Section } from '../../core/content'
 import { type DayBar, type DaySummary, dayBars, localDay } from '../../core/history'
 import type { Entry, NoteResult, PassResult, PhraseResult } from '../../core/scorer'
 import { getContext } from '../context'
+import { icon, shapes } from '../icons'
 import { leadInRange, rangeOfPhrase } from '../repeat'
 
 type View = 'all' | 'sections' | 'phrases' | 'entries' | 'days'
@@ -33,8 +34,8 @@ const glyph = (e: Entry) =>
     ? '–'
     : `${e.approach === 'below' ? '↑' : e.approach === 'above' ? '↓' : ''}${e.timing === 'early' ? '←' : e.timing === 'late' ? '→' : ''}` || '✓'
 
-const BACK = html`<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>`
-const PLAY = html`<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor" /></svg>`
+const BACK = icon(shapes.back, 20)
+const PLAY = icon(svg`<path d="M8 5v14l11-7z" fill="currentColor" />`, 18)
 const ROWS = [
   ['above', '↓ von oben'],
   ['ok', 'direkt'],

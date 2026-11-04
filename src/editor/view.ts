@@ -1,7 +1,8 @@
 // Editor view: the player's staff with a phrase band and a section band on its bar grid.
 // Built as a second vite entry (`vite build --mode editor` -> web/lib/editor-view.js) for the vanilla editor in web/.
 
-import { BASE, COLORS, draw, FONT, measurePage, pageContent, pagePoints, playheadX, staffPages } from '../app/draw/staff'
+import { COLORS, FONT } from '../app/draw/canvas'
+import { BASE, draw, measurePage, pageContent, pagePoints, playheadX, staffPages } from '../app/draw/staff'
 
 export { playheadX }
 

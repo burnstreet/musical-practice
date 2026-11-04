@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import { COLORS } from '../src/app/draw/canvas'
 import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
   beamTips,
-  COLORS,
   draw as drawStaff,
   keyFifths,
   layoutBar,

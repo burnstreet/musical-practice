@@ -1,6 +1,6 @@
 import { type Note, visibleNotes } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
-import { COLORS, type DrawState, dimOutside, FONT, fit } from './staff'
+import { COLORS, type DrawState, dimOutside, FONT, fit } from './canvas'
 
 /** Playhead at 30 % of the window. */
 const BEHIND_SHARE = 0.3
