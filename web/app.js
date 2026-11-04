@@ -1,5 +1,5 @@
 import { addSection, deleteSection, rebarSection, redetectSections, renameSection, sectionBars, setRole, togglePhraseStart, toggleSpoken } from './edit-ops.js'
-import * as ops from './script-ops.js'
+import { initScript } from './script-editor.js'
 
 ;(() => {
   const $ = (id) => document.getElementById(id)
@@ -29,6 +29,8 @@ import * as ops from './script-ops.js'
     dirty = false
   // roles (voices) -> colours, readable on the board blue (>= 4.5:1 on #17498C) and apart from the selection orange #F08C14
   const ROLE_PALETTE = ['#A9D3F7', '#C8E05A', '#FFA69E', '#7FE0B5', '#D9B8F5', '#F59BC8']
+  // the roll's own colours: board blue, its black-key rows, grid and octave lines, labels, phrase starts, note text and playhead
+  const C = { board: '#17498C', blackKey: '#15427F', line: '#3F78BF', label: '#CFE0F5', phrase: '#FF6F61', white: '#fff' }
   let roleColor = {},
     configRoles = null
   // bars and sections view (staff shared with the player: web/lib/editor-view.js, built by ./mp.ps1 build)
@@ -162,7 +164,7 @@ import * as ops from './script-ops.js'
   function draw() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, W, H)
-    ctx.fillStyle = '#17498C'
+    ctx.fillStyle = C.board
     ctx.fillRect(0, 0, W, H)
     const g = geom(),
       { t, t0, t1, x0, x1, rowH, xOf, yOf } = g,
@@ -172,10 +174,10 @@ import * as ops from './script-ops.js'
       const pc = ((m % 12) + 12) % 12
       const black = [1, 3, 6, 8, 10].includes(pc)
       const y = yOf(m) - rowH / 2
-      ctx.fillStyle = black ? '#15427F' : '#17498C'
+      ctx.fillStyle = black ? C.blackKey : C.board
       ctx.fillRect(LEFT, y, W - LEFT, rowH)
       if (pc === 0) {
-        ctx.fillStyle = '#3F78BF'
+        ctx.fillStyle = C.line
         ctx.fillRect(LEFT, y + rowH - 1, W - LEFT, 1)
       }
     }
@@ -205,9 +207,9 @@ import * as ops from './script-ops.js'
     ctx.restore()
 
     // time grid
-    ctx.strokeStyle = '#3F78BF'
+    ctx.strokeStyle = C.line
     ctx.lineWidth = 1
-    ctx.fillStyle = '#CFE0F5'
+    ctx.fillStyle = C.label
     ctx.font = '10px system-ui,sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
@@ -261,14 +263,14 @@ import * as ops from './script-ops.js'
       ctx.strokeRect(x + 0.5, y + 0.5, bw - 1, bh - 1)
       ctx.setLineDash([])
       if (bw > 26 && bh > 9) {
-        ctx.fillStyle = '#fff'
+        ctx.fillStyle = C.white
         ctx.textBaseline = 'middle'
         ctx.textAlign = 'left'
         ctx.font = `${Math.min(12, bh - 1)}px system-ui,sans-serif`
         ctx.fillText(noteName(n), x + 3, y + bh / 2)
       }
       if (n.phraseStart) {
-        ctx.fillStyle = '#FF6F61'
+        ctx.fillStyle = C.phrase
         ctx.fillRect(x - 1, 0, 2, H)
       }
       if (n.lyric && bw > 10 && $('lyricChk').checked) {
@@ -326,19 +328,19 @@ import * as ops from './script-ops.js'
     ctx.restore()
 
     // y labels
-    ctx.fillStyle = '#17498C'
+    ctx.fillStyle = C.board
     ctx.fillRect(0, 0, LEFT, H)
-    ctx.fillStyle = '#CFE0F5'
+    ctx.fillStyle = C.label
     ctx.font = '11px system-ui,sans-serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
     for (let m = Math.ceil(lo); m <= hi; m++) if (m % 12 === 0) ctx.fillText(midiName(m), LEFT - 4, yOf(m))
-    ctx.fillStyle = '#3F78BF'
+    ctx.fillStyle = C.line
     ctx.fillRect(LEFT - 1, 0, 1, H)
 
     // playhead
     const px = Math.round(xOf(t)) + 0.5
-    ctx.strokeStyle = '#fff'
+    ctx.strokeStyle = C.white
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(px, 0)
@@ -852,287 +854,6 @@ import * as ops from './script-ops.js'
     }
   }
 
-  // ---------- script view (the spoken script, see specs/script-editor.spec.md) ----------
-  const SCRIPT_COLORS = [...ROLE_PALETTE, '#FFD166', '#F4B6C2', '#9AD0EC', '#E0C3A0']
-  let script = null,
-    scriptDirty = false,
-    scriptMode = false,
-    missing = new Set(),
-    hashes = {},
-    scriptSel = null, // id of the selected item
-    cursor = 0, // caret offset in the selected item's text field
-    cursorEnd = 0, // end of its text selection
-    rendering = new Set(),
-    statusSeq = 0
-  const scriptPlayer = new Audio()
-  const scriptMsg = (text, ok = false) => {
-    $('status').className = ok ? 'ok' : ''
-    $('status').textContent = text
-  }
-  const speakers = () => (configRoles || []).filter((r) => r.speaks)
-  const scriptColor = (role) =>
-    SCRIPT_COLORS[
-      Math.max(
-        0,
-        (configRoles || []).findIndex((r) => r.id === role),
-      ) % SCRIPT_COLORS.length
-    ]
-  const scriptItems = () => script.scenes.flatMap((sc) => sc.items)
-  const findItem = (id) => scriptItems().find((it) => it.id === id)
-
-  // the server knows the line hashes and which audio files exist; never hashed here
-  async function scriptStatus() {
-    const seq = ++statusSeq
-    try {
-      const r = await fetch('script-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(script) })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const j = await r.json()
-      if (seq !== statusSeq) return
-      missing = new Set(j.missing)
-      hashes = j.hashes || {}
-    } catch (e) {
-      if (seq === statusSeq) scriptMsg(`Tonstatus nicht geladen (${e.message}). Run tools/serve.py.`)
-    }
-    showScript()
-  }
-  function scriptEdit(op, selectId) {
-    try {
-      script = op(script)
-      scriptDirty = true
-      if (selectId) scriptSel = selectId(script)
-      scriptStatus()
-    } catch (e) {
-      scriptMsg(e.message)
-    }
-    showScript()
-  }
-  async function saveScript() {
-    try {
-      const r = await fetch('save/script.json', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(script) })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const j = await r.json()
-      scriptDirty = false
-      scriptMsg(`Saved to ${j.saved} (copy: ${j.backup})`, true)
-      scriptStatus()
-    } catch (e) {
-      scriptMsg(`Skript nicht gespeichert (${e.message}). Run tools/serve.py.`)
-    }
-    showScript()
-  }
-  async function playLine(id) {
-    const h = hashes[id]
-    if (!h || missing.has(id)) return
-    scriptPlayer.src = `data/script/${h}.mp3`
-    scriptPlayer.play().catch(() => {})
-  }
-  async function renderLine(id) {
-    rendering.add(id)
-    showScript()
-    try {
-      const r = await fetch('render-line', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item: findItem(id) }) })
-      if (!r.ok) throw new Error((await r.text()) || `HTTP ${r.status}`)
-      const j = await r.json()
-      hashes[id] = j.hash
-      missing.delete(id)
-      scriptPlayer.src = `data/script/${j.hash}.mp3`
-      scriptPlayer.play().catch(() => {})
-      scriptMsg('')
-    } catch (e) {
-      scriptMsg(`Neu sprechen fehlgeschlagen: ${e.message}`)
-    }
-    rendering.delete(id)
-    scriptStatus()
-  }
-
-  // ids to show: filtered by scene, by role (the role's lines plus their neighbours) and by missing audio
-  function visibleIds(scene) {
-    const role = $('scriptRole').value,
-      only = $('scriptMissing').checked
-    const it = scene.items
-    const near = new Set()
-    it.forEach((x, i) => {
-      if (x.role === role) for (const k of [i - 1, i, i + 1]) if (it[k]) near.add(it[k].id)
-    })
-    return new Set(it.filter((x) => (!role || near.has(x.id)) && (!only || (x.type === 'line' && missing.has(x.id)))).map((x) => x.id))
-  }
-  function scriptRow(it) {
-    const row = el('div', { className: `srow ${it.type}${it.id === scriptSel ? ' picked' : ''}` })
-    row.onclick = () => {
-      if (scriptSel === it.id) return
-      scriptSel = it.id
-      cursor = cursorEnd = 0
-      showScript()
-    }
-    const idTag = el('span', { className: 'sid', textContent: it.id })
-    if (it.type === 'song') {
-      const c = cfgSongs.find((s) => s.id === it.songId)
-      row.append(
-        el('span', { className: 'chip song', textContent: '♪' }),
-        el('b', { textContent: c ? `Lied ${c.number} · ${c.title}` : `Lied ${it.songId}` }),
-        idTag,
-      )
-      return row
-    }
-    const text = el('textarea', { rows: it.type === 'line' ? 2 : 1, value: it.text, ariaLabel: it.type === 'line' ? 'Text' : 'Regieanweisung' })
-    const track = () => {
-      if (scriptSel !== it.id) {
-        scriptSel = it.id // no re-render: it would take the focus
-        for (const r of document.querySelectorAll('.srow.picked')) r.classList.remove('picked')
-        row.classList.add('picked')
-        showActions()
-      }
-      cursor = text.selectionStart
-      cursorEnd = text.selectionEnd
-    }
-    // grows with its text, so long lines show in full
-    const fit = () => {
-      text.style.height = 'auto'
-      text.style.height = `${text.scrollHeight}px`
-    }
-    requestAnimationFrame(fit) // after the row is in the page
-    text.addEventListener('input', fit)
-    for (const ev of ['keyup', 'mouseup', 'input', 'focus']) text.addEventListener(ev, track)
-    text.onchange = () => text.value !== it.text && scriptEdit((s) => ops.setText(s, it.id, text.value))
-    if (it.type === 'direction') {
-      row.append(el('span', { className: 'regie', textContent: 'Regie' }), text, idTag)
-      return row
-    }
-    const chip = el('select', { className: 'chip', ariaLabel: 'Rolle' })
-    const roles = speakers().map((r) => [r.id, r.name])
-    if (!roles.some(([id]) => id === it.role)) roles.push([it.role, it.role])
-    chip.append(...roles.map(([id, name]) => new Option(name, id)))
-    chip.value = it.role
-    chip.style.background = scriptColor(it.role)
-    chip.onchange = () => scriptEdit((s) => ops.setRole(s, it.id, chip.value))
-    // with inline directions [..] the placeholder shows what is spoken
-    const spoken = it.text
-      .replace(/\[[^\]]*\]/g, ' ')
-      .split(/\s+/)
-      .join(' ')
-      .trim()
-    const say = el('input', { value: it.say || '', placeholder: spoken === it.text ? 'wie Text' : `spricht: ${spoken}`, ariaLabel: 'Aussprache (say)' })
-    say.onchange = () => scriptEdit((s) => ops.setSay(s, it.id, say.value.trim()))
-    const play = el('button', { textContent: '▶', ariaLabel: 'Abspielen', disabled: missing.has(it.id) || !hashes[it.id] })
-    play.onclick = (e) => {
-      e.stopPropagation()
-      playLine(it.id)
-    }
-    const busy = rendering.has(it.id)
-    const render = el('button', { className: 'render', textContent: busy ? 'lädt …' : 'Neu sprechen', disabled: busy })
-    render.onclick = (e) => {
-      e.stopPropagation()
-      renderLine(it.id)
-    }
-    const stat = el('span', { className: `sstat${missing.has(it.id) ? ' miss' : ''}`, textContent: missing.has(it.id) ? 'ohne Ton' : 'Ton ok' })
-    const side = el('div', { className: 'sbtns' })
-    side.append(el('div', {}), stat)
-    side.firstChild.append(play, render)
-    const who = el('div', { className: 'swho' })
-    who.append(chip, idTag)
-    row.append(who, text, say, side)
-    return row
-  }
-  function showScript() {
-    if (!scriptMode || !script) return
-    const sceneSel = $('scriptScene'),
-      roleSel = $('scriptRole')
-    if (!sceneSel.options.length) {
-      sceneSel.append(
-        new Option('Alle Szenen', ''),
-        ...script.scenes.map((sc) => new Option(`Szene ${sc.id.replace(/^s/, '')}${sc.title ? ` · ${sc.title}` : ''}`, sc.id)),
-      )
-      roleSel.append(new Option('Alle Rollen', ''), ...speakers().map((r) => new Option(r.name, r.id)))
-    }
-    const n = scriptItems().length
-    const gone = scriptItems().filter((x) => x.type === 'line' && missing.has(x.id)).length
-    $('scriptInfo').replaceChildren(
-      `${script.scenes.length} Szenen · ${n} Einträge · ${speakers().length} Sprechrollen`,
-      ...(gone ? [' · ', el('strong', { textContent: `${gone} ohne Ton` })] : []),
-    )
-    $('scriptDirty').textContent = scriptDirty ? 'Ungespeichert' : ''
-    const scenes = script.scenes.filter((sc) => !sceneSel.value || sc.id === sceneSel.value)
-    const parts = scenes.flatMap((sc) => {
-      const show = visibleIds(sc)
-      const h = el('h2', { textContent: `Szene ${sc.id.replace(/^s/, '')}${sc.title ? ` · ${sc.title}` : ''}` })
-      return [h, ...sc.items.filter((x) => show.has(x.id)).map(scriptRow)]
-    })
-    $('scriptList').replaceChildren(...parts)
-    showActions()
-  }
-  function showActions() {
-    const sel = scriptSel && findItem(scriptSel)
-    $('scriptActions').hidden = !sel
-    if (sel) {
-      $('scriptSelLbl').textContent = `Eintrag „${sel.id}“:`
-      $('scriptType').textContent = sel.type === 'direction' ? 'Zur Zeile machen' : 'Zur Regie machen'
-    }
-  }
-  function openScript() {
-    if (dirty && !confirm('Unsaved note edits will be lost. Continue?')) return false
-    audio.pause()
-    song = null
-    dirty = false
-    scriptMode = true
-    document.body.classList.add('script-mode')
-    $('scriptView').hidden = false
-    scriptMsg('')
-    showScript()
-    scriptStatus()
-    return true
-  }
-  function closeScript() {
-    if (scriptDirty && !confirm('Ungespeicherte Skript-Änderungen gehen verloren. Weiter?')) return false
-    scriptPlayer.pause()
-    scriptMode = false
-    scriptDirty = false
-    document.body.classList.remove('script-mode')
-    $('scriptView').hidden = true
-    return true
-  }
-  function initScript() {
-    $('scriptSave').onclick = saveScript
-    for (const id of ['scriptRole', 'scriptScene', 'scriptMissing']) $(id).onchange = showScript
-    const act = (id, fn) => {
-      $(id).onclick = () => scriptSel && fn(scriptSel, findItem(scriptSel))
-    }
-    act('scriptSplit', (id) => {
-      scriptEdit(
-        (s) => ops.split(s, id, cursor),
-        () => id,
-      )
-    })
-    act('scriptMerge', (id) => scriptEdit((s) => ops.merge(s, id)))
-    act('scriptInline', (id, it) => {
-      const [a, b] = [Math.min(cursor, cursorEnd), Math.max(cursor, cursorEnd)]
-      const part = it.text.slice(a, b).trim()
-      if (it.type !== 'line' || !part) return scriptMsg('Erst im Text einer Zeile die Regie markieren.')
-      scriptEdit((s) => ops.setText(s, id, `${it.text.slice(0, a)}[${part}]${it.text.slice(b)}`))
-    })
-    act('scriptType', (id, it) => {
-      const role = $('scriptRole').value || speakers()[0]?.id
-      scriptEdit((s) => (it.type === 'direction' ? ops.setType(s, id, 'line', role) : ops.setType(s, id, 'direction')))
-    })
-    act('scriptAdd', (id, it) => {
-      const item = it.type === 'line' ? { type: 'line', role: it.role, text: 'Neue Zeile' } : { type: 'direction', text: 'Neue Regieanweisung' }
-      const before = new Set(scriptItems().map((x) => x.id))
-      scriptEdit(
-        (s) => ops.insertAfter(s, id, item),
-        (s) => s.scenes.flatMap((sc) => sc.items).find((x) => !before.has(x.id)).id,
-      )
-    })
-    act('scriptDel', (id) => {
-      if (!confirm(`Eintrag „${id}“ löschen?`)) return
-      scriptSel = null
-      scriptEdit((s) => ops.remove(s, id))
-    })
-    window.addEventListener('beforeunload', (e) => {
-      if (scriptDirty) {
-        e.preventDefault()
-        e.returnValue = ''
-      }
-    })
-  }
-
   async function init() {
     zoomLabel()
     resize()
@@ -1247,20 +968,20 @@ import * as ops from './script-ops.js'
       sel.appendChild(new Option(s.title, i))
     })
     // the Skript entry exists when the production has a script (static web/data/script.json)
-    initScript()
-    try {
-      const r = await fetch('data/script.json', { cache: 'no-store' })
-      if (r.ok) {
-        script = await r.json()
-        sel.appendChild(new Option('Skript', 'script'))
-      }
-    } catch (_e) {
-      /* no script */
+    const scriptEd = initScript({ palette: ROLE_PALETTE, roles: () => configRoles, songs: () => cfgSongs })
+    if (await scriptEd.load()) sel.appendChild(new Option('Skript', 'script'))
+    const openScript = () => {
+      if (dirty && !confirm('Unsaved note edits will be lost. Continue?')) return false
+      audio.pause()
+      song = null
+      dirty = false
+      scriptEd.open()
+      return true
     }
     let prev = ''
     sel.onchange = () => {
       const v = sel.value
-      if (!(v === 'script' ? openScript() : prev !== 'script' || closeScript())) {
+      if (!(v === 'script' ? openScript() : prev !== 'script' || scriptEd.close())) {
         sel.value = prev
         return
       }
