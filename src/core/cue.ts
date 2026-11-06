@@ -24,41 +24,54 @@ export type CueEffect = { type: 'play'; itemIds: string[] } | { type: 'stop' } |
 export interface Cue {
   state: CueState
   sceneId: string
-  turn: ScriptItem[]
+  turn: Turn
   effects: CueEffect[]
   position(): { sceneId: string; itemId: string }
 }
 
 export const CUE_DEFAULTS = { hardTimeoutMs: 20000, directionMs: 2500 }
 
-interface At {
+/** A turn: one item, or several consecutive lines of my roles. */
+export type Turn = ScriptItem[]
+
+/** Where the cue stands: scene index `si` in the script, turn index `ti` in that scene. */
+interface TurnPos {
   si: number
   ti: number
 }
-interface Ctx extends At {
+/** What a cue carries besides its public fields. */
+interface CueRun extends TurnPos {
   script: Script
   opts: CueOptions
   since: number // clock of entering the turn
 }
-const ctxs = new WeakMap<Cue, Ctx>()
+const runs = new WeakMap<Cue, CueRun>()
 
-const turnsOf = ({ script, opts }: Ctx, si: number): ScriptItem[][] => {
-  const mine = (i: ScriptItem) => i.type === 'line' && opts.roles.includes(i.role)
-  const out: ScriptItem[][] = []
-  for (const i of script.scenes[si].items.filter((i) => opts.showDirections || i.type !== 'direction')) {
+const isMyLine = (i: ScriptItem, roles: RoleId[]) => i.type === 'line' && roles.includes(i.role)
+
+/** Items in turns: my consecutive lines join one turn, everything else is a turn of its own. */
+export function groupTurns(items: ScriptItem[], roles: RoleId[]): Turn[] {
+  const out: Turn[] = []
+  for (const i of items) {
     const last = out.at(-1)
-    if (last && mine(i) && mine(last[0])) last.push(i)
+    if (last && isMyLine(i, roles) && isMyLine(last[0], roles)) last.push(i)
     else out.push([i])
   }
   return out
 }
-const isMine = (x: Ctx, t: ScriptItem[]) => t[0].type === 'line' && x.opts.roles.includes(t[0].role)
-const lineRole = (t: ScriptItem[]) => (t[0].type === 'line' ? t[0].role : undefined)
-const ids = (t: ScriptItem[]) => t.map((i) => i.id)
+
+const turnsOf = ({ script, opts }: CueRun, si: number): Turn[] =>
+  groupTurns(
+    script.scenes[si].items.filter((i) => opts.showDirections || i.type !== 'direction'),
+    opts.roles,
+  )
+const isMine = (x: CueRun, t: Turn) => isMyLine(t[0], x.opts.roles)
+const lineRole = (t: Turn) => (t[0].type === 'line' ? t[0].role : undefined)
+const ids = (t: Turn) => t.map((i) => i.id)
 const mic = (on: boolean): CueEffect => ({ type: 'mic', on })
 
 /** Position past the end of a scene continues with the loop or the next scene; null after the last one. */
-function resolve(x: Ctx, si: number, ti: number): At | null {
+function resolve(x: CueRun, si: number, ti: number): TurnPos | null {
   let turns = turnsOf(x, si)
   while (ti >= turns.length) {
     si += x.opts.loopScene && turns.length ? 0 : 1
@@ -69,14 +82,14 @@ function resolve(x: Ctx, si: number, ti: number): At | null {
   return { si, ti }
 }
 
-function make(x: Ctx, state: CueState, turn: ScriptItem[], effects: CueEffect[]): Cue {
+function make(x: CueRun, state: CueState, turn: Turn, effects: CueEffect[]): Cue {
   const sceneId = x.script.scenes[x.si].id
   const cue: Cue = { state, sceneId, turn, effects, position: () => ({ sceneId, itemId: turn[0]?.id ?? '' }) }
-  ctxs.set(cue, x)
+  runs.set(cue, x)
   return cue
 }
 
-function enter(x: Ctx, to: At | null, now: number, effects: CueEffect[] = []): Cue {
+function enter(x: CueRun, to: TurnPos | null, now: number, effects: CueEffect[] = []): Cue {
   if (!to) return make(x, 'done', [], [...effects, mic(false)])
   const y = { ...x, ...to, since: now }
   const turn = turnsOf(y, to.si)[to.ti]
@@ -89,7 +102,7 @@ function enter(x: Ctx, to: At | null, now: number, effects: CueEffect[] = []): C
 const stopIf = (c: Cue): CueEffect[] => (c.state === 'playing' || c.state === 'prompting' ? [{ type: 'stop' }] : [])
 
 export function cueStart(script: Script, opts: CueOptions, at: { sceneId: string; itemId?: string }, now: number): Cue {
-  const x: Ctx = {
+  const x: CueRun = {
     script,
     opts,
     si: Math.max(
@@ -104,7 +117,7 @@ export function cueStart(script: Script, opts: CueOptions, at: { sceneId: string
 }
 
 export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue {
-  const x = ctxs.get(cue)!
+  const x = runs.get(cue)!
   const next = (pre: CueEffect[] = []) => enter(x, resolve(x, x.si, x.ti + 1), now, pre)
   const { state } = cue
   switch (ev.type) {
@@ -138,7 +151,7 @@ export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue {
       break
     case 'back': {
       if (state === 'done' || state === 'paused') break
-      let to: At = { si: x.si, ti: x.ti }
+      let to: TurnPos = { si: x.si, ti: x.ti }
       if (x.ti > 0) to = { si: x.si, ti: x.ti - 1 }
       else
         for (let s = x.si - 1; s >= 0; s--) {

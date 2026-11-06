@@ -3,13 +3,12 @@ used by align_score.py. Takes the first part; chords use their top note; text
 expressions / rehearsal marks become section names.
 Each note keeps its MuseScore voice; --roles maps voices to role ids. A rest is
 dropped while another voice sings (filler rest). With several lyric lines
-(verses) each note also gets `lyrics`, one entry per verse. A syllable whose
-word goes on ends in "-". Tied notes stay
+(verses) each note also gets `lyrics`, one entry per verse. Tied notes stay
 notes of their own: `tie: true` marks a note tied to the next one (scored as one
 note), `slur: true` a note slurred to the next one (the staff draws the arc).
 A slash notehead (rap) gives `spoken: true`.
 
-Usage: python tools/score_from_musicxml.py <in.musicxml> <out.json> [--roles 1=anna,2=chor]
+Usage: python tools/score_from_musicxml.py <in.musicxml> <out.json> [--roles 1=solo,2=chor]
 """
 
 import argparse
@@ -18,14 +17,12 @@ from pathlib import Path
 
 from music21 import chord, converter, expressions, note, spanner, stream
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("src", type=Path)
     ap.add_argument("dst", type=Path)
-    ap.add_argument("--roles", default="", help="voice=role pairs, e.g. 1=anna,2=chor")
+    ap.add_argument("--roles", default="", help="voice=role pairs, e.g. 1=solo,2=chor")
     args = ap.parse_args()
     src, dst = args.src, args.dst
     roles = dict(pair.split("=") for pair in args.roles.split(",") if pair)
@@ -54,10 +51,10 @@ def main():
                 if el.tie is not None and el.tie.type in ("stop", "continue") and notes:
                     prev = next((n for n in reversed(notes) if n["midi"] is not None and n["voice"] == voice), None)
                     if prev and prev["midi"] == el.pitch.midi:
-                        prev["tie"] = True  # kept as notes of their own, so the staff writes them as notated
-                # shortcut: a slur over n notes becomes n-1 arcs note to note; fine for the two-note slurs we have
+                        prev["tie"] = True
+                # a slur over n notes becomes n-1 note-to-note arcs (exact for two-note slurs)
                 slur = any(isinstance(sp, spanner.Slur) and not sp.isLast(el) for sp in el.getSpannerSites())
-                # a syllable whose word goes on ends in "-" (Nie- mand), so the app can join and hyphenate words
+                # a syllable whose word goes on ends in "-" (Win- ter), so the app can join and hyphenate words
                 verses = {ly.number: ly.text + ("-" if ly.syllabic in ("begin", "middle") else "") for ly in el.lyrics}
                 lyric = verses.get(1) or None
                 midi = el.pitch.midi

@@ -1,20 +1,20 @@
 """Give score notes timings from a recording via subsequence DTW.
 
-Input: a score JSON from score_from_pdf.py and a pitch JSON from
-extract_pitch*.py (the audio pitch track). The score is expanded (repeats),
+Input: a score JSON (score_from_musicxml.py, score_from_pdf.py or
+abc_to_score.py) and a pitch JSON from extract_pitch*.py (the audio pitch track). The score is expanded (repeats),
 rendered as a frame sequence at a tempo guess, and aligned to the audio pitch
 track with subsequence DTW, octave-invariant. The best match is masked out
 and the search repeated for further passes (verse/chorus sung several times).
 
 Output: the pitch JSON with its `notes` replaced by the score notes with
-start/end times from the audio (fields bar, beat, dur, lyric, pass kept).
+start/end times from the audio (the score note fields kept).
 
 The n-th occurrence of a section in time takes verse n of the notes' `lyrics`.
 --form lists the sections in sung order (optionally with a role per block); it
 replaces --passes and fails when the blocks are found in another order.
 
 Usage: python tools/align_score.py <score.json> <pitch.json> <out.json>
-         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid] [--form "Refrain:anna,Strophe,..."]
+         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid] [--form "Refrain:solo,Strophe,..."]
 """
 
 import argparse
@@ -23,6 +23,7 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+from music import hz_to_midi, midi_name
 
 HOP_S = 0.01
 FORM_MARGIN = 100  # frames (1 s) around a found block when --form aligns it again
@@ -162,7 +163,7 @@ def apply_verses(notes):
 
 
 def parse_form(text):
-    """'Refrain:anna, Strophe, ...' -> [("Refrain", "anna"), ("Strophe", None), ...]: sections in sung order, optional role."""
+    """'Refrain:solo, Strophe, ...' -> [("Refrain", "solo"),("Strophe", None), ...]: sections in sung order, optional role."""
     form = []
     for item in text.split(","):
         sec, _, role = item.strip().partition(":")
@@ -186,13 +187,6 @@ def apply_form(notes, form):
             n["role"] = role[(n["section"], n["pass"])]
 
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-
-def midi_name(m):
-    return f"{NOTE_NAMES[m % 12]}{m // 12 - 1}"
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("score")
@@ -207,7 +201,7 @@ def main():
     ap.add_argument(
         "--form",
         default="",
-        help="sections in sung order with optional role, e.g. 'Refrain:anna,Strophe:anna,Refrain:chor'; "
+        help="sections in sung order with optional role, e.g. 'Refrain:solo,Strophe:solo,Refrain:chor'; "
         "sets the passes per section and checks the found order",
     )
     args = ap.parse_args()
@@ -221,7 +215,7 @@ def main():
 
     t_audio = np.array([p[0] for p in pitch["pitch"]])
     hz = np.array([p[1] if p[1] else np.nan for p in pitch["pitch"]], dtype=float)
-    audio_midi = np.where(np.isfinite(hz), 69 + 12 * np.log2(np.where(np.isfinite(hz), hz, 440) / 440), np.nan)
+    audio_midi = np.where(np.isfinite(hz), hz_to_midi(np.where(np.isfinite(hz), hz, 440)), np.nan)
     if abs(t_audio[1] - t_audio[0] - HOP_S) > 1e-4:
         raise SystemExit("pitch track must have a 10 ms hop")
 
@@ -253,7 +247,7 @@ def main():
             found.append((sec_name, sec_seq, k, wp, cost))
 
     if form:
-        # the search finds the blocks, but near-identical sections (Strophe / Strophe 3) can swap them;
+        # the search finds the blocks, but near-identical sections (e.g. two strophes) can swap them;
         # so each block, in time order, is aligned again inside its window with the section the form names
         if len(found) != len(form):
             raise SystemExit(f"found {len(found)} blocks, the form has {len(form)}")

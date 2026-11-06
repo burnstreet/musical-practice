@@ -20,6 +20,7 @@ from pathlib import Path
 
 import librosa
 import numpy as np
+from music import hz_to_midi, midi_name
 from scipy import signal
 from scipy.ndimage import median_filter
 
@@ -29,16 +30,6 @@ OUT = ROOT / "work" / "pitch"
 SR = 22050
 HOP = 221  # ~10.02 ms at 22050 Hz
 FMIN, FMAX = librosa.note_to_hz("E2"), librosa.note_to_hz("C6")
-
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-
-def midi_name(m: int) -> str:
-    return f"{NOTE_NAMES[m % 12]}{m // 12 - 1}"
-
-
-def hz_to_midi(hz):
-    return 69 + 12 * np.log2(hz / 440.0)
 
 
 def drop_short_runs(mask: np.ndarray, min_len: int) -> np.ndarray:

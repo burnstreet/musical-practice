@@ -29,7 +29,6 @@ MIN_CHARS = 40
 GAP = 0.25  # seconds of silence between chunks
 SENTENCE_END = re.compile("(?:(?<=[.!?…])|(?<=[.!?…][\"»“”'’)]))\\s+")
 CLAUSE_END = re.compile("(?<=[,;:–])\\s+")
-CONFIG = Path("sources/config.json")
 VOICE_TEST = Path("work/voice-test")
 SILENCE = "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.1"  # leading; areverse twice for the trailing end
 FILTER = f"{SILENCE},areverse,{SILENCE},areverse,loudnorm=I=-18:TP=-1.5"
@@ -309,7 +308,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.worker:
         return worker()
-    config = json.loads(CONFIG.read_text(encoding="utf-8"))
+    config = sf.load_config()
     script = sf.load(config)
     return (voice_test if args.test else run_all)(config, script)
 

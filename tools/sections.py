@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from phrases import norm
+from script_format import load_config
 
 ROOT = Path.cwd()  # content root (mp.ps1 -Content sets the working directory)
 
@@ -63,12 +64,43 @@ def detect_sections(notes, bars):
     return out
 
 
+def compute_bars(ordered, bpm, dur, beats=4):
+    """(bar start seconds, bar index per note) for notes sorted by start; bars of `beats` quarters run on to `dur`."""
+    q = 60 / bpm
+    bar_len = beats * q
+    # Score bar numbers repeat on repeated sections: renumber bars sequentially in time order.
+    seq, known, prev = [], {}, None
+    for n in ordered:
+        bs = n["start"] - n["beat"] * q
+        if prev is None:
+            i = n["bar"]
+        elif n["bar"] > prev[0]:
+            i = seq[-1] + n["bar"] - prev[0]
+        elif n["bar"] == prev[0] and bs - prev[1] < bar_len / 2:
+            i = seq[-1]
+        else:  # score bar went back (or same bar a bar later): a repeat starts a new run
+            i = seq[-1] + max(1, round((bs - prev[1]) / bar_len))
+        seq.append(i)
+        known[i] = min(known.get(i, bs), bs)
+        prev = (n["bar"], bs)
+    idx = sorted(known)
+    bars = [known[idx[0]] - (idx[0] - m) * bar_len for m in range(idx[0])]
+    for a, b in zip(idx, idx[1:]):
+        bars += [known[a] + (known[b] - known[a]) * (m - a) / (b - a) for m in range(a, b)]
+    bars.append(known[idx[-1]])
+    while bars[-1] + bar_len <= dur:
+        bars.append(bars[-1] + bar_len)
+    # The intro before the first sung bar: whole bars counted back from it, so the staff shows the rests.
+    lead = int((bars[0] + 1e-6) // bar_len) if bars[0] > 0 else 0
+    bars = [bars[0] - (lead - m) * bar_len for m in range(lead)] + bars
+    seq = [i + lead for i in seq]
+    return [round(b, 3) for b in bars], seq
+
+
 def bar_grid(notes, bpm, beats=4):
     """Bar start seconds the packer would build for these raw (unpacked) notes."""
-    import pack  # bar grid shared with the packer
-
     ordered = sorted(notes, key=lambda n: n["start"])
-    return pack.compute_bars(ordered, bpm, ordered[-1]["end"] + 8 * 60 / bpm, beats)[0]
+    return compute_bars(ordered, bpm, ordered[-1]["end"] + 8 * 60 / bpm, beats)[0]
 
 
 def detect_for(notes, bpm, beats=4):
@@ -77,12 +109,12 @@ def detect_for(notes, bpm, beats=4):
 
 
 def song_bpm(root, nid):
-    cfg = json.loads((Path(root) / "sources" / "config.json").read_text(encoding="utf-8"))
+    cfg = load_config(root)
     return next(s["bpm"] for s in cfg["songs"] if s["id"] == nid)
 
 
 def song_beats(root, nid):
-    cfg = json.loads((Path(root) / "sources" / "config.json").read_text(encoding="utf-8"))
+    cfg = load_config(root)
     return next(s.get("beats", 4) for s in cfg["songs"] if s["id"] == nid)
 
 

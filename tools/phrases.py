@@ -22,7 +22,7 @@ def norm(text):
 
 
 def read_docx_lines(path):
-    # stdlib route: python-docx is not in the venv
+    # only the paragraph texts are needed: read document.xml directly
     with zipfile.ZipFile(path) as z:
         tree = ET.fromstring(z.read("word/document.xml"))
     return ["".join(t.text or "" for t in p.iter(W + "t")) for p in tree.iter(W + "p")]

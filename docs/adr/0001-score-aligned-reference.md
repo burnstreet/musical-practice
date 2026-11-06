@@ -4,6 +4,6 @@ The first PRD scored the singer against a pitch curve extracted from the recordi
 
 ## Consequences
 
-- Every song needs a transcribed score before it can be published. Five of ten songs still lack one.
+- Every song needs a transcribed score before it can be published.
 - Scoring is per note, not per frame, and phrases exist as a unit.
 - The subtraction and neural pitch tools stay in `tools/` but never ship to the client.

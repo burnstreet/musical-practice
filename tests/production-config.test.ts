@@ -8,8 +8,8 @@ describe('production config', () => {
   })
 
   it('takes the values of a production, short name falls back to the title', () => {
-    const p = parseProduction({ title: 'LKG Musical 2026', kicker: 'Weihnachtsmusical 2026', logoAlt: 'LKG Radeland', storageId: 'gu' })
-    expect(p).toMatchObject({ title: 'LKG Musical 2026', shortName: 'LKG Musical 2026', kicker: 'Weihnachtsmusical 2026', storageId: 'gu' })
+    const p = parseProduction({ title: 'Sample Musical', kicker: 'Sample Production', logoAlt: 'Sample School', storageId: 'sm' })
+    expect(p).toMatchObject({ title: 'Sample Musical', shortName: 'Sample Musical', kicker: 'Sample Production', storageId: 'sm' })
   })
 
   it('rejects a storage id that cannot name a database and storage keys', () => {

@@ -1,7 +1,7 @@
 # Pipeline: von Aufnahme und Noten zur Übungsseite
 
 Die Lieder einer Produktion liegen in einem eigenen, privaten Repo (Content-Root,
-z. B. `weihnachtsmusical-2026-content` neben diesem Repo). Alle Befehle laufen dort;
+`<produktion>-content` neben diesem Repo). Alle Befehle laufen dort;
 dessen `mp.ps1` reicht an das `mp.ps1` der Engine weiter und setzt den Content-Root
 als Arbeitsverzeichnis:
 
@@ -19,7 +19,7 @@ als Arbeitsverzeichnis:
 | `work/` | Zwischenergebnisse: `decoded/`, `subtracted/`, `pitch/`, `score/`, `edits/` | Produktion, ignoriert |
 | `web/data/` | Was der Editor lädt: `NN.json` (ein Lied je Eintrag in `sources/config.json`), `NN_*.mp3`, `NN_spec.png` | Produktion |
 | `tools/` | Skripte | Engine |
-| `web/` | Editor (`index.html`, `app.js`, `edit-ops.js`, `style.css`) | Engine |
+| `web/` | Editor | Engine |
 
 Alles unter `sources/`, `scores/` und die abgeleiteten Daten in `web/data/` sind
 urheberrechtlich geschützt: Sie liegen nur im privaten Produktions-Repo, öffentlich
@@ -31,7 +31,7 @@ nur verschlüsselt (ADR 0006, 0007).
 
 ```
 ./mp.ps1 tool align_check          # alle Lieder
-./mp.ps1 tool align_check 04 08    # nur diese
+./mp.ps1 tool align_check 12 13    # nur diese
 ```
 
 Dekodiert nach `work/decoded/NN_mix.wav` und `NN_pb.wav`, bestimmt den
@@ -41,19 +41,19 @@ Sample-Versatz per Kreuzkorrelation, prüft Drift und Restenergie, schreibt
 ### 1b. Subtraktion (nur bei sauberer Ausrichtung)
 
 ```
-./mp.ps1 tool subtract_vocals 08
+./mp.ps1 tool subtract_vocals NN
 ```
 
 Zieht das Playback mit per-Frequenz angepasster Verstärkung vom Mix ab.
-Ergebnis `work/subtracted/08_vocals.wav` und `08_backing.wav`. Für Lieder, deren
+Ergebnis `work/subtracted/NN_vocals.wav` und `NN_backing.wav`. Für Lieder, deren
 Playback nicht sauber ausgerichtet ist, stattdessen Demucs (`htdemucs`) verwenden.
 
 ### 1c. MP3s für die Seite
 
 ```
-ffmpeg -i "sources\audio\Musik\08 ....mp3" -ac 1 -b:a 128k web\data\08_mix.mp3
-ffmpeg -i work\subtracted\08_vocals.wav  -b:a 128k web\data\08_vocals.mp3
-ffmpeg -i work\subtracted\08_backing.wav -b:a 128k web\data\08_no_vocals.mp3
+ffmpeg -i "sources\audio\Musik\NN ....mp3" -ac 1 -b:a 128k web\data\NN_mix.mp3
+ffmpeg -i work\subtracted\NN_vocals.wav  -b:a 128k web\data\NN_vocals.mp3
+ffmpeg -i work\subtracted\NN_backing.wav -b:a 128k web\data\NN_no_vocals.mp3
 ```
 
 `pack` nimmt genau diese Dateien: `NN_mix.mp3` als Stimmen, `NN_no_vocals.mp3`
@@ -68,12 +68,12 @@ Zwei Tracker, gleiche Ausgabe (`work/pitch/<id>.json` plus Kontrollbild `.png`,
 
 ```
 # neuronale Tracker, empfohlen (CREPE genauer, FCPE schneller)
-./mp.ps1 tool extract_pitch_nn 04 work\subtracted\04_vocals.wav "Titel" ^
-    --method crepe --audio 04_mix.mp3 --stem-file vocals=04_vocals.mp3 --stem-file no_vocals=04_no_vocals.mp3 ^
-    --mix work\decoded\04_mix.wav --fmin E2 --highpass 90 --fold-octaves
+./mp.ps1 tool extract_pitch_nn NN work\subtracted\NN_vocals.wav "Titel" ^
+    --method crepe --audio NN_mix.mp3 --stem-file vocals=NN_vocals.mp3 --stem-file no_vocals=NN_no_vocals.mp3 ^
+    --mix work\decoded\NN_mix.wav --fmin E2 --highpass 90 --fold-octaves
 
 # klassisch (pYIN), gleiche Optionen ohne --method/--fold-octaves
-./mp.ps1 tool extract_pitch 04 work\subtracted\04_vocals.wav "Titel" ...
+./mp.ps1 tool extract_pitch NN work\subtracted\NN_vocals.wav "Titel" ...
 ```
 
 Wichtige Optionen:
@@ -95,10 +95,10 @@ Ziel ist immer das Score-JSON (`work/score/NN_score.json`): Liste von Noten
 mit `bar`, `beat`, `dur` (in Vierteln), `midi`, `name`, optional `lyric`,
 `section`, `role`. Drei Wege dorthin:
 
-### 3a. Vektor-PDF (Finale/Maestro-Font), z. B. 08
+### 3a. Vektor-PDF (Finale/Maestro-Font)
 
 ```
-./mp.ps1 tool score_from_pdf "sources\text\08 ....pdf" work\score\08_score.json --key-flats 1
+./mp.ps1 tool score_from_pdf "sources\text\NN ....pdf" work\score\NN_score.json --key-flats 1
 ```
 
 Liest Notenköpfe, Balken, Bögen, Taktstriche und Textsilben direkt aus den
@@ -106,7 +106,7 @@ PDF-Glyphen. Gibt pro Takt die Zählzeiten aus; ein Takt, der nicht auf 4
 kommt, ist ein Parse-Fehler. Funktioniert nur bei PDFs mit Vektor-Noten,
 nicht bei Scans.
 
-### 3b. Scans (JPG im docx), z. B. 03, 04, 07, 10
+### 3b. Scans (JPG im docx)
 
 Für gescannte Noten gibt es keinen automatischen Weg mit brauchbarer Qualität
 bei 60 dpi. Vorgehen:
@@ -116,12 +116,12 @@ bei 60 dpi. Vorgehen:
 
    ```
    T: Titel
-   K: Eb
+   K: G
    M: 4/4
    L: 1/4
-   Q: 105
+   Q: 100
    %% section Refrain
-   z/2 D/2 D/2 D/2 G G | E/2 D/2 C z z/2 D/2 |
+   G A B c | d2 B G | A/2 B/2 c B A | G4 |
    %% section Strophe
    ...
    ```
@@ -130,7 +130,7 @@ bei 60 dpi. Vorgehen:
    Dauern `2`, `/2`, `3/2`, Bindebögen `-`, Pausen `z`, Taktstriche,
    `%% section NAME` für Abschnitte, die in der Aufnahme mehrfach vorkommen.
 
-3. Umwandeln: `./mp.ps1 tool abc_to_score scores\03.abc work\score\03_score.json`
+3. Umwandeln: `./mp.ps1 tool abc_to_score scores\NN.abc work\score\NN_score.json`
 4. Korrigieren in MuseScore, siehe 3c.
 
 Alternative für bessere Scans (≥ 300 dpi): Audiveris (Open Source OMR)
@@ -140,10 +140,10 @@ erzeugt MusicXML, das direkt über 3c einlesbar ist.
 
 ```
 # Score-JSON -> MusicXML zum Bearbeiten
-./mp.ps1 tool score_to_musicxml work\score\03_score.json scores\03.musicxml --key Eb --title "..." --bpm 110
+./mp.ps1 tool score_to_musicxml work\score\NN_score.json scores\NN.musicxml --key G --title "..." --bpm 100
 
 # in MuseScore öffnen, korrigieren, Text eingeben, als MusicXML exportieren, dann zurück:
-./mp.ps1 tool score_from_musicxml scores\03.musicxml work\score\03_score.json
+./mp.ps1 tool score_from_musicxml scores\NN.musicxml work\score\NN_score.json
 ```
 
 Der Import nimmt den ersten Part und bei Akkorden den höchsten Ton, fasst
@@ -167,14 +167,16 @@ Flag für die ausgewählten Noten.
 ## 4. Partitur an die Aufnahme ausrichten
 
 ```
-./mp.ps1 tool align_score work\score\08_score.json work\pitch\08.json work\pitch\08_aligned.json ^
-    --bpm 93 --repeat-bars 9-12 --passes 2 --snap
+./mp.ps1 tool align_score work\score\NN_score.json work\pitch\NN.json work\pitch\NN_aligned.json ^
+    --bpm 100 --repeat-bars 9-12 --passes 2 --snap
 ```
 
 Subsequenz-DTW, oktavunabhängig. Jeder Abschnitt (`section`) wird so oft
 gesucht, wie er in der Aufnahme vorkommt (`--passes`), solange die mittleren
 Kosten unter `--max-cost` (0.3) bleiben. `--repeat-bars` für Wiederholungen
-innerhalb eines Abschnitts. `--snap` ersetzt den Notenwert durch den
+innerhalb eines Abschnitts. `--form "Refrain:anna,Strophe,Refrain:chor"` nennt
+die Abschnitte in gesungener Reihenfolge, optional mit Rolle je Block; ersetzt
+`--passes` und bricht ab, wenn die Blöcke in anderer Reihenfolge gefunden werden. `--snap` ersetzt den Notenwert durch den
 gesungenen Ton, wenn sie deutlich abweichen (Feld `score_midi` bleibt
 erhalten). Die Ausgabe druckt pro Durchlauf Kosten und impliziertes Tempo:
 
@@ -193,24 +195,23 @@ aus, und `--grid` verankert nur an gesungenen Noten. Ein Abschnitt nur aus Rap
 lässt sich so nicht allein finden: Lieder mit Rap als einen Block ausrichten
 (Partitur ausgeschrieben, ohne Abschnittsnamen) mit `--grid`.
 
-Kontrollbild: `./mp.ps1 tool plot_aligned work\pitch\08_aligned.json work\pitch\08_aligned.png 20 40`
+Kontrollbild: `./mp.ps1 tool plot_aligned work\pitch\NN_aligned.json work\pitch\NN_aligned.png 20 40`
 (blau Partitur, rot gesnappt, orange Gesang).
 
 ## 5. Rollen (wer singt was)
 
-Im Score-JSON pro Note `role` und oben `roles` mit Taktbereichen, z. B. 08:
+Im Score-JSON pro Note `role` und oben `roles` mit Taktbereichen, z. B.:
 
 ```json
-"roles": [{"name": "Maria & Josef", "bars": [0, 8]}, {"name": "Chor", "bars": [9, 12]}, {"name": "Wirt", "bars": [13, 14]}]
+"roles": [{"name": "Anna", "bars": [0, 7]}, {"name": "Chor", "bars": [8, 15]}, {"name": "Onkel", "bars": [16, 19]}]
 ```
 
-Die Ausrichtung reicht `role` durch; Seite und MusicXML färben danach
-(Reihenfolge der Palette in `app.js` und `score_to_musicxml.py` ist gleich).
+Die Ausrichtung reicht `role` durch; Seite und MusicXML färben danach.
 
 ## 6. Spektrogramm
 
 ```
-./mp.ps1 tool spectrogram work\subtracted\08_vocals.wav web\data\08_spec.png --json web\data\08.json --range-db 35
+./mp.ps1 tool spectrogram work\subtracted\NN_vocals.wav web\data\NN_spec.png --json web\data\NN.json --range-db 35
 ```
 
 Rendert den Gesangsstem auf dem Halbtonraster als PNG und trägt `spec` in
@@ -242,11 +243,11 @@ Lokal ansehen: `./mp.ps1 serve` → http://localhost:8765/
 ## Komplettlauf für ein neues Lied mit Noten-PDF
 
 ```
-align_check.py NN
-subtract_vocals.py NN
+./mp.ps1 tool align_check NN
+./mp.ps1 tool subtract_vocals NN
 ffmpeg ... (1c)
-extract_pitch_nn.py NN work\subtracted\NN_vocals.wav "Titel" --method crepe --audio NN_mix.mp3 --stem-file vocals=NN_vocals.mp3 --stem-file no_vocals=NN_no_vocals.mp3 --mix work\decoded\NN_mix.wav
-score_from_pdf.py <pdf> work\score\NN_score.json --key-flats N       (oder abc_to_score.py / score_from_musicxml.py)
-align_score.py work\score\NN_score.json work\pitch\NN.json work\pitch\NN_aligned.json --bpm B --passes P --snap
-spectrogram.py work\subtracted\NN_vocals.wav web\data\NN_spec.png --json web\data\NN.json --range-db 35
+./mp.ps1 tool extract_pitch_nn NN work\subtracted\NN_vocals.wav "Titel" --method crepe --audio NN_mix.mp3 --stem-file vocals=NN_vocals.mp3 --stem-file no_vocals=NN_no_vocals.mp3 --mix work\decoded\NN_mix.wav
+./mp.ps1 tool score_from_pdf <pdf> work\score\NN_score.json --key-flats N       (oder abc_to_score / score_from_musicxml)
+./mp.ps1 tool align_score work\score\NN_score.json work\pitch\NN.json work\pitch\NN_aligned.json --bpm B --passes P --snap
+./mp.ps1 tool spectrogram work\subtracted\NN_vocals.wav web\data\NN_spec.png --json web\data\NN.json --range-db 35
 ```

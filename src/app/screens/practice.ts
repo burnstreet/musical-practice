@@ -5,8 +5,10 @@ import { liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
+import type { DrawState, Marks } from '../draw/canvas'
 import { draw as drawRoll, octaveVote } from '../draw/roll'
-import { barsPerPage, type DrawState, draw as drawStaff, type Marks, pageOf } from '../draw/staff'
+import { barsPerPage, draw as drawStaff, pageOf } from '../draw/staff'
+import { icon, shapes } from '../icons'
 import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
@@ -15,8 +17,7 @@ const MODES: Record<Mode, [label: string, next: Mode]> = {
   backing: ['nur Playback', 'all'],
 }
 const NEXT_TEMPO: Record<Tempo, Tempo> = { 100: 90, 90: 80, 80: 70, 70: 100 }
-type Kind = RepeatKind
-const CHIPS: [Kind, string][] = [
+const CHIPS: [RepeatKind, string][] = [
   ['off', 'Aus'],
   ['phrase', 'Phrase'],
   ['section', 'Abschnitt'],
@@ -26,31 +27,22 @@ const CHIPS: [Kind, string][] = [
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
 // Icons from the artboards
-const icon = (body: ReturnType<typeof svg>, size = 22) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
-const BACK = icon(svg`<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`, 20)
-const GEAR = icon(
-  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g>`,
-  20,
-)
+const BACK = icon(shapes.back, 20)
+const GEAR = icon(shapes.sliders, 20)
 const CHART = icon(svg`<path d="M5 20V12M12 20V5M19 20v-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>`, 20)
 const CHEVRON = icon(svg`<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`, 16)
-const TO_START = icon(
-  svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
-)
+const TO_START = icon(shapes.toStart)
 const SKIP_PREV = icon(svg`<g fill="currentColor"><path d="M18 5v14l-9-7z"/><rect x="6" y="5" width="2.5" height="14" rx="1"/></g>`, 20)
 const SKIP_NEXT = icon(svg`<g fill="currentColor"><path d="M6 5v14l9-7z"/><rect x="15.5" y="5" width="2.5" height="14" rx="1"/></g>`, 20)
-const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></g>`, 28)
-const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 28)
-const MIC = icon(
-  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></g>`,
-  18,
-)
+const PAUSE = icon(shapes.pause, 28)
+const PLAY = icon(shapes.play, 28)
+const MIC = icon(shapes.mic, 18)
 const MIC_OFF = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M4 4l16 16"/></g>`,
   18,
 )
 
-/** Ends the live session: unload, mic off, history. Back button and the shell (routes to songs/start) call it; no-op without one. */
+/** Ends the live session: unload, mic off, history. Back button and the shell (routes outside practice and results) call it; no-op without one. */
 export function leaveSession(ctx: AppContext): void {
   const live = ctx.live
   if (!live) return
@@ -77,7 +69,7 @@ export function entryCountdown(song: Song, roles: RoleId[], t: number, tempo: nu
   return `Einsatz in ${bars ? `${bars} ${bars === 1 ? 'Takt' : 'Takten'} · ` : ''}${secs} s`
 }
 
-/** The mounted screen. The engine has no `off`, so engine and pitch engine are wired once and forward here. */
+/** The mounted screen. AudioEngine has no `off`, so both engines are wired once and forward here. */
 let current: GuPractice | null = null
 const wired = new WeakSet<object>()
 
@@ -215,14 +207,14 @@ export class GuPractice extends LitElement {
   declare tempo: Tempo
   declare repeat: Range | null
   /** Active repeat kind; A–B with A set and no repeat range waits for B. */
-  declare kind: Kind
+  declare kind: RepeatKind
   /** A–B point A, a bar line. */
   declare pointA: number | null
   /** The section of the Abschnitt repeat. */
   private section: Section | null = null
-  /** The role set has notes to score in this song; otherwise listen only (`noPart` hint) or rap (`rapsHere`). */
+  /** The role set has notes to score in this song; otherwise listen only or rap (`rapsHere`); hints in specs/screen-practice.spec.md. */
   singsHere = false
-  /** The role set only raps here: spoken notes, shown and muted like singing, never scored (`rapOnly` hint). */
+  /** The role set only raps here: spoken notes, shown and muted like singing, never scored (rap hint). */
   rapsHere = false
   session!: Session
   /** Pitch frames of the last 2 s (the roll's zoom hold), oldest first. */
@@ -302,10 +294,9 @@ export class GuPractice extends LitElement {
     this.singsHere = this.session.myNotes().length > 0
     this.rapsHere = !this.singsHere && loaded.song.notes.some((n) => s.roles.includes(n.role))
     this.setMode(this.singsHere || this.rapsHere ? s.mode : 'all', false)
-    // Results may have set a drill repeat and tempo on the engine.
     this.tempo = engine.tempo()
     this.repeat = engine.loop()
-    const kept = back?.repeat // the engine holds the range only; results sets Phrase ranges or clears it
+    const kept = back?.repeat // the engine holds only the range; the kind comes from live.repeat
     this.kind = this.repeat?.phrase ? 'phrase' : this.repeat ? (kept?.kind ?? 'off') : kept?.kind === 'ab' ? 'ab' : 'off'
     this.section = this.kind === 'section' ? (kept?.section ?? null) : null
     this.pointA = this.kind === 'ab' ? (kept?.pointA ?? null) : null
@@ -404,14 +395,14 @@ export class GuPractice extends LitElement {
     return [...ps].reverse().find((p) => p.start <= this.t) ?? ps[0]
   }
 
-  private setRange(kind: Kind, range: Range | null) {
+  private setRange(kind: RepeatKind, range: Range | null) {
     getContext().engine.setLoop(range)
     this.repeat = range
     this.kind = kind
   }
 
   /** Switch the repeat selector. The range is fixed now; Abschnitt and Einsatz also jump to their lead-in. */
-  private pick(kind: Kind) {
+  private pick(kind: RepeatKind) {
     const { song } = this.loaded!
     const now = this.heard()
     const roles = getContext().settings.get().roles

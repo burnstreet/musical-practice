@@ -364,6 +364,12 @@ def _(ctx):
     assert m["totalBytes"] == sum(p.stat().st_size for p in ctx["out"].glob("*.bin")) and len(m["files"]) == 7
 
 
+@then("the library role maria has only id, name, sings and speaks true")
+def _(ctx):
+    maria = next(r for r in library(ctx)["roles"] if r["id"] == "maria")
+    assert sorted(maria) == ["id", "name", "sings", "speaks"] and maria["speaks"] is True
+
+
 @then("the library has no script and the song is packed")
 def _(ctx):
     lib = library(ctx)

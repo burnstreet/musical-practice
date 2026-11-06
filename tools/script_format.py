@@ -1,4 +1,4 @@
-"""The production's spoken script: load and validate web/data/script.json, line hash.
+"""The production's spoken script: load and validate web/data/script.json, line hash; load sources/config.json.
 
 Format: specs/script-format.spec.md. Standard library only: both tools/.venv and tools/.venv-tts import it.
 """
@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 
+CONFIG = Path("sources/config.json")
 SCRIPT = Path("web/data/script.json")
 AUDIO_DIR = Path("web/data/script")
 TYPES = {"line", "direction", "song"}
@@ -15,6 +16,11 @@ TYPES = {"line", "direction", "song"}
 
 class ScriptError(ValueError):
     pass
+
+
+def load_config(root=Path(".")):
+    """The production config under the content root."""
+    return json.loads((Path(root) / CONFIG).read_text(encoding="utf-8"))
 
 
 def speaking_roles(config):
@@ -73,7 +79,7 @@ def direction(line):
 def line_hash(line, voice):
     data = {"text": spoken(line), "voice": voice}
     if (voice or {}).get("engine") in ("openai", "openai-realtime") and (d := direction(line)):
-        data["direction"] = d  # these engines play it; other engines ignore it, so their hashes stay
+        data["direction"] = d  # only these engines speak the direction, so only their hash depends on it
     canon = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:16]
 

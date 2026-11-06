@@ -15,9 +15,9 @@ targets:
 Admin runs locally, or the production repo's CI runs `pack`. All paths are relative to the content root: the working directory (`./mp.ps1 -Content <production repo>` sets it; `pack --root` overrides it). Inputs: aligned song JSON (`web/data/NN.json`, output of `align_score.py`), stems in `web/data/` (the files the editor shows, no separate pack copy), lyrics DOCX in `sources/text/`, config `sources/config.json`. Output: `content/` (manifest + encrypted blobs) and a report.
 
 ```
-python tools/phrases.py NN              # phrase index per note, from DOCX
-python tools/sections.py NN             # sections of a song, written into web/data/NN.json
-python tools/pack.py [--strict] [--out content] [--root .]   # password from env PITCH_PASSWORD
+./mp.ps1 tool phrases NN              # phrase index per note, from DOCX
+./mp.ps1 tool sections NN             # sections of a song, written into web/data/NN.json
+./mp.ps1 pack [--strict] [--out content] [--root .]   # password from env PITCH_PASSWORD
 ```
 
 Config `sources/config.json` (in the private production repo):
@@ -74,13 +74,13 @@ Pure function `detect_sections(notes, bars)` plus a script that writes the resul
 
 ## Editor additions (`web/app.js`)
 
-- Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved via existing save path.
+- Role painting: with notes selected, a role dropdown (global list from `sources/config.json`, served by `serve.py` at `/config.json`) and button "Rolle setzen" set `role` on every selected note. Saved with the song (`POST /save/<id>.json`).
 - Phrase flag: button "Phrasenanfang" toggles `phraseStart` on the selected note. Piano roll draws a vertical marker at flagged notes.
 - Rap flag: button "Rap" sets `spoken` on every selected note, or removes it when all of them have it (content format: shown, never scored). The piano roll draws a spoken note as a dashed outline without fill, labelled `Rap`; its midi (no pitch) does not widen the roll's pitch range. The note card shows `Rap` instead of a note name and `ohne Bewertung` with the role (`teils Rap` when only some selected notes are spoken).
 - Song JSON `roles` list stays derived: builder recomputes from notes.
-- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: one page of the staff is the roll window: the roll's bar lines sit under the staff's, numbered as on the staff, time runs linear inside each bar, and a seconds scale stays on top (the staff is spaced by onsets). A page holds the playhead and shows the bar count the zoom picks (1, 2, 3, 4, 6, 8, 12 or 16, default 4; squeezed where its syllables do not fit); previous/next seek to the neighbouring page, so staff, bands and roll turn together. Without the staff view the zoom picks the roll window in seconds. Click on a phrase, a section or a staff note, or focus a row of the section list, selects it and highlights its notes in the roll; a selection with no note on the shown page turns the view to the bar of its first note. The section list sits in its own panel, visible as soon as a song is loaded (not only in edit mode); its bar fields stay disabled until the bar grid has arrived. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined into words (`joinSyllables`: a syllable ending in `-` runs on into the next, others get a space). Each note sits in the grid bar nearest its start minus its beat; the staff's time signature and tempo use the song's beats per bar from `sources/config.json` (default 4), as the bar grid does. The view needs the bar grid from `/detect-sections` and the shared build (`./mp.ps1 build` writes `web/lib/editor-view.js`); without either the editor works as before. Drawing not unit-tested.
+- Bars and sections view: staff (same drawing as the singer, shared through a second build entry) with syllables, phrase band (number, line text, flag at each phrase start), section band, and a smaller piano roll on one bar grid: one page of the staff is the roll window: the roll's bar lines sit under the staff's, numbered as on the staff, time runs linear inside each bar, and a seconds scale stays on top (the staff is spaced by onsets). A page holds the playhead and shows the bar count the zoom picks (1, 2, 3, 4, 6, 8, 12 or 16, default 4; squeezed where its syllables do not fit); previous/next seek to the neighbouring page, so staff, bands and roll turn together. Without the staff view the zoom picks the roll window in seconds. Click on a phrase, a section or a staff note, or focus a row of the section list, selects it and highlights its notes in the roll; a selection with no note on the shown page turns the view to the bar of its first note. The section list sits in its own panel, visible as soon as a song is loaded (not only in edit mode); its bar fields stay disabled until the bar grid has arrived. Phrases in the band: split at `phraseStart` flags when any note has one (as the builder does), else grouped by `phrase`; line text = the syllables joined into words (`joinSyllables`: a syllable ending in `-` runs on into the next, others get a space). Each note sits in the grid bar nearest its start minus its beat; the staff's time signature and tempo use the song's beats per bar from `sources/config.json` (default 4), as the bar grid does. The view needs the bar grid from `/detect-sections` and the shared build (`./mp.ps1 build` writes `web/lib/editor-view.js`); without the bar grid the view stays hidden, without the build it shows the hint `Notenansicht fehlt: ./mp.ps1 build`. The rest of the editor works without the view. Drawing not unit-tested.
 - Phrases stay editable only through `Phrasenanfang`.
-- Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the existing save path (`sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
+- Section list: one row per section with name, from bar, to bar (bar numbers as on the staff, first bar 1, both inclusive), delete, and an add button. Edits go through the pure ops in `web/edit-ops.js` and save with the song (`POST /save/<id>.json`, `sections` in the song JSON). A section's `start` = start second of its from bar, its `end` = start second of the bar after its to bar (end of the last bar for the last bar). Edges are always on bar lines.
 - Re-detect button `Abschnitte neu erkennen`: after a confirmation, posts the current notes to the editor server (`serve.py`, route `/detect-sections`), which first re-derives each note's `phrase` from the `phraseStart` flags (`derive_phrases`, as the builder does; no flags: stored phrases stay), then calls `detect_sections` and answers with the sections and the bar grid (`{sections, bars}`, bar start seconds, the grid for the section ops); the editor replaces its list with them (saved only on save). Detection is never duplicated in JS. Cancel keeps the list.
   `[@test] ../tests/steps/editor.steps.ts`
 
@@ -257,7 +257,8 @@ Script is complete when all hold:
 2. Every line has audio for its current hash.
 
 - Incomplete script: `content/report.txt` lists `script: rule <n>, <detail>` (item id, role). Script not packed, songs packed as usual. Exit 0. With `--strict` exit 1.
-- Complete: each MP3 encrypted as is; the script file is the source without `say`, every line with `audio` = file id of its MP3; library gets `script` and the roles get `speaks` from config.
+- Complete: each MP3 encrypted as is; the script file is the source without `say`, every line with `audio` = file id of its MP3; library gets `script`.
+- Library roles: `id`, `name`, `sings`, `speaks` (false when missing) from config, nothing else (`voice` and `aliases` stay on the Admin's machine).
   `[@test] ../tools/tests/steps_pack.py`
 
 ```gherkin
@@ -267,6 +268,7 @@ Feature: Script packing
     When I run pack
     Then the decrypted library has script with 2 audio ids
     And the decrypted script file has no say and each line's audio id decrypts to its MP3
+    And the library role maria has only id, name, sings and speaks true
 
   Scenario: line without audio blocks the script
     Given one complete song and a script whose line "aaaa" has no audio

@@ -15,6 +15,7 @@ export function parseManifest(json: unknown): Manifest       // throws ContentEr
 export function parseLibrary(json: unknown): Library         // throws ContentError
 export function parseSong(json: unknown): Song               // throws ContentError
 export function roleSpans(notes: Note[], roles: RoleId[]): Span[]
+export function visibleNotes(notes: Note[], roles: RoleId[]): Note[]
 ```
 
 ## Crypto
@@ -118,7 +119,7 @@ Feature: Library
 
 - `bars[i]` = start second of bar i. The intro before the first sung bar gets whole bars counted back from it (as many as fit after 0 s), so the staff shows its rests; `bar` of the notes counts them. `timeSig` is `[beats, 4]`, the builder config's `beats` per song (default 4). `key` = tonic plus `m` for minor (`F`, `Ebm`). `beat` in quarters from bar start, `dur` in quarters.
 - Notes sorted by `start`. `end > start`. `midi` integer 36–96. `role` in library roles. `phrase` indexes `phrases`.
-- `syllable`: text sung on the note, `""` on a melisma note. A syllable whose word goes on ends in `-` (`Nie-`, `mand`), as MusicXML `syllabic` begin/middle.
+- `syllable`: text sung on the note, `""` on a melisma note. A syllable whose word goes on ends in `-` (`Win-`, `ter`), as MusicXML `syllabic` begin/middle.
 - `spoken` optional boolean. `true` = spoken or rapped, no pitch: shown with its rhythm and syllable, never scored. `midi` still required; builder writes 71, app ignores it.
 - `slur` optional boolean. `true` = a slur starts at this note: the staff draws an arc to the next note of the same role. Drawing only.
 - `tie` optional boolean. `true` = tied to the next note of the same role (same pitch, often over a bar line): the staff draws an arc, scoring counts the chain as one note (see scorer).

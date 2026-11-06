@@ -28,7 +28,7 @@ export interface PitchEngine {
 }
 ```
 
-Constants (one file `pitch-constants.ts`): window 1024, hop 256, clarity threshold 0.9, fmin 80 Hz, fmax 1100 Hz. Sample rate = AudioContext rate. At 48 kHz: frame every 5.3 ms, detection delay (window centre) 10.7 ms. 1024 samples still resolve E2 (82 Hz) with harmonics; fmin stays 80 Hz (lowest packed score note G3, a male singer folds to G2).
+Constants (one file `pitch-constants.ts`): window 1024, hop 256, clarity threshold 0.9, fmin 80 Hz, fmax 1100 Hz. Sample rate = AudioContext rate. At 48 kHz: frame every 5.3 ms, detection delay (window centre) 10.7 ms. 1024 samples still resolve E2 (82 Hz) with harmonics; fmin stays 80 Hz.
 
 - Detector: McLeod pitch method (pitchy). Frame every hop. `midi = 69 + 12·log2(hz/440)` as float. `midi = null` when clarity below threshold or hz outside range.
 - Detection delay `d = WINDOW / 2 / ctx.sampleRate`: the window's centre is what the frame measures.

@@ -9,7 +9,7 @@ targets:
 
 # Script editor
 
-Part of the editor (`./mp.ps1 serve`, `web/`). Same page, same server. Edits go through pure ops in `web/script-ops.js` and save with the existing save path (`/save/script.json`). No role or voice editing: those stay in `sources/config.json`.
+Part of the editor (`./mp.ps1 serve`, `web/`). Same page, same server. Edits go through pure ops in `web/script-ops.js` and save through `POST /save/script.json`. No role or voice editing: those stay in `sources/config.json`.
 
 ## View
 

@@ -15,15 +15,19 @@ targets:
 Lit root element `<gu-app>`. Routes by hash. German, `lang="de"`.
 
 ```ts { .api }
-export type Route = '#/start' | '#/songs' | `#/practice/${string}` | `#/results/${string}`
+export type Route = '#/start' | '#/songs' | '#/text' | `#/text/${string}` | `#/practice/${string}` | `#/results/${string}`
 
 export interface Settings {
   tolerance: Tolerance            // default 50
   delayMs: number | null          // total scoring delay 0..1500, default null = as reported; applied with pitch.setDelayMs at app start
   headphoneSheetSeen: boolean
   installHintSeen: boolean
-  roles: RoleId[]                 // last selection
+  roles: RoleId[]                 // last selection, songs and text
   mode: Mode                      // last voicetrack mode, default 'all'
+  micDeviceId: string             // '' = auto (built-in mic)
+  tab: 'songs' | 'text'           // last tab of the mode switch, default 'songs'
+  dialog: DialogSettings          // text settings, screen-dialog
+  dialogPositions: Record<string, DialogPosition>  // last run-through position per role set (roleSetKey: sorted ids joined by ',')
 }
 export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset(): void }  // localStorage key "<storageId>.settings" (storageId from the production)
 ```
@@ -31,8 +35,9 @@ export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset
 ## Routing
 
 - Start route shown when vault state is `locked` or `password-changed`. Any other route redirects there.
-- Unlocked app start: songs. Practice and results routes need a ready song, else redirect to songs.
+- Unlocked app start (and any unknown route): the last tab, `#/text` when `settings.tab` is `text` and the library has a script, else songs. Practice and results routes need a ready song, else redirect to songs.
 - Results route: only with the live session of that song; otherwise practice of that song.
+- Text routes need a script in the library, else songs. A run-through (`#/text/{sceneId}…`) needs the script ready (`library.scriptReady`), else `#/text`.
   `[@test] ../tests/steps/shell.steps.ts`
 
 ```gherkin
@@ -51,6 +56,21 @@ Feature: Guards
     Given vault unlocked and song "05" not ready
     When I open "#/practice/05"
     Then the route is "#/songs"
+
+  Scenario: start on the last tab
+    Given vault unlocked, a script ready and last tab text
+    When I open "#/start"
+    Then the route is "#/text"
+
+  Scenario: no script, no text
+    Given vault unlocked and no script
+    When I open "#/text"
+    Then the route is "#/songs"
+
+  Scenario: run-through needs a ready script
+    Given vault unlocked and a script not ready
+    When I open "#/text/s1"
+    Then the route is "#/text"
 ```
 
 ## PWA
@@ -216,6 +236,10 @@ CSS custom properties in `tokens.css`, from the canvas:
 | `--text` | #FFFFFF |
 | `--muted` | #CFE0F5 |
 | `--other` | #A9D3F7 |
+| `--high` / `--low` | #FFB35C / #8FE3FF (results) |
+| `--card` | #FFFFFF (white cards) |
+| `--warn` | #FFD166 (missed hint) |
+| `--accent-deep` | #B3CB45 (level track on accent) |
 | `--font-body` | 'DM Sans', system-ui, sans-serif |
 | `--font-display` | 'Fraunces', serif |
 

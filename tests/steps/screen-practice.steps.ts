@@ -511,7 +511,7 @@ export default steps(({ Given, When, Then }) => {
       [22, 26],
       [28, 32],
     ].map(([start, end], index) => ({ index, label: `p${index}`, start, end }))
-    ctx.data.song.notes.push(note(74, 30, 31, 'maria', 5)) // a later own entry to skip to
+    ctx.data.song.notes.push(note(74, 30, 31, 'maria', 5)) // a later own span to skip to
   }
   const ownSpans = (ctx: any, spans: [number, number][]) => {
     ctx.data.song.bars = Array.from({ length: 30 }, (_, i) => i * 2)
@@ -799,7 +799,7 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the repeat range is unchanged and time\(\) is the lead-in landing$/, (ctx) => {
     expect(ctx.loop).toBe(ctx.before)
     expect(chip(ctx, 'Phrase').getAttribute('aria-pressed')).toBe('true')
-    expect(ctx.time).toBe(leadInStart(30, ctx.data.song.bars)) // the later own entry at 30.0
+    expect(ctx.time).toBe(leadInStart(30, ctx.data.song.bars)) // the later own span at 30.0
   })
 
   // Intro skip

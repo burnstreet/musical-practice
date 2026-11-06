@@ -5,7 +5,7 @@ description: Align a song's score to its recording and write web/data/NN.json wi
 
 # Align a song
 
-Runs the score → recording → `web/data/NN.json` chain for one song `NN` of a production. Work in the production repo (the content root, e.g. `../weihnachtsmusical-2026-content`); all paths below are relative to it. Per-song settings live in the production's **song table** (`docs/song-table.md` there); a song missing there needs its form and roles from the user first (ask once, then add a row).
+Runs the score → recording → `web/data/NN.json` chain for one song `NN` of a production. Work in the production repo (the content root, e.g. `../<production>-content`); all paths below are relative to it. Per-song settings live in the production's **song table** (`docs/song-table.md` there); a song missing there needs its form and roles from the user first (ask once, then add a row).
 
 Tools: `./mp.ps1 tool <name> [args]` in the production repo runs `tools/<name>.py` of the engine with the production as working directory. Background and options: `docs/pipeline.md` of the engine, sections 3c–4 and 7.
 

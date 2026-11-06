@@ -1,8 +1,9 @@
-import { css, html, LitElement, svg } from 'lit'
+import { css, html, LitElement } from 'lit'
 import type { RoleId } from '../../core/content'
 import type { Scene, Script } from '../../core/types'
 import { getContext } from '../context'
 import { unlockAudio } from '../dialog'
+import { icon, shapes } from '../icons'
 import { roleSetKey } from '../settings'
 import '../settings-sheet'
 import { topHeader, topStyles } from './roles'
@@ -95,7 +96,7 @@ export class GuText extends LitElement {
       ${
         script && pos && resumeAt >= 0
           ? html`<button class="resume" @click=${() => this.go(pos.sceneId, pos.itemId)}>
-            <span class="play">${html`<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">${svg`<path d="M7 4l13 8-13 8z" fill="currentColor"/>`}</svg>`}</span>
+            <span class="play">${icon(shapes.go, 16)}</span>
             <span class="txt"><span class="title">Weiter bei Szene ${sceneNo(script.scenes[resumeAt], resumeAt)}</span><span class="meta">Zuletzt geübt: ${when(pos.at)}</span></span>
           </button>`
           : ''

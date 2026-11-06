@@ -1,13 +1,13 @@
 import { css, html, LitElement, svg } from 'lit'
 import { keyed } from 'lit/directives/keyed.js'
-import { CUE_DEFAULTS, hintText } from '../../core/cue'
+import { CUE_DEFAULTS, groupTurns, hintText } from '../../core/cue'
 import type { ScriptItem } from '../../core/types'
 import { getContext } from '../context'
 import { type Dialog, type DialogDeps, openDialog, unlockAudio } from '../dialog'
+import { icon, shapes } from '../icons'
 import type { DialogSettings } from '../settings'
-import { de1 } from '../settings-sheet'
+import { oneDecimalDe } from '../settings-sheet'
 import '../settings-sheet'
-import { SLIDERS } from './roles'
 import { lineCount, sceneNo } from './text'
 
 /** Line text with its inline directions `[x]` as italic direction spans, brackets removed. */
@@ -17,26 +17,21 @@ const inline = (text: string) => text.split(/(\[[^\]]*\])/).map((p) => (p.starts
 const forMe = (text: string, myNames: string[]) =>
   myNames.some((n) => new RegExp(`(?<![\\p{L}\\p{N}])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'u').test(text))
 
-const icon = (body: ReturnType<typeof svg>, size = 22) => html`<svg width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
-const BACK = icon(svg`<path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`, 20)
-const PREV = icon(
-  svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M19 5v14L9 12z"/><path d="M5 5v14" stroke-linecap="round"/></g>`,
-)
+const BACK = icon(shapes.back, 20)
+const SLIDERS = icon(shapes.sliders, 20)
+const PREV = icon(shapes.toStart)
 const SKIP = icon(
   svg`<g fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 5v14l10-7z"/><path d="M19 5v14" stroke-linecap="round"/></g>`,
   18,
 )
-const PAUSE = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></g>`, 26)
-const PAUSE_S = icon(svg`<g fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></g>`)
-const PLAY = icon(svg`<path d="M7 4.5v15l13-7.5z" fill="currentColor"/>`, 26)
+const PAUSE = icon(shapes.pause, 26)
+const PAUSE_S = icon(shapes.pause)
+const PLAY = icon(shapes.play, 26)
 const NEXT = icon(
   svg`<path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`,
   20,
 )
-const MIC = icon(
-  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></g>`,
-  16,
-)
+const MIC = icon(shapes.mic, 16)
 const EYE = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></g>`,
   18,
@@ -78,9 +73,9 @@ export class GuRun extends LitElement {
     h1 { margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .progress { height: 3px; border-radius: 2px; background: var(--line); margin-top: 6px; }
     .progress i { display: block; height: 100%; border-radius: 2px; background: var(--text); }
-    .missed { display: flex; align-items: center; gap: 10px; background: var(--ink); border-radius: 12px; padding: 8px 12px; font-size: 13px; flex: none; color: #ffd166; }
+    .missed { display: flex; align-items: center; gap: 10px; background: var(--ink); border-radius: 12px; padding: 8px 12px; font-size: 13px; flex: none; color: var(--warn); }
     .missed span { flex: 1; color: var(--text); }
-    .missed button { background: transparent; color: #ffd166; font-weight: 700; min-height: 32px; }
+    .missed button { background: transparent; color: var(--warn); font-weight: 700; min-height: 32px; }
     .layout { flex: 1; min-height: 0; display: flex; gap: 24px; }
     nav { display: none; }
     main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -94,9 +89,9 @@ export class GuRun extends LitElement {
     .said { font-size: 16px; line-height: 1.4; margin-top: 1px; }
     .current { flex: 0 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; }
     .big { font-family: var(--font-display); font-size: 23px; font-weight: 500; line-height: 1.35; }
-    .play { background: #fff; color: var(--ink); border-radius: 18px; padding: 14px 14px 16px; gap: 8px; }
+    .play { background: var(--card); color: var(--ink); border-radius: 18px; padding: 14px 14px 16px; gap: 8px; }
     .play .top { display: flex; align-items: center; justify-content: space-between; }
-    .chip { height: 26px; padding: 0 12px; border-radius: 13px; background: var(--bg); color: #fff; display: flex; align-items: center; font-size: 13px; font-weight: 700; }
+    .chip { height: 26px; padding: 0 12px; border-radius: 13px; background: var(--bg); color: var(--text); display: flex; align-items: center; font-size: 13px; font-weight: 700; }
     .wave { color: var(--bg); }
     .next { border: 2px dashed var(--accent); border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex: none; color: var(--accent); }
     .next b { flex: 1; font-size: 13px; }
@@ -111,7 +106,7 @@ export class GuRun extends LitElement {
     .acts { display: flex; gap: 8px; flex-wrap: wrap; }
     .acts button { flex: 1; height: 44px; border-radius: 22px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .level { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-    .meter { flex: 1; height: 6px; border-radius: 3px; background: #b3cb45; overflow: hidden; }
+    .meter { flex: 1; height: 6px; border-radius: 3px; background: var(--accent-deep); overflow: hidden; }
     .meter i { display: block; height: 100%; border-radius: 3px; background: var(--ink); }
     .dir.me { color: var(--accent); }
     .direction { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; gap: 6px; }
@@ -122,9 +117,9 @@ export class GuRun extends LitElement {
     .run { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
     .run i { display: block; height: 100%; background: var(--muted); transform-origin: left; animation: run linear forwards; }
     @keyframes run { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-    .song { background: #fff; color: var(--ink); border-radius: 20px; padding: 14px; gap: 12px; }
+    .song { background: var(--card); color: var(--ink); border-radius: 20px; padding: 14px; gap: 12px; }
     .song .top { display: flex; align-items: center; gap: 12px; }
-    .song .disc { width: 44px; height: 44px; border-radius: 22px; background: var(--bg); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+    .song .disc { width: 44px; height: 44px; border-radius: 22px; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; flex: none; }
     .song small { display: block; font-size: 12px; font-weight: 700; color: var(--bg); }
     .song strong { display: block; font-family: var(--font-display); font-size: 20px; font-weight: 600; margin-top: 2px; }
     .song .acts button { height: 48px; border-radius: 24px; border-color: var(--bg); color: var(--bg); }
@@ -133,7 +128,7 @@ export class GuRun extends LitElement {
     .controls .main { width: 64px; height: 64px; border-radius: 32px; background: var(--accent); color: var(--ink); }
     .controls .pill { height: 52px; padding: 0 14px; border-radius: 26px; background: var(--surface); display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
     .controls .rate { font-size: 13px; font-weight: 700; }
-    .controls .weiter { flex: 1; margin: 0 12px; height: 60px; border-radius: 30px; background: #fff; color: var(--ink); font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .controls .weiter { flex: 1; margin: 0 12px; height: 60px; border-radius: 30px; background: var(--card); color: var(--ink); font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
     /* phone turned sideways: less chrome, more text */
     @media (max-height: 500px) {
       :host { padding: 8px 16px; gap: 6px; }
@@ -151,8 +146,8 @@ export class GuRun extends LitElement {
       nav { display: flex; flex-direction: column; gap: 6px; flex: 0 1 300px; overflow-y: auto; }
       nav h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 20px; font-weight: 600; }
       nav button { display: flex; align-items: center; gap: 12px; border-radius: 14px; padding: 8px 12px; min-height: 48px; background: var(--surface); text-align: left; }
-      nav button[aria-current='true'] { background: #fff; color: var(--ink); }
-      nav .n { width: 30px; height: 30px; border-radius: 15px; background: var(--bg); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex: none; }
+      nav button[aria-current='true'] { background: var(--card); color: var(--ink); }
+      nav .n { width: 30px; height: 30px; border-radius: 15px; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex: none; }
       nav [aria-current='true'] .n { background: var(--accent); color: var(--ink); }
       nav .t { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
       nav .m { font-size: 12px; flex: none; }
@@ -287,6 +282,8 @@ export class GuRun extends LitElement {
     const at = first ? flow.indexOf(first) : flow.length
     const last = first ? flow.indexOf(cue.turn.at(-1)!) : flow.length
     const past = flow.slice(Math.max(0, at - PAST), Math.max(0, at))
+    const turns = groupTurns(flow, s.roles)
+    const turnAt = first ? turns.findIndex((t) => t.includes(first)) : turns.length
     const names = new Map(library.roles().map((r) => [r.id, r.name]))
     const mine = (i: ScriptItem) => i.type === 'line' && s.roles.includes(i.role)
     const myNames = s.roles.map((id) => names.get(id) ?? id)
@@ -295,7 +292,7 @@ export class GuRun extends LitElement {
         <button class="round" aria-label="Zurück zur Auswahl" @click=${() => getContext().route('#/text')}>${BACK}</button>
         <div>
           <h1>Szene ${no}${scene.title ? ` · ${scene.title}` : ''}</h1>
-          <div class="progress" role="img" aria-label="Fortschritt in der Szene: ${at + 1} von ${flow.length}"><i style="width:${flow.length ? (100 * (at + 1)) / flow.length : 0}%"></i></div>
+          <div class="progress" role="img" aria-label="Fortschritt in der Szene: ${turnAt + 1} von ${turns.length}"><i style="width:${turns.length ? (100 * (turnAt + 1)) / turns.length : 0}%"></i></div>
         </div>
         <button class="round" aria-label="Einstellungen" @click=${this.openSettings}>${SLIDERS}</button>
       </header>
@@ -360,7 +357,7 @@ export class GuRun extends LitElement {
       return html`<div class="current song">
         <div class="top"><span class="disc">${NOTE}</span><span><small>Jetzt kommt ein Lied${singers.length ? ` · ${singers.join(', ')} ${singers.length > 1 ? 'singen' : 'singt'} mit` : ''}</small><strong>${this.songTitle(first.songId)}</strong></span></div>
         <div class="acts">
-          <button class="go" ?disabled=${!library.isReady(first.songId)} @click=${() => this.practiceSong(first.songId)}>${icon(svg`<path d="M7 4l13 8-13 8z" fill="currentColor"/>`, 14)}Lied üben</button>
+          <button class="go" ?disabled=${!library.isReady(first.songId)} @click=${() => this.practiceSong(first.songId)}>${icon(shapes.go, 14)}Lied üben</button>
           <button @click=${() => this.send(paused ? 'resume' : 'tap')}>Weiter im Text</button>
         </div>
       </div>`
@@ -402,7 +399,7 @@ export class GuRun extends LitElement {
       ${
         live && !d.micFailed
           ? html`<div class="level"><div class="meter" role="img" aria-label="Mikrofonpegel"><i style="width:${Math.min(100, d.level() * 300)}%"></i></div>
-            <span>weiter nach ${de1(s.dialog.silenceMs / 1000)} s Stille</span></div>`
+            <span>weiter nach ${oneDecimalDe(s.dialog.silenceMs / 1000)} s Stille</span></div>`
           : ''
       }
     </div>`
@@ -441,7 +438,7 @@ export class GuRun extends LitElement {
           : ''
       }
       <button class="round main" aria-label=${paused ? 'Fortsetzen' : 'Pause'} @click=${() => this.send(paused ? 'resume' : 'pause')}>${paused ? PLAY : PAUSE}</button>
-      <button class="round rate" aria-label="Sprechtempo der anderen ${de1(rate)}-fach" @click=${this.openSettings}>${de1(rate)}×</button>
+      <button class="round rate" aria-label="Sprechtempo der anderen ${oneDecimalDe(rate)}-fach" @click=${this.openSettings}>${oneDecimalDe(rate)}×</button>
     </div>`
   }
 }

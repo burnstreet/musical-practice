@@ -1,8 +1,7 @@
 import { type Note, visibleNotes } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
-import { COLORS, type DrawState, dimOutside, FONT, fit } from './staff'
+import { COLORS, type DrawState, dimOutside, FONT, fit } from './canvas'
 
-/** Playhead at 30 % of the window. */
 const BEHIND_SHARE = 0.3
 const MIN_ROWS = 10
 /** Above this many rows only the natural notes are labelled: the labels get too small to tell apart. */
@@ -19,7 +18,7 @@ const ZOOM_EASE_MS = 80
 /** Rows each roll canvas drew last, for the easing. */
 const shown = new WeakMap<CanvasRenderingContext2D, { lo: number; hi: number; at: number }>()
 
-/** Inclusive midi range of the rows: notes ±2 semitones, padded to at least 10 rows (G4 area when empty). */
+/** Inclusive midi range of the rows: notes ±MARGIN, padded to MIN_ROWS (G4 area when empty). */
 export function rowRange(midis: number[]): [number, number] {
   let lo = midis.length ? Math.min(...midis) - MARGIN : 67
   let hi = midis.length ? Math.max(...midis) + MARGIN : 67
@@ -93,7 +92,7 @@ export function lyricXs(xs: number[], widths: number[], gap: number): number[] {
   return out
 }
 
-/** Piano roll, window of `rollWindow`, playhead at 30 %, lyric strip at the bottom. No-op without a context (happy-dom). */
+/** Piano roll, window of `rollWindow`, lyric strip at the bottom. No-op without a context (happy-dom). */
 export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): void {
   if (!ctx) return
   const { w, h: full } = fit(ctx)

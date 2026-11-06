@@ -14,6 +14,7 @@ function deps(ctx: any): ShellDeps {
   history.replaceState(null, '', '#')
   ctx.state = 'unlocked' as VaultState
   ctx.ready = new Set<string>()
+  ctx.script = 'none' as 'none' | 'loading' | 'ready'
   const wipes: (() => Promise<void>)[] = []
   ctx.deps = {
     vault: {
@@ -39,11 +40,9 @@ function deps(ctx: any): ShellDeps {
       getSong: async () => {
         throw new Error('fake')
       },
-      hasScript: () => false,
-      scriptReady: () => false,
-      getScript: async () => {
-        throw new Error('fake')
-      },
+      hasScript: () => ctx.script !== 'none',
+      scriptReady: () => ctx.script === 'ready',
+      getScript: async () => ({ script: { scenes: [] }, audio: async () => new Blob() }),
       wipe: async () => {},
     },
     history: { record: async () => {}, list: async () => [], badge: async () => null, recordPass: async () => {}, days: async () => [], wipe: async () => {} },
@@ -94,6 +93,17 @@ export default steps(({ Given, When, Then }) => {
   Given(/^vault unlocked and song "(\w+)" not ready$/, (ctx) => {
     deps(ctx)
     ctx.state = 'unlocked'
+  })
+
+  Given(/^vault unlocked, a script ready and last tab text$/, async (ctx) => {
+    deps(ctx)
+    ctx.script = 'ready'
+    const { settings } = await import('../../src/app/settings')
+    settings.set({ tab: 'text' })
+  })
+  Given(/^vault unlocked and (no script|a script not ready)$/, (ctx, s) => {
+    deps(ctx)
+    ctx.script = s === 'no script' ? 'none' : 'loading'
   })
 
   When(/^I open "([^"]+)"$/, async (ctx, hash) => {

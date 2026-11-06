@@ -34,7 +34,7 @@ Strings:
 
 ```gherkin
 Feature: Songs screen
-  Scenario: only singing roles shown
+  Scenario: roles that neither sing nor speak are hidden
     Given roles maria (sings) and esel (not sings)
     When the screen renders
     Then a chip "Maria" exists and no chip "Esel"

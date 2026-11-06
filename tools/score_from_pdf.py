@@ -18,21 +18,15 @@ import json
 from pathlib import Path
 
 import pymupdf
+from music import midi_name
 
 NOTEHEADS = {"œ": 1.0, "˙": 2.0, "w": 4.0}
 RESTS = {"∑": 4.0, "Ó": 2.0, "Œ": 1.0, "‰": 0.5, "≈": 0.25}
 FLAGS = {"j": 1, "J": 1, "r": 2, "R": 2}  # up/down eighth, sixteenth flags
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-NOTE_NAMES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
 DIATONIC = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 LETTERS = "CDEFGAB"
 FLAT_ORDER = "BEADGCF"
 SHARP_ORDER = "FCGDAEB"
-
-
-def midi_name(m, flats=False):
-    names = NOTE_NAMES_FLAT if flats else NOTE_NAMES
-    return f"{names[m % 12]}{m // 12 - 1}"
 
 
 def load_page(pdf):

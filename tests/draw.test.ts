@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import { COLORS } from '../src/app/draw/canvas'
 import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
   beamTips,
-  COLORS,
   draw as drawStaff,
   keyFifths,
   layoutBar,
@@ -177,7 +177,7 @@ describe('bar spacing', () => {
 })
 
 describe('lyric-aware page layout', () => {
-  // px at scale 1: head 16 (+12 before an accidental), bar pad 18, tail 10, 4 px between labels, empty bar 40
+  // px at scale 1; acc: extra room before an accidental, sep: gap between labels
   const opts = { barQ: 4, leftRoom: 40, head: 16, acc: 12, pad: 18, tail: 10, sep: 4, empty: 40, minScale: 10 / 12 }
   const on = (bar: number, beat: number, label: number, acc = false): PageOnset => ({ bar, beat, label, acc })
   /** Every label drawn, none overlapping another in its row, none past the page edges. */
@@ -719,7 +719,7 @@ describe('roll layout', () => {
     expect(foldToTargetOctave(46, 0, [])).toBe(46)
   })
 
-  // frames every 5 ms from t0, one midi per piece of [midi, seconds]
+  // frames every 5 ms from 0, one midi per piece of [midi, seconds]
   const run = (...pieces: [number | null, number][]) =>
     pieces.flatMap(([midi, s]) => Array.from({ length: Math.round(s / 0.005) }, () => midi)).map((midi, i) => ({ t: i * 0.005, midi }))
 

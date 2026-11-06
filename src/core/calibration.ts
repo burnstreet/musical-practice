@@ -56,7 +56,7 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
 }
 
-/** Median and median absolute deviation of the delays (s); null with fewer than 5 or a spread over 40 ms. */
+/** Median and median absolute deviation of the delays (s); null with fewer than MIN_CLICKS or a spread over MAX_SPREAD. */
 export function summarize(delays: number[]): Calibration | null {
   if (delays.length < MIN_CLICKS) return null
   const mid = median(delays)
@@ -74,7 +74,7 @@ export interface CalibrationRun {
 }
 
 /**
- * Starts the mic on the playback context's clock, plays 12 clicks a second apart after a 1 s count-in and measures click → onset on the last 8.
+ * Starts the mic on the playback context's clock, plays CLICKS clicks EVERY s apart after COUNT_IN and measures click → onset on all but the first WARMUP.
  * The caller stops or restores the mic afterwards.
  */
 export function runCalibration(

@@ -5,7 +5,7 @@ import type { AppContext } from './context'
 import { roleSetKey } from './settings'
 
 /** One line playing; `ended` resolves when it ran out (never after `stop`). */
-export interface Playback {
+export interface LinePlay {
   ended: Promise<void>
   stop(): void
 }
@@ -17,7 +17,7 @@ export interface DialogDeps {
   /** Calls `fn` every `ms`; returns the cancel function. */
   every(ms: number, fn: () => void): () => void
   /** Plays a line at `rate`, pitch kept; rejects when the browser refuses (autoplay). */
-  play(blob: Blob, rate: number): Playback
+  play(blob: Blob, rate: number): LinePlay
 }
 
 /** One audio element for all lines: once it played inside a tap, iOS lets it play later lines without one. */
@@ -122,7 +122,7 @@ export async function openDialog(
   let disposed = false
   /** Bumped by every stop and play: a pending line of an older play stays silent. */
   let playGen = 0
-  let playing: Playback | null = null
+  let playing: LinePlay | null = null
   /** Bumped by every mic effect: a slow pitch.start that lost the race is stopped again. */
   let micGen = 0
   let micOn = false

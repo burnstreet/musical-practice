@@ -213,6 +213,31 @@ export default steps(({ Given, When, Then }) => {
     expect(dir(no1).classList.contains('me')).toBe(false)
     expect(dir(no2).classList.contains('me')).toBe(false)
   })
+  Given(/^roles \[anna\] and scene s1 with a line of mutter, two lines of anna and a line of mutter$/, (ctx) => {
+    fake(ctx)
+    settings.set({ roles: ['anna'] })
+    ctx.script = {
+      scenes: [scene('s1', [line('m001', 'mutter', 'Na?'), line('a001', 'anna', 'Ja.'), line('a002', 'anna', 'Gut.'), line('m002', 'mutter', 'Schön.')])],
+    }
+  })
+  When(/^the run-through starts at the last line$/, (ctx) => run(ctx, 'm002'))
+  Then(/^the progress reads "([^"]+)"$/, (ctx, t) => {
+    expect(
+      all(ctx)
+        .find((e) => e.matches('.progress'))
+        ?.getAttribute('aria-label'),
+    ).toContain(t)
+  })
+  Given(/^a script not ready yet$/, (ctx) => {
+    fake(ctx)
+    ctx.c.library.scriptReady = () => false
+  })
+  Then(/^one disabled row reads "([^"]+)"$/, (ctx, t) => {
+    const rows = all(ctx).filter((e) => e.matches('.row'))
+    expect(rows.length).toBe(1)
+    expect((rows[0] as HTMLButtonElement).disabled).toBe(true)
+    expect(rows[0].textContent!.trim()).toBe(t)
+  })
   Given(/^settings\.dialog\.hint "(\w+)" and the cue state waiting with my line "([^"]+)"$/, async (ctx, hint, t) => {
     fake(ctx)
     settings.set({ roles: ['anna'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })
