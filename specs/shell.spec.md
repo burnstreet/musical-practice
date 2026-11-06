@@ -79,7 +79,8 @@ Feature: Guards
 - Storage per production: IndexedDB database `<storageId>`, localStorage `<storageId>.settings`, sessionStorage `<storageId>.sw-updated`. Productions served from one origin (e.g. two GitHub Pages projects of one account) need different storage ids.
 - Web manifest: name and short name from the production (also `apple-mobile-web-app-title` and page title, the name shown when installed), `display: standalone`, theme and background `#1F5FAB`, icons 180/192/512 from `public/`, all content inside the maskable safe circle (80 % diameter); 192 and 512 also listed with `purpose: maskable`, 180 is the `apple-touch-icon`.
 - Service worker precaches app shell (html, js, css, fonts, icons). `content/` never cached by the worker; library handles it.
-- Update: new worker installs, waits. On next app launch it activates. Toast `Neue Version geladen` for 4 s. Never reload or prompt during practice.
+- Update: new worker installs, waits. On next app launch it activates. Toast `Neue Version geladen` for 4 s, build label small below. Never reload or prompt during practice.
+- Build label: `Version {version} · {dd.mm HH:MM}`. Version = engine tag at build time (`git describe --tags --always`: `v1.8.0` on the tag, `v1.8.0-3-gabc1234` past it, short commit without tags, `dev` without git). Date = build time, shown in the device's local time. Injected by `vite.config.ts` as `__BUILD__` (`src/build.ts`). Shown small under the kicker on songs and text screens and in the update toast.
   `[@test] ../tests/steps/shell.steps.ts`
 
 ```gherkin
@@ -88,6 +89,16 @@ Feature: Updates
     Given a new service worker was installed during the previous run
     When the app launches
     Then the new worker is active and a toast "Neue Version geladen" shows
+    And the toast shows the build label
+
+  Scenario: build label format
+    Given version "v1.8.0" built at 2026-11-06 09:05 local time
+    Then the build label is "Version v1.8.0 · 06.11 09:05"
+
+  Scenario: build label on the overview
+    Given vault state unlocked
+    When I open "#/songs"
+    Then the build label shows under the kicker
 
   Scenario: no interruption
     Given a practice session running

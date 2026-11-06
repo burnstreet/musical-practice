@@ -25,7 +25,7 @@ Strings:
 | start | `Üben starten` |
 | settings | aria `Einstellungen` |
 
-- Top (design/dialog D1): kicker and settings button, then the shared, collapsible role bar `<gu-roles>` (screen-dialog) and the `Lieder` | `Text` switch. The bar offers roles that sing or speak, in library order, multi-select, `aria-pressed`, saved to `settings.roles`.
+- Top (design/dialog D1): kicker with the build label small below (shell), settings button, then the shared, collapsible role bar `<gu-roles>` (screen-dialog) and the `Lieder` | `Text` switch. The bar offers roles that sing or speak, in library order, multi-select, `aria-pressed`, saved to `settings.roles`.
 - Progress bar at top while `sync` runs. Hidden when done without error.
 - Song rows: number, title, roles of the song as names joined by ` · `. Accent dot when the song has a selected role. Badge `{n} %` from `history.badge` for the current selection, hidden when null. Row not ready: muted, `loading` text, not expandable.
 - Tapping a ready row expands it: three mode options (radio, default `settings.mode`), then `start`. One row expanded at a time.
