@@ -1,4 +1,5 @@
 import { css, html, LitElement, svg } from 'lit'
+import { buildLabel } from '../../build'
 import type { RoleId } from '../../core/content'
 import { production } from '../../production'
 import { getContext } from '../context'
@@ -12,16 +13,17 @@ const chevron = (open: boolean) =>
     18,
   )
 
-/** Top of the songs and text screens (artboard D1): kicker and settings. Parents add `topStyles`. */
+/** Top of the songs and text screens (artboard D1): kicker, build label and settings. Parents add `topStyles`. */
 export const topHeader = (onSettings: () => void) =>
   html`<header class="top">
-    <div class="kicker">${production.kicker}</div>
+    <div><div class="kicker">${production.kicker}</div><div class="build">${buildLabel()}</div></div>
     <button class="gear" aria-label="Einstellungen" @click=${onSettings}>${SLIDERS}</button>
   </header>`
 
 export const topStyles = css`
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .build { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .gear { width: 44px; height: 44px; border-radius: 22px; border: 0; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; flex: none; cursor: pointer; }
 `
 

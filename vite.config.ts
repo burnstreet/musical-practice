@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -8,7 +9,14 @@ import { parseProduction } from './src/production-config'
 const productionDir = process.env.MP_PRODUCTION
 const production = parseProduction(productionDir ? JSON.parse(readFileSync(join(productionDir, 'production.json'), 'utf8')) : {})
 const publicDir = productionDir && existsSync(join(productionDir, 'public')) ? join(productionDir, 'public') : 'public'
-const define = { __PRODUCTION__: JSON.stringify(production) }
+const version = (() => {
+  try {
+    return execSync('git describe --tags --always', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    return 'dev'
+  }
+})()
+const define = { __PRODUCTION__: JSON.stringify(production), __BUILD__: JSON.stringify({ version, date: new Date().toISOString() }) }
 
 // Second entry: `vite build --mode editor` bundles the editor view (staff shared with the player) for the vanilla editor in web/.
 const editor = {

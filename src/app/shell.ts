@@ -1,4 +1,5 @@
 import { css, html, LitElement } from 'lit'
+import { buildLabel } from '../build'
 import { type AppContext, type Route, type ShellDeps, setContext } from './context'
 import { settings } from './settings'
 import { sheetStyles } from './sheet'
@@ -34,7 +35,8 @@ export class GuApp extends LitElement {
     :host { display: block; min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-body); }
     .hint { margin: 16px; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
     .hint p { color: var(--text); margin: 0 0 12px; }
-    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 20px; border-radius: 999px; background: var(--accent); color: var(--ink); font-weight: 700; z-index: 20; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 20px; border-radius: 999px; background: var(--accent); color: var(--ink); font-weight: 700; z-index: 20; text-align: center; }
+    .toast small { display: block; font-size: 11px; font-weight: 400; margin-top: 2px; }
   `,
   ]
   static properties = { hash: { state: true }, toast: { state: true }, settingsOpen: { state: true }, headphoneDone: { state: true } }
@@ -133,7 +135,7 @@ export class GuApp extends LitElement {
       ${this.screen()}
       ${this.settingsOpen ? html`<gu-settings-sheet @close=${() => (this.settingsOpen = false)}></gu-settings-sheet>` : ''}
       ${this.headphoneDone ? html`<gu-headphone-sheet @done=${this.onHeadphone}></gu-headphone-sheet>` : ''}
-      ${this.toast ? html`<div class="toast" role="status">${this.toast}</div>` : ''}`
+      ${this.toast ? html`<div class="toast" role="status">${this.toast}<small>${buildLabel()}</small></div>` : ''}`
   }
 
   private screen() {

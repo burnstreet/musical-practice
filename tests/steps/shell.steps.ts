@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import type { ShellDeps } from '../../src/app/context'
 import type { GuApp } from '../../src/app/shell'
+import { buildLabel } from '../../src/build'
 import type { VaultState } from '../../src/core/vault'
 import { production } from '../../src/production'
 import { steps } from '../gherkin'
@@ -122,6 +123,21 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the new worker is active and a toast "([^"]+)" shows$/, (ctx, msg) => {
     expect(ctx.sw.active).toBe(true)
     expect(deepText(ctx.el)).toContain(msg)
+  })
+  Then(/^the toast shows the build label$/, (ctx) => {
+    const toast = deepAll(ctx.el.shadowRoot!).find((e) => e.classList.contains('toast'))!
+    expect(toast.textContent).toContain(buildLabel())
+  })
+  Given(/^version "([^"]+)" built at (\d+)-(\d+)-(\d+) (\d+):(\d+) local time$/, (ctx, version, y, mo, d, h, mi) => {
+    ctx.build = { version, date: new Date(+y, +mo - 1, +d, +h, +mi).toISOString() }
+  })
+  Then(/^the build label is "([^"]+)"$/, (ctx, label) => {
+    expect(buildLabel(ctx.build)).toBe(label)
+  })
+  Then(/^the build label shows under the kicker$/, (ctx) => {
+    const el = deepAll(ctx.el.shadowRoot!).find((e) => e.classList.contains('build'))!
+    expect(el.textContent).toBe(buildLabel())
+    expect(el.previousElementSibling?.classList.contains('kicker')).toBe(true)
   })
   Given(/^a practice session running$/, async (ctx) => {
     fakeSw(ctx, false)
