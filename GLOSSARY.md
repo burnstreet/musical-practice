@@ -12,6 +12,23 @@ _Avoid_: User, player, student
 The person who prepares content with the local tools and publishes the bundle.
 _Avoid_: Maintainer, editor (that is a tool)
 
+## Productions and tools
+
+**Production**:
+One staging of a musical: its songs, script, roles and config (`production.json`, `sources/config.json`), kept in its own private content repo. The engine serves any production.
+_Avoid_: Show, project
+
+**Content root**:
+The working directory the tools read and write: the production's content repo (`./mp.ps1 -Content <path>`), else the engine folder. Tool paths (`sources/`, `scores/`, `work/`, `web/data/`) are relative to it.
+
+**Builder**:
+The Python tools that turn a production's content into a bundle: phrases, sections, completeness check, encryption and packing (`tools/pack.py`).
+_Avoid_: Packer (only its last step), compiler
+
+**Editor**:
+The Admin's local web tool (`./mp.ps1 serve`, `web/`) for checking and correcting songs (roles, phrase flags, rap, sections) and the script. Saves into `web/data/`, the files the builder packs. Never shipped to singers.
+_Avoid_: Viewer, admin app
+
 ## Content
 
 **Song**:
@@ -109,6 +126,10 @@ _Avoid_: Loop (as a domain noun)
 The run-up before a skip or a Section or Own-span repeat: 3 s before the target, snapped back to the previous bar line, never before 0. Phrase and A–B repeats start exactly at their start.
 _Avoid_: Pre-roll, count-in
 
+**Heard time**:
+The song position the singer hears now: playback time minus the pitch engine's delay. Staff, piano roll and cents readout draw at heard time; transport and seek use playback time.
+_Avoid_: Playhead time
+
 **Ready song**:
 A song whose files are stored on the device and can be opened offline.
 _Avoid_: Downloaded, cached, available
@@ -200,6 +221,10 @@ _Avoid_: Sentence, utterance
 **Direction**:
 A stage direction item. Shown, never spoken.
 _Avoid_: Instruction, note
+
+**Inline direction**:
+A stage direction inside a line's text, written `[…]`. Shown within the line, never spoken; the OpenAI TTS engines get it as a hint how to speak the line.
+_Avoid_: Aside, bracket
 
 **Song cue**:
 An item that marks where a song sits in the script. Links to the song in the pitch trainer.

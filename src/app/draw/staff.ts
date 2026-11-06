@@ -376,7 +376,6 @@ export function playheadX(points: [number, number][], t: number): number {
   return x0 + ((t - t0) / (t1 - t0)) * (x1 - x0)
 }
 
-/** Artboard heights: one lyric row, or two when the page staggers its syllables (the canvas gets class `tall`). */
 /**
  * Rest glyphs by length in quarters (4 = whole-bar rest) and where their ink sits: whole hangs from the fourth line,
  * half sits on the middle line, the others centre on a staff step. Placed by measured ink, as system music fonts differ.

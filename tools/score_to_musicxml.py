@@ -10,7 +10,6 @@ from pathlib import Path
 
 from music21 import expressions, key, metadata, meter, note, stream, tempo
 
-# same order as ROLE_PALETTE in web/app.js
 ROLE_PALETTE = ["#2f6fed", "#d6453a", "#2a9d5c", "#b8860b", "#8e44ad", "#0e8a9b"]
 
 

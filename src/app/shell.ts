@@ -11,10 +11,7 @@ import './screens/songs'
 import './screens/text'
 import './screens/run'
 
-/**
- * Guarded target for a hash: start while not unlocked; songs, text (library with script) and a run-through (script ready, else text);
- * practice/results of a ready song, else songs; results without its live session go to practice; anything else the last tab.
- */
+/** Guarded target for a hash; rules in specs/shell.spec.md. */
 export function guard(ctx: AppContext, hash: string): Route {
   if (ctx.vault.state() !== 'unlocked') return '#/start'
   if (hash === '#/songs') return hash
@@ -98,7 +95,6 @@ export class GuApp extends LitElement {
       void library.sync()
     }
     this.onHash()
-    // Only asked at launch: a worker installed mid-run just waits, so practice is never interrupted.
     if (await this.ctx.sw.activateWaiting()) {
       this.toast = 'Neue Version geladen'
       setTimeout(() => (this.toast = ''), 4000)

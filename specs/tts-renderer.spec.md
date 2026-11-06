@@ -10,8 +10,8 @@ targets:
 Local only. Never in CI: the rendered MP3s are committed in the production repo. Paths relative to the content root.
 
 ```
-python tools/script_render.py            # render every line without audio, delete orphans
-python tools/script_render.py --test     # voice test, see below
+./mp.ps1 tool script_render            # render every line without audio, delete orphans
+./mp.ps1 tool script_render --test     # voice test, see below
 ```
 
 ```python { .api }
@@ -152,9 +152,9 @@ Feature: Voice test
 
 ## Setup and license
 
-- Own venv `tools/.venv-tts`, created by `./mp.ps1 setup -Tts` on the Admin's machine only: Python 3.12 from mise, `coqui-tts[cuda]` with CUDA torch, nothing else. The tools venv stays light, because CI installs it for every pack and must never pull torch. The implementation updates the venv rule in CLAUDE.md.
+- Own venv `tools/.venv-tts`, created by `./mp.ps1 setup -Tts` on the Admin's machine only: Python from mise, `tools/requirements-tts.txt` (`coqui-tts` with CUDA torch, `aiohttp` for `openai-realtime`). The tools venv stays light, because CI installs it for every pack and must never pull torch.
 - `./mp.ps1 tool script_render` runs in `tools/.venv-tts`. `script_format.py` uses only the standard library, so both venvs import it.
 - Editor server (`serve.py`, tools venv): the first `/render-line` starts `tools/.venv-tts` with `script_render.py --worker`, which loads the model once and answers one JSON line per request on stdin/stdout (`{item, voice}` in, `{hash}` or `{error}` out). The worker ends with the server. No TTS venv: `/render-line` answers 503 with a message naming `setup -Tts`.
 - The XTTS-v2 model (about 2 GB) downloads on first use into the user cache, never into a repo.
 - XTTS-v2 is under the Coqui Public Model License: non-commercial use only. The production is non-commercial. The tool sets `COQUI_TOS_AGREED=1`. See ADR 0008.
-- Engine `openai` sends the spoken text and directions to OpenAI and costs per call (whole play about 0.50 USD with `gpt-4o-mini-tts`). Key in env `OPENAI_API_KEY` (user environment, so the editor's worker gets it), never in a file. OpenAI shuts the speech models down on 2027-01-06. See ADR 0008.
+- Engine `openai` sends the spoken text and directions to OpenAI and costs per call. Key in env `OPENAI_API_KEY` (user environment, so the editor's worker gets it), never in a file. OpenAI shuts the speech models down on 2027-01-06. See ADR 0008.

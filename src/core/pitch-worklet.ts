@@ -10,7 +10,7 @@ declare function registerProcessor(name: string, ctor: new () => AudioWorkletPro
 
 class PitchDetectorProcessor extends AudioWorkletProcessor {
   private ring = new Float32Array(WINDOW)
-  private filled = 0 // samples written since the last emitted window
+  private filled = 0 // samples written since start; a window is emitted at WINDOW, then every HOP
   private pos = 0
 
   process(inputs: Float32Array[][]): boolean {

@@ -1,20 +1,20 @@
 """Give score notes timings from a recording via subsequence DTW.
 
-Input: a score JSON from score_from_pdf.py and a pitch JSON from
-extract_pitch*.py (the audio pitch track). The score is expanded (repeats),
+Input: a score JSON (score_from_musicxml.py, score_from_pdf.py or
+abc_to_score.py) and a pitch JSON from extract_pitch*.py (the audio pitch track). The score is expanded (repeats),
 rendered as a frame sequence at a tempo guess, and aligned to the audio pitch
 track with subsequence DTW, octave-invariant. The best match is masked out
 and the search repeated for further passes (verse/chorus sung several times).
 
 Output: the pitch JSON with its `notes` replaced by the score notes with
-start/end times from the audio (fields bar, beat, dur, lyric, pass kept).
+start/end times from the audio (the score note fields kept).
 
 The n-th occurrence of a section in time takes verse n of the notes' `lyrics`.
 --form lists the sections in sung order (optionally with a role per block); it
 replaces --passes and fails when the blocks are found in another order.
 
 Usage: python tools/align_score.py <score.json> <pitch.json> <out.json>
-         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid] [--form "Refrain:anna,Strophe,..."]
+         [--bpm 90] [--passes 2] [--repeat-bars 9-12] [--grid] [--form "Refrain:solo,Strophe,..."]
 """
 
 import argparse
@@ -163,7 +163,7 @@ def apply_verses(notes):
 
 
 def parse_form(text):
-    """'Refrain:anna, Strophe, ...' -> [("Refrain", "anna"), ("Strophe", None), ...]: sections in sung order, optional role."""
+    """'Refrain:solo, Strophe, ...' -> [("Refrain", "solo"),("Strophe", None), ...]: sections in sung order, optional role."""
     form = []
     for item in text.split(","):
         sec, _, role = item.strip().partition(":")
@@ -201,7 +201,7 @@ def main():
     ap.add_argument(
         "--form",
         default="",
-        help="sections in sung order with optional role, e.g. 'Refrain:anna,Strophe:anna,Refrain:chor'; "
+        help="sections in sung order with optional role, e.g. 'Refrain:solo,Strophe:solo,Refrain:chor'; "
         "sets the passes per section and checks the found order",
     )
     args = ap.parse_args()
@@ -247,7 +247,7 @@ def main():
             found.append((sec_name, sec_seq, k, wp, cost))
 
     if form:
-        # the search finds the blocks, but near-identical sections (Strophe / Strophe 3) can swap them;
+        # the search finds the blocks, but near-identical sections (e.g. two strophes) can swap them;
         # so each block, in time order, is aligned again inside its window with the section the form names
         if len(found) != len(form):
             raise SystemExit(f"found {len(found)} blocks, the form has {len(form)}")

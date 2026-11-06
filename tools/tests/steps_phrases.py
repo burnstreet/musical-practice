@@ -82,7 +82,7 @@ def step_exit(ctx, s):
     assert "phrase" not in ctx["song"]["notes"][2]
 
 
-# Beyond the spec scenarios: repeated sections reuse the line index.
+# Beyond the spec: a repeated lyric line matches again and gets a new phrase.
 def test_repeated_section_same_phrase():
     notes = syl("a b c d a b")
     assert phrases.derive_phrases(notes, ["a b", "c d"]) is None

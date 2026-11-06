@@ -29,7 +29,7 @@ import { initScript } from './script-editor.js'
     dirty = false
   // roles (voices) -> colours, readable on the board blue (>= 4.5:1 on #17498C) and apart from the selection orange #F08C14
   const ROLE_PALETTE = ['#A9D3F7', '#C8E05A', '#FFA69E', '#7FE0B5', '#D9B8F5', '#F59BC8']
-  // the roll's own colours: board blue, its black-key rows, grid and octave lines, labels, phrase starts, note text and playhead
+  // the roll's own colours
   const C = { board: '#17498C', blackKey: '#15427F', line: '#3F78BF', label: '#CFE0F5', phrase: '#FF6F61', white: '#fff' }
   let roleColor = {},
     configRoles = null
@@ -759,7 +759,7 @@ import { initScript } from './script-editor.js'
       $('status').textContent = `Saved to ${j.saved} (copy: ${j.backup})`
       $('status').className = 'ok'
     } catch (e) {
-      // server has no save endpoint: offer a download instead
+      // save failed (e.g. no editor server): offer a download instead
       const a = document.createElement('a')
       a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }))
       a.download = entry.file

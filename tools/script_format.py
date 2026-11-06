@@ -79,7 +79,7 @@ def direction(line):
 def line_hash(line, voice):
     data = {"text": spoken(line), "voice": voice}
     if (voice or {}).get("engine") in ("openai", "openai-realtime") and (d := direction(line)):
-        data["direction"] = d  # these engines play it; other engines ignore it, so their hashes stay
+        data["direction"] = d  # only these engines speak the direction, so only their hash depends on it
     canon = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:16]
 

@@ -246,7 +246,6 @@ const HINTS: [DialogSettings['hint'], string][] = [
   ['hide', 'Verstecken'],
 ]
 const RATES = [0.8, 0.9, 1, 1.1, 1.2, 1.3]
-/** German decimal with one digit: 1.2 -> "1,2". */
 /** `n` with one decimal and a German comma: 1.2 → "1,2". */
 export const oneDecimalDe = (n: number) => n.toFixed(1).replace('.', ',')
 

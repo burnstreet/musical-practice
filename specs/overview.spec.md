@@ -1,6 +1,6 @@
 ---
 name: Overview
-description: Pitch trainer PWA for the cast of a musical production (first: a Christmas musical 2026). Problem, solution, user stories, decisions, module seams, design deltas, device checklist.
+description: Pitch trainer PWA for the cast of a musical production. Problem, solution, user stories, decisions, module seams, device checklist, design deltas.
 targets:
   - ../src/**/*
   - ../tools/pack.py
@@ -54,46 +54,44 @@ Password-protected PWA. Unlock once, whole library downloads to device, practise
 29. As a singer, I want songs where my roles do not sing still playable for listening, with scoring off.
 30. As an admin, I want the builder to refuse incomplete songs and list what is missing, so the app never shows an unscorable song.
 31. As an admin, I want phrases derived from the lyrics DOCX automatically, with manual override per note.
-32. As an admin, I want to paint roles onto notes in the existing editor.
+32. As an admin, I want to paint roles onto notes in the editor.
 33. As an admin, I want per-song choice between subtracted playback and Demucs accompaniment as backing stem.
 34. As an admin, I want one command that encrypts and packs everything into the published folder.
 35. As a future user, I want the shell, vault and role selection reusable for the dialog trainer.
 
 ## Implementation Decisions
 
-Numbers refer to the grilling session of 2026-10-27.
-
-- Reference melody = transcribed score aligned to the recording (note list: pitch, start, end, syllable, role, phrase). Audio pitch extraction serves alignment only. (Q1)
-- Roles: global list from the musical, each flagged `sings`. Song lists its roles. Note carries one role. Singer selects a set. (Q2)
-- Client: TypeScript, Lit, Vite, Canvas 2D for staff and piano roll, CSS custom properties as design tokens, DM Sans and Fraunces bundled. No .NET. Builder stays Python. (Q3, Q20)
-- Voicetrack modes v1: `all` (Mit Voicetrack), `others` (Voicetrack nur für andere), `backing` (Nur Playback). `auto` deferred. (Q4)
-- Two stems per song: voices = full mix, backing = aligned playback or Demucs accompaniment. `others` mode plays backing wherever any selected role has a note. Overlapping other roles go silent too. Documented limitation. (Q5, Q16)
-- Tempo 100/90/80/70 % via media elements with pitch preservation. Phrase loop. (Q6, Q33)
-- No recording of own voice. (Q7)
-- Results on request (button on practice, never after pause by itself): hit %, tendency in words, notes too high / too low, entries after rests (on time, from below / above), all three overall and per section / phrase, template coaching sentence. No cent numbers. Phrase = lyric line. (Q8)
+- Reference melody = transcribed score aligned to the recording (note list: pitch, start, end, syllable, role, phrase). Audio pitch extraction serves alignment only.
+- Roles: global list from the musical, each flagged `sings`. Song lists its roles. Note carries one role. Singer selects a set.
+- Client: TypeScript, Lit, Vite, Canvas 2D for staff and piano roll, CSS custom properties as design tokens, DM Sans and Fraunces bundled. No .NET. Builder stays Python.
+- Voicetrack modes v1: `all` (Mit Voicetrack), `others` (Voicetrack nur für andere), `backing` (Nur Playback). `auto` deferred.
+- Two stems per song: voices = full mix, backing = aligned playback or Demucs accompaniment. `others` mode plays backing wherever any selected role has a note. Overlapping other roles go silent too. Documented limitation.
+- Tempo 100/90/80/70 % via media elements with pitch preservation. Phrase loop.
+- No recording of own voice.
+- Results on request (button on practice, never after pause by itself): hit %, tendency in words, notes too high / too low, entries after rests (on time, from below / above), all three overall and per section / phrase, template coaching sentence. No cent numbers. Phrase = lyric line.
 - Each pass adds to the day's sums in history. Results show them as *Verlauf* over 7 days, 4 weeks or all weeks.
-- Octave folding in scoring and in display. Note names never show an octave. (Q9)
-- Derived AES key stored non-extractable in IndexedDB. Lock wipes all. (Q10)
-- History: last 20 sessions per song and role set, on device. (Q11, Q30)
-- Hosting: GitHub Pages, workflow on push to main. Encrypted bundle committed. (Q12)
-- Headphone sheet once before first practice. No output-device detection. (Q13)
-- Scope: singing only. Shell, vault, library, role selection reusable for dialog mode. (Q14)
-- Builder packs only songs with aligned score, roles, phrases, stems. Reports the rest. (Q15, Q31)
-- Phrases from DOCX line breaks matched to syllables; manual `phraseStart` flag wins. (Q17)
-- Roles painted in the existing web editor, or taken from MuseScore voices on MusicXML import (`--roles 1=anna,2=chor`); score JSON is source of truth. (Q18)
-- Staff: custom Canvas, treble clef only, key signature from score, accidentals outside key, real note values, rests, solid numbered bar lines, lyric-aware spacing with syllables on one row, pages of up to 2–4 bars by canvas width (fewer where the syllables need it), intro rests, a playhead line. Piano roll: playhead at 30 % width, 5–8 s window by width, lyric strip. Countdown to my entry. Sideways phone layout. No MusicXML shipped. (Q19, Q32)
-- Download: whole library after unlock, per-file blobs in IndexedDB, content-hash ids, re-download changed only. Public manifest carries sizes before unlock. (Q21, Q28)
-- Scoring per note: 100 ms onset grace, fold to nearest octave, hit = at least half of voiced frames within tolerance, unsung note = miss. Frames outside my notes ignored. (Q22)
-- Settings: tolerance easy 75 / normal 50 / strict 30 cents, mic delay ±300 ms, headphone note, mic test, lock. (Q23)
-- Latency: AudioContext base + output latency plus user offset; the offset can be measured with clicks in the settings (shell spec, Latency calibration). (Q24)
-- Session = open song to leave song. Pass = play to pause. Note frames reset when playback re-enters the note. Trend from pass 2. History keeps best and last per session. (Q25, Q30)
-- Admin tools: existing viewer + plot_aligned.py, local only. (Q26)
-- Song without my notes: playable in `all`, scoring off, mic idle, hint shown. (Q27)
-- Pitch detector: McLeod (pitchy), window 1024, hop 256 (app-side display delay about 23 ms), clarity 0.9, 80–1100 Hz. (Q34)
-- Updates: service worker installs in background, activates next launch, toast. (Q35)
-- Song list badge: last session hit % for current role set. (Q36)
-- iOS install hint once. (Q37)
-- Key id in public manifest detects password change. (Q38)
+- Octave folding in scoring and in display. Note names never show an octave.
+- Derived AES key stored non-extractable in IndexedDB. Lock wipes all.
+- History: last 20 sessions per song and role set, on device.
+- Hosting: GitHub Pages. The production's content repo builds, packs and deploys to its public site repo (ADR 0007); the engine repo holds no bundle.
+- Headphone sheet once before first practice. No output-device detection.
+- Scope: singing only. Shell, vault, library, role selection reusable for dialog mode.
+- Builder packs only songs with aligned score, roles, phrases, stems. Reports the rest.
+- Phrases from DOCX line breaks matched to syllables; manual `phraseStart` flag wins.
+- Roles painted in the editor, or taken from MuseScore voices on MusicXML import (`--roles 1=anna,2=chor`); score JSON is source of truth.
+- Staff: custom Canvas, treble clef only, key signature from score, accidentals outside key, real note values, rests, solid numbered bar lines, lyric-aware spacing with syllables on one row, the whole song as one row scrolling past a fixed playhead (pages of 1–4 bars only in the editor), intro rests. Piano roll: playhead at 30 % width, 5–8 s window by width, lyric strip. Countdown to my entry. Sideways phone layout. No MusicXML shipped.
+- Download: whole library after unlock, per-file blobs in IndexedDB, content-hash ids, re-download changed only. Public manifest carries sizes before unlock.
+- Scoring per note: 100 ms onset grace, fold to nearest octave, hit = at least half of voiced frames within tolerance, unsung note = miss. Frames outside my notes ignored.
+- Settings: tolerance easy 75 / normal 50 / strict 30 cents, scoring delay 0–1500 ms (measured or set), headphone note, mic test, lock.
+- Latency: AudioContext base + output latency plus user offset; the offset can be measured with clicks in the settings (shell spec, Latency calibration).
+- Session = open song to leave song. Pass = play to pause. Note frames reset when playback re-enters the note. Trend from pass 2. History keeps best and last per session.
+- Admin tools: the editor + plot_aligned.py, local only.
+- Song without my notes: playable in `all`, scoring off, mic idle, hint shown.
+- Pitch detector: McLeod (pitchy), window 1024, hop 256 (detection delay half a window, 10.7 ms at 48 kHz), clarity 0.9, 80–1100 Hz.
+- Updates: service worker installs in background, activates next launch, toast.
+- Song list badge: last session hit % for current role set.
+- iOS install hint once.
+- Key id in public manifest detects password change.
 
 ## Module seams
 
@@ -117,9 +115,8 @@ One seam per module, all at the public API named in each spec. Tests drive the A
 - Good test: drives the module API with inputs, asserts outputs or emitted events. Never asserts internals, DOM structure of business modules, or timing of private calls.
 - Every requirement in a module spec has a Gherkin scenario in a fenced `gherkin` block right below it. The scenario is the acceptance test.
 - TypeScript: `tests/gherkin.ts` reads `specs/*.spec.md`, extracts fenced `gherkin` blocks, maps `Feature`/`Scenario`/steps onto Vitest `describe`/`it`. Steps resolve against regex registries in `tests/steps/<module>.steps.ts`. Unmatched step = failing test. `[@test]` links point at the step file.
-- Python: `tools/tests/conftest.py` extracts the blocks of `builder.spec.md` and `content-format.spec.md` into a temp dir as `.feature` files, pytest-bdd runs them with steps in `tools/tests/steps_*.py`.
+- Python: `tools/tests/conftest.py` extracts the blocks of the Python-targeted specs (`SPECS`) into a temp dir as `.feature` files, pytest-bdd runs them with steps in `tools/tests/steps_*.py`.
 - Screens: rendering smoke tests only (mount, strings present, actions dispatch). Device behaviour: manual checklist below.
-- Prior art: none in repo. Existing Python tools have no tests.
 - Implementation order: TDD, failing scenario first. Use ponytail: smallest code that passes.
 
 ## Manual device checklist
@@ -134,14 +131,16 @@ Run on iOS Safari (installed PWA and browser tab) and Android Chrome before each
 6. iOS: install hint shown once, app installed from Safari share sheet, data survives 8 days unused.
 7. New deploy: toast appears on next launch, not during practice.
 
-## Design deltas (canvas edits after spec sign-off)
+## Design deltas
 
-- Start: add download size line and WLAN hint under the form. Add error states.
-- Songs: add download progress bar at top, per-row "wird geladen" state, result badge per row, settings button in header, iOS install hint card.
-- Songs: role chips show only roles with `sings = true`.
-- Songs: voicetrack options reduced to three (Auto removed).
+Where this spec differs from the committed artboards in `design/` (the specs win):
+
+- Start: download size line and WLAN hint under the form. Error states.
+- Songs: download progress bar at top, per-row "wird geladen" state, result badge per row, settings button in header, iOS install hint card.
+- Songs: the role bar (screen-dialog) offers roles that sing or speak.
+- Songs: three voicetrack options, no Auto.
 - Practice: cents readout label states; mic-denied banner; "Deine Rolle singt hier nicht" hint; settings sheet; headphone sheet.
-- Results: remove "Aufnahme anhören". Add trend line of hit % across passes from pass 2. "Phrase n bei 80 % üben" uses worst phrase.
+- Results: no "Aufnahme anhören". Trend line of hit % across passes from pass 2. "Phrase n bei 80 % üben" uses worst phrase.
 - Desktop boards: same deltas.
 
 ## Out of Scope

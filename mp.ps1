@@ -114,7 +114,7 @@ function Setup {
   Doctor
 }
 
-# tools/.venv-tts: coqui-tts and CUDA torch for tools/script_render.py. Never needed by CI or the other tools.
+# tools/.venv-tts: coqui-tts and CUDA torch for tools/script_render.py.
 function SetupTts {
   if (-not (Test-Path $ttsPython)) { Step python @('-m', 'venv', 'tools/.venv-tts') }
   Step $ttsPython @('-m', 'pip', 'install', '-r', 'tools/requirements-tts.txt')

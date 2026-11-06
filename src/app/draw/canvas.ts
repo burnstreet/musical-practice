@@ -45,7 +45,7 @@ export const COLORS = {
 }
 export const FONT = "'DM Sans', system-ui, sans-serif"
 
-/** Dims x < from and x > to (canvas `h` high) by painting the card colour over them. */
+/** Dims x < from and x > to (canvas `h` high) by painting the surface colour over them. */
 export function dimOutside(ctx: CanvasRenderingContext2D, left: number, from: number, to: number, right: number, h: number): void {
   ctx.fillStyle = COLORS.surface
   ctx.globalAlpha = 0.6

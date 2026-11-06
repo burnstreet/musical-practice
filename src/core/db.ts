@@ -1,6 +1,6 @@
 import { production } from '../production'
 
-/** Shared IndexedDB open: database named by the production's storageId, v3 with stores `vault`, `files`, `meta`, `history`. Upgrade keeps existing stores. */
+/** Shared IndexedDB open, named by the production's storageId; an upgrade only adds missing stores. */
 export function openDb(name = production.storageId): Promise<IDBDatabase> {
   return new Promise((res, rej) => {
     const r = indexedDB.open(name, 3)

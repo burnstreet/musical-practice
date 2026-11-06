@@ -17,5 +17,13 @@ Read first: `overview.spec.md`, then `content-format.spec.md`. Artboards the scr
 | history | business |
 | shell | presentation |
 | screen-start, screen-songs, screen-practice, screen-results | presentation |
+| dialog-overview | all (dialog trainer) |
+| script-format | business (TS + Python) |
+| script-parser | business (Python) |
+| tts-renderer | business (Python) |
+| cue-engine | business |
+| voice-detect | business |
+| script-editor | ops business, view presentation |
+| screen-dialog | presentation |
 
 Rules: business specs name no screen, string or DOM. Screen specs name no crypto, audio or scoring internals. Lyrics and titles never appear in specs; song ids only.

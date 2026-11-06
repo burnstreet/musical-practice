@@ -18,8 +18,7 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   // phone layout: the practice screen must not be wider than the viewport
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(0)
-  // ... and fit the visible height, play row included, on common phone sizes (upright and sideways) and the desktop,
-  // with and without sections and with and without the note banner (the screen is set to each case)
+  // ... and fit the visible height, play row included, at every viewport and case below
   const setCase = (sections: boolean, banner: boolean) =>
     page.evaluate(
       ([withSections, withBanner]) => {

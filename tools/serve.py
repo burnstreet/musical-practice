@@ -1,5 +1,5 @@
-"""Static server for the editor in web/ with HTTP Range support (audio seeking)
-and a save endpoint for note edits made in the viewer. Song data comes from the
+"""Editor server: web/ with HTTP Range support (audio seeking) plus the routes
+below. Song data comes from the
 content root (the current directory; `mp.ps1 -Content` sets it). Nothing is
 cached by the browser (Cache-Control: no-store).
 
@@ -76,7 +76,7 @@ class Handler(RangeRequestHandler):
         super().end_headers()
 
     def do_GET(self):
-        if self.path == "/config.json":  # lives outside web/ (gitignored)
+        if self.path == "/config.json":  # lives outside web/, in sources/
             cfg = ROOT / script_format.CONFIG
             if not cfg.is_file():
                 self.send_error(404)

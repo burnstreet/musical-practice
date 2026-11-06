@@ -42,7 +42,7 @@ const MIC_OFF = icon(
   18,
 )
 
-/** Ends the live session: unload, mic off, history. Back button and the shell (routes to songs/start) call it; no-op without one. */
+/** Ends the live session: unload, mic off, history. Back button and the shell (routes outside practice and results) call it; no-op without one. */
 export function leaveSession(ctx: AppContext): void {
   const live = ctx.live
   if (!live) return
@@ -69,7 +69,7 @@ export function entryCountdown(song: Song, roles: RoleId[], t: number, tempo: nu
   return `Einsatz in ${bars ? `${bars} ${bars === 1 ? 'Takt' : 'Takten'} · ` : ''}${secs} s`
 }
 
-/** The mounted screen. The engine has no `off`, so engine and pitch engine are wired once and forward here. */
+/** The mounted screen. AudioEngine has no `off`, so both engines are wired once and forward here. */
 let current: GuPractice | null = null
 const wired = new WeakSet<object>()
 
@@ -212,9 +212,9 @@ export class GuPractice extends LitElement {
   declare pointA: number | null
   /** The section of the Abschnitt repeat. */
   private section: Section | null = null
-  /** The role set has notes to score in this song; otherwise listen only (`noPart` hint) or rap (`rapsHere`). */
+  /** The role set has notes to score in this song; otherwise listen only or rap (`rapsHere`); hints in specs/screen-practice.spec.md. */
   singsHere = false
-  /** The role set only raps here: spoken notes, shown and muted like singing, never scored (`rapOnly` hint). */
+  /** The role set only raps here: spoken notes, shown and muted like singing, never scored (rap hint). */
   rapsHere = false
   session!: Session
   /** Pitch frames of the last 2 s (the roll's zoom hold), oldest first. */
@@ -294,10 +294,9 @@ export class GuPractice extends LitElement {
     this.singsHere = this.session.myNotes().length > 0
     this.rapsHere = !this.singsHere && loaded.song.notes.some((n) => s.roles.includes(n.role))
     this.setMode(this.singsHere || this.rapsHere ? s.mode : 'all', false)
-    // Results may have set a drill repeat and tempo on the engine.
     this.tempo = engine.tempo()
     this.repeat = engine.loop()
-    const kept = back?.repeat // the engine holds the range only; results sets Phrase ranges or clears it
+    const kept = back?.repeat // the engine holds only the range; the kind comes from live.repeat
     this.kind = this.repeat?.phrase ? 'phrase' : this.repeat ? (kept?.kind ?? 'off') : kept?.kind === 'ab' ? 'ab' : 'off'
     this.section = this.kind === 'section' ? (kept?.section ?? null) : null
     this.pointA = this.kind === 'ab' ? (kept?.pointA ?? null) : null

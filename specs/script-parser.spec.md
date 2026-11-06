@@ -10,7 +10,7 @@ targets:
 Admin runs it once per production. Afterwards `web/data/script.json` is the source and is kept in the editor. Paths relative to the content root, as in builder.
 
 ```
-python tools/script_parse.py <docx> [--force] [--direction-colors 0070C0,00B050] [--song-color 00B050]
+./mp.ps1 tool script_parse <docx> [--force] [--direction-colors 0070C0,00B050] [--song-color 00B050]
 ```
 
 - Reads paragraphs in order with python-docx. Text = all runs joined, whitespace runs collapsed to one space, trimmed. Empty paragraphs skipped.

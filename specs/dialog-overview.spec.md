@@ -1,6 +1,6 @@
 ---
 name: Dialog overview
-description: Dialog trainer, second practice mode of the PWA. Problem, solution, user stories, decisions, module seams, testing, device checklist, open points.
+description: Dialog trainer, second practice mode of the PWA. Problem, solution, user stories, decisions, module seams, testing, device checklist.
 targets:
   - ../src/core/cue.ts
   - ../src/core/voice-detect.ts
@@ -15,7 +15,7 @@ Supersedes `musical-dialog-trainer-prd.md`. Same app, vault, library and role se
 
 ## Problem Statement
 
-Besides the songs a musical has a spoken script (first production: a DOCX of about 370 paragraphs, 10 speaking roles, 8 scenes with song cues). An actor learning lines has nobody to feed cues outside rehearsals. Reading alone does not train listening for the cue and coming in. Some actors play several roles.
+Besides the songs a musical has a spoken script (a DOCX with scenes, many speaking roles and song cues). An actor learning lines has nobody to feed cues outside rehearsals. Reading alone does not train listening for the cue and coming in. Some actors play several roles.
 
 ## Solution
 
@@ -45,20 +45,18 @@ Dialog mode in the PWA. The actor picks role(s). The app speaks every other role
 
 ## Implementation Decisions
 
-Grilling and listening test of 2026-11-02.
-
 - All stories in v1. No scoring, no history. Last position per role set only.
-- Module specs: script-format, script-parser, tts-renderer, cue-engine, voice-detect, script-editor; library and builder extended. Screen after the design.
+- Module specs: script-format, script-parser, tts-renderer, cue-engine, voice-detect, script-editor; library and builder extended. Screens in screen-dialog.
 - Detection: energy threshold with hysteresis on the pitch engine's `rms` frames (voice-detect). Same mic, no second capture. Silero VAD only if this fails on devices.
-- TTS: XTTS-v2 (`coqui-tts`), built-in speakers, `split_sentences=False`, local GPU, chunks of at most 250 characters with no tiny chunk. Piper, Chatterbox and Kokoro lost the listening test (Piper: quality; Chatterbox: garbage in some outputs, slower; Kokoro: no official German). Amended 2026-11-04: engine per role in the config, XTTS-v2 or OpenAI (`openai` speech API, `openai-realtime`); a listening comparison preferred `gpt-realtime-2.1` for most roles. Cloud only at render time on the Admin's machine, never in the app or CI. tts-renderer.spec.md, ADR 0008.
+- TTS: XTTS-v2 (`coqui-tts`), built-in speakers, `split_sentences=False`, local GPU, chunks of at most 250 characters with no tiny chunk. Engine per role in the config: XTTS-v2 or OpenAI (`openai` speech API, `openai-realtime`). Cloud only at render time on the Admin's machine, never in the app or CI. Engine choice and its amendments: ADR 0008. Behaviour: tts-renderer.spec.md.
 - Renderer in its own venv `tools/.venv-tts` (`mp.ps1 setup -Tts`), so CI's tools venv never pulls torch. The editor server talks to a long-lived worker in that venv.
 - Rendering only local. MP3 mono 64 kbps in the production repo under `web/data/script/<hash>.mp3`; the hash covers spoken text and voice, so render is idempotent without a manifest. CI never renders. ADR 0008.
-- Roles: one global list for songs and script, flags `sings` and `speaks`; one role selection for both modes. Narrators are roles (`erzaehler1`, `erzaehler2`). DOCX speaker names map through `name` and `aliases`. Voice per role in the config.
+- Roles: one global list for songs and script, flags `sings` and `speaks`; one role selection for both modes. Narrators are speaking roles like any other. DOCX speaker names map through `name` and `aliases`. Voice per role in the config.
 - Script source: `web/data/script.json`, written once by the parser, then edited in the editor's `Skript` view. Pronunciation via `say` per line.
-- Directions shown 2.5 s and auto-advance; can be hidden. Every coloured text of the DOCX is a direction (blue stage directions, green light, sound and props); inside a line it stays in the line as an inline direction, shown, never spoken (user, 2026-11-02).
+- Directions shown 2.5 s and auto-advance; can be hidden. Every coloured text of the DOCX is a direction (blue stage directions, green light, sound and props); inside a line it stays in the line as an inline direction, shown, never spoken.
 - Own lines: three modes plus *Vorsprechen* (all lines are rendered anyway).
 - Song items: jump to the pitch trainer and back to the same place. No song audio inside the dialog flow.
-- Script audio is part of the full library download after unlock (estimated 15 to 25 MB).
+- Script audio is part of the full library download after unlock.
 - Cue engine defaults from the PRD: silence 1.2 s (0.5 to 3), hard timeout 20 s with a hint, mic only while the actor's turn is open.
 
 ## Module seams
@@ -94,13 +92,9 @@ Run on iOS Safari (installed PWA) and Android Chrome:
 6. Offline after sync: dialog plays.
 7. Reopen: continues at the last position of the role set.
 
-## Open points
-
-- Production repo: add `speaks`, `aliases`, `voice` to `sources/config.json`, add roles `erzaehler1`, `erzaehler2`, `roemer`.
-
 ## Out of Scope
 
-- Speech-to-text or checking the spoken words. Runtime TTS in the browser. Recording the actor. Multi-user rehearsal. Editing roles or voices in the editor. TTS at runtime (cloud or local).
+- Speech-to-text or checking the spoken words. TTS at runtime (browser, cloud or local). Recording the actor. Multi-user rehearsal. Editing roles or voices in the editor.
 
 ## Further Notes
 
