@@ -1,7 +1,7 @@
-import { expect } from 'vitest'
+import { expect, vi } from 'vitest'
 import { type AppContext, setContext } from '../../src/app/context'
 import { ownSpans as mergedSpans } from '../../src/app/repeat'
-import { entryCountdown, type GuPractice } from '../../src/app/screens/practice'
+import { coast, entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
 import { leadInStart } from '../../src/core/audio-engine'
 import type { Note, Song, SongMeta } from '../../src/core/content'
@@ -216,6 +216,7 @@ async function frame(ctx: any, f: Partial<PitchFrame>) {
   ctx.pitchL.frame?.forEach((fn: (f: PitchFrame) => void) => {
     fn({ t: ctx.time, at: ctx.time, midi: null, clarity: 1, rms: 0.1, ...f })
   })
+  if (ctx.playing) ctx.el.requestUpdate() // playing, only the next engine tick redraws
   await settle(ctx.el)
 }
 
@@ -272,12 +273,14 @@ export default steps(({ Given, When, Then }) => {
   // Readout: playhead inside Maria's D5 (8–9.5 s)
   Given(/^target D5 and a sung frame (?:(\d+) cents above|at D4 plus (\d+) cents)$/, async (ctx, above, d4) => {
     await screen(ctx)
+    await play(ctx) // playing: the readout goes by song time
     await tick(ctx, 8.2) // early, so two frames 0.6 s later still sound in the note
     await frame(ctx, { midi: above ? 74 + +above / 100 : 62 + +d4 / 100 })
   })
   Given(/^a delay of ([\d.]+) s, playback at ([\d.]+) and a frame (\d+) cents above D5 scored at ([\d.]+)$/, async (ctx, delay, at, n, t) => {
     ctx.delay = +delay
     await screen(ctx)
+    await play(ctx)
     await tick(ctx, +at)
     await frame(ctx, { midi: 74 + +n / 100, t: +t, at: +at })
   })
@@ -814,5 +817,76 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the button "Intro überspringen" is not shown$/, async (ctx) => {
     await screen(ctx)
     expect(intro(ctx)).toBeUndefined()
+  })
+
+  // Browse while paused: the roll is 600 px wide, so 8 s at 75 px per second, playhead spot at 180 px
+  const PX_PER_S = 75
+  const rollCanvas = (ctx: any) => ctx.el.shadowRoot!.querySelector('.roll canvas') as HTMLCanvasElement
+  const pointer = (c: HTMLCanvasElement, type: string, x: number) =>
+    c.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: 50, pointerId: 1, bubbles: true }))
+  /** View time from where the roll drew the marker (the playhead, dashed 3/4): x = 180 + (marker − view) × 75. */
+  const rollView = (ctx: any) => {
+    const log = ctx.draws.roll as [string, ...unknown[]][]
+    const dash = log.findLastIndex(([k, a]) => k === 'setLineDash' && String(a) === '3,4')
+    const x = log.slice(dash).find(([k]) => k === 'moveTo')![1] as number
+    return ctx.time - ctx.app.pitch.delay() - (x - 180) / PX_PER_S
+  }
+  const viewBox = (ctx: any): HTMLElement | null => ctx.el.shadowRoot!.querySelector('.progress .view')
+  Given(/^the screen (paused|playing) at ([\d.]+)$/, async (ctx, how, t) => {
+    await screen(ctx)
+    if (how === 'playing') await play(ctx)
+    await tick(ctx, +t)
+  })
+  When(/^I swipe the roll (\d+) px to the (left|right)$/, async (ctx, px, dir) => {
+    const c = rollCanvas(ctx)
+    const d = (dir === 'left' ? -1 : 1) * +px
+    const now = vi.spyOn(performance, 'now')
+    for (const [ms, type, x] of [
+      [0, 'pointerdown', 300],
+      [50, 'pointermove', 300 + d / 2],
+      [100, 'pointermove', 300 + d],
+      [400, 'pointerup', 300 + d], // held still before letting go: no coasting
+    ] as const) {
+      now.mockReturnValue(ms)
+      pointer(c, type, x)
+    }
+    now.mockRestore()
+    await settle(ctx.el)
+  })
+  When(/^I tap the roll at ([\d.]+) s$/, async (ctx, t) => {
+    const x = 180 + (+t - rollView(ctx)) * PX_PER_S
+    pointer(rollCanvas(ctx), 'pointerdown', x)
+    pointer(rollCanvas(ctx), 'pointerup', x + 2)
+    await settle(ctx.el)
+  })
+  When(/^I turn the wheel by (\d+) px over the roll$/, async (ctx, px) => {
+    rollCanvas(ctx).dispatchEvent(new WheelEvent('wheel', { deltaY: +px, bubbles: true, cancelable: true }))
+    await settle(ctx.el)
+  })
+  Then(/^the roll shows ([\d.]+) at its playhead spot$/, (ctx, t) => expect(rollView(ctx)).toBeCloseTo(+t, 6))
+  Then(/^the button "([^"]+)" is (visible|not shown)$/, (ctx, label, how) => {
+    const found = [...ctx.el.shadowRoot!.querySelectorAll('button')].some((b: HTMLElement) => b.textContent!.trim() === label)
+    expect(found).toBe(how === 'visible')
+  })
+  When(/^I press "([^"]+)"$/, (ctx, label) => tap(ctx, button(ctx, label)))
+  When(/^I press play$/, (ctx) => play(ctx))
+  Then(/^coasting at ([\d.]+) px\/s for (\d+) ms (?:moves (\d+) px and leaves (\d+) px\/s|stops)$/, (_ctx, v, ms, dx, left) => {
+    const [moved, v1] = coast(+v, +ms / 1000)
+    if (dx) {
+      expect(Math.round(moved)).toBe(+dx)
+      expect(Math.round(v1)).toBe(+left)
+    } else expect(v1).toBe(0)
+  })
+  Then(/^the progress bar shows a view box over \[([\d.]+),([\d.]+)\]$/, (ctx, a, b) => {
+    const dur = ctx.data.meta.durationSec
+    expect(Number.parseFloat(viewBox(ctx)!.style.left)).toBeCloseTo((+a / dur) * 100, 6)
+    expect(Number.parseFloat(viewBox(ctx)!.style.right)).toBeCloseTo(((dur - +b) / dur) * 100, 6)
+  })
+  Then(/^the progress bar shows no view box$/, (ctx) => expect(viewBox(ctx)).toBeNull())
+  When(/^a sung frame arrives at ([\d.]+)$/, (ctx, m) => frame(ctx, { midi: +m }))
+  Then(/^the roll draws no sung line$/, (ctx) => expect(ctx.draws.roll.some(([k]: [string]) => k === 'arc')).toBe(false))
+  Then(/^the big note is "([^"]+)" and there is no target$/, (ctx, big) => {
+    expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(big)
+    expect(text(ctx.el)).not.toContain('Ziel')
   })
 })

@@ -80,6 +80,15 @@ export function foldSlips(frames: { t: number; midi: number | null }[]): (number
 /** Seconds the roll shows at a canvas width: 72 px per second, 5…8 s (a wider screen shows more of what comes). */
 export const rollWindow = (cssWidth: number) => Math.min(8, Math.max(5, cssWidth / 72))
 
+/** Where the roll's playhead spot stands: this share of the width. */
+export const ROLL_SPOT = BEHIND_SHARE
+
+/** Song time under x on a roll `w` wide whose spot shows `view`. */
+export function rollTimeAt(w: number, view: number, x: number): number {
+  const span = rollWindow(w)
+  return view - span * BEHIND_SHARE + (x / w) * span
+}
+
 /**
  * Syllable positions in the lyric strip: each at its note's start, pushed right just enough to keep `gap` px after the
  * previous one, so none is left out or overprinted. `widths` in the same order as `xs` (sorted by start).
@@ -99,7 +108,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const h = full - LYRICS
   const { song, roles, t, frames } = state
   const span = rollWindow(w)
-  const t0 = t - span * BEHIND_SHARE
+  const t0 = rollTimeAt(w, state.view ?? t, 0)
   const t1 = t0 + span
   const x = (time: number) => ((time - t0) / (t1 - t0)) * w
   const notes = visibleNotes(song.notes, roles)

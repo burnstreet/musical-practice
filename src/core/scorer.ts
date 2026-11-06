@@ -85,6 +85,15 @@ export function liveDeviation(song: Song, roles: RoleId[], t: number, frames: Pi
   return { note, sungMidiFolded: note.midi + meanCents / 100, cents, meanCents }
 }
 
+/** Paused readout, song time standing still: the newest voiced frame (wall clock `s`) of the last 150 ms before `now` against `target`, mean of the last 1 s. */
+export function heldDeviation(target: Note, now: number, frames: { s: number; midi: number | null }[]): LiveDeviation | null {
+  const voiced = frames.filter((f) => f.midi !== null && f.s >= now - 1 && f.s <= now)
+  const sung = voiced.at(-1)
+  if (!sung || sung.s < now - 0.15) return null
+  const meanCents = Math.round(mean(voiced.map((f) => foldCents(f.midi!, target.midi)))!)
+  return { note: target, sungMidiFolded: target.midi + meanCents / 100, cents: Math.round(foldCents(sung.midi!, target.midi)), meanCents }
+}
+
 /** Voiced frames after the onset grace of 0.1 s. */
 const considered = (note: Note, frames: PitchFrame[]) =>
   frames.filter((f): f is PitchFrame & { midi: number } => f.midi !== null && f.t >= note.start + 0.1 && f.t <= note.end)

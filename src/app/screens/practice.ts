@@ -1,13 +1,13 @@
 import { css, html, LitElement, svg } from 'lit'
 import { LEAD_IN_SEC, leadInStart, type Mode, type Range, type Tempo } from '../../core/audio-engine'
 import type { Phrase, RoleId, Section, Song, Span } from '../../core/content'
-import { liveDeviation, noteName } from '../../core/scorer'
+import { heldDeviation, liveDeviation, noteName } from '../../core/scorer'
 import { Session } from '../../core/session'
 import type { LoadedSong, PitchFrame } from '../../core/types'
 import { type AppContext, getContext } from '../context'
 import type { DrawState, Marks } from '../draw/canvas'
-import { draw as drawRoll, octaveVote } from '../draw/roll'
-import { barsPerPage, draw as drawStaff, pageOf } from '../draw/staff'
+import { draw as drawRoll, octaveVote, ROLL_SPOT, rollTimeAt, rollWindow } from '../draw/roll'
+import { barsPerPage, draw as drawStaff, pageOf, staffSpot, staffTimeAt } from '../draw/staff'
 import { icon, shapes } from '../icons'
 import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
 
@@ -69,6 +69,21 @@ export function entryCountdown(song: Song, roles: RoleId[], t: number, tempo: nu
   return `Einsatz in ${bars ? `${bars} ${bars === 1 ? 'Takt' : 'Takten'} · ` : ''}${secs} s`
 }
 
+/** Under this many px of sideways movement a pointer down and up is a tap, else a swipe. */
+const TAP_PX = 8
+/** Coasting after a swipe: speed decays with this time constant, s, and stops under COAST_STOP px/s. */
+const COAST_TAU = 0.325
+const COAST_STOP = 10
+/** The finger's speed at release is measured over this last stretch, ms. */
+const FLICK_MS = 100
+
+/** One step of coasting at `v` px/s for `dt` s: [px moved, speed left]; the speed drops to 0 under COAST_STOP. */
+export function coast(v: number, dt: number): [number, number] {
+  const k = Math.exp(-dt / COAST_TAU)
+  const left = v * k
+  return [v * COAST_TAU * (1 - k), Math.abs(left) < COAST_STOP ? 0 : left]
+}
+
 /** The mounted screen. AudioEngine has no `off`, so both engines are wired once and forward here. */
 let current: GuPractice | null = null
 const wired = new WeakSet<object>()
@@ -86,6 +101,7 @@ export class GuPractice extends LitElement {
     repeat: { state: true },
     kind: { state: true },
     pointA: { state: true },
+    view: { state: true },
   }
   static styles = css`
     :host { display: grid; gap: 12px; box-sizing: border-box; min-height: 100vh; padding: 28px 20px 24px; max-width: 560px; margin: 0 auto;
@@ -114,7 +130,7 @@ export class GuPractice extends LitElement {
     .legend span { display: flex; align-items: center; gap: 6px; }
     .legend i { width: 10px; height: 10px; border-radius: 5px; background: var(--accent); }
     .legend i.other { background: var(--other); }
-    canvas { display: block; width: 100%; }
+    canvas { display: block; width: 100%; touch-action: none; } /* swipes browse the song (paused), they do not scroll the page */
     .staff canvas { height: 112px; }
     .roll { grid-area: roll; }
     .roll canvas { height: 188px; } /* rows plus the lyric strip at the bottom */
@@ -152,6 +168,7 @@ export class GuPractice extends LitElement {
     .progress .dim { background: var(--bg); opacity: 0.6; z-index: 1; }
     .progress .range { border: 2px solid var(--accent); border-radius: 6px; }
     .progress .leadin { background: var(--accent); opacity: 0.25; border-radius: 6px 0 0 6px; }
+    .progress .view { background: var(--text); opacity: 0.18; border-radius: 4px; }
     .progress input { display: block; width: 100%; margin: 0; height: 24px; accent-color: var(--text); }
     .buttons { display: flex; align-items: center; justify-content: space-between; }
     .buttons button.round { font-size: 13px; font-weight: 700; }
@@ -210,6 +227,15 @@ export class GuPractice extends LitElement {
   declare kind: RepeatKind
   /** A–B point A, a bar line. */
   declare pointA: number | null
+  /** Paused browsing: the heard time staff and roll show at their playhead spot; null = they follow the heard time. */
+  declare view: number | null
+  /** Voiced and unvoiced frames while paused, stamped by wall clock `s` (song time stands still): the readout's only input then. */
+  private held: { s: number; midi: number | null }[] = []
+  /** The pointer down on a canvas: start x, last x, whether it moved past TAP_PX, recent [ms, x] for the release speed. */
+  private drag: { c: HTMLCanvasElement; x0: number; last: number; moved: boolean; tap: boolean; recent: [number, number][] } | null = null
+  /** Bumped to end a running coast. */
+  private coastRun = 0
+  private coasting = false
   /** The section of the Abschnitt repeat. */
   private section: Section | null = null
   /** The role set has notes to score in this song; otherwise listen only or rap (`rapsHere`); hints in specs/screen-practice.spec.md. */
@@ -238,6 +264,7 @@ export class GuPractice extends LitElement {
     this.repeat = null
     this.kind = 'off'
     this.pointA = null
+    this.view = null
   }
 
   connectedCallback() {
@@ -249,6 +276,7 @@ export class GuPractice extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback()
     this.resize?.disconnect()
+    this.stopCoast()
     if (current === this) current = null
     const live = getContext().live
     if (live?.songId === this.songId) live.repeat = { kind: this.kind, section: this.section, pointA: this.pointA }
@@ -266,7 +294,9 @@ export class GuPractice extends LitElement {
       roles: s.roles,
       names,
       t: this.heard(),
-      frames: this.frames,
+      view: this.view ?? undefined,
+      frames: this.playing ? this.frames : [], // paused frames all carry the same time: no sung line
+
       octave: [...this.octaves].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
       tolerance: s.tolerance,
       repeat: this.marks(),
@@ -330,6 +360,8 @@ export class GuPractice extends LitElement {
     const { engine, ensureHeadphoneSheet } = getContext()
     await ensureHeadphoneSheet()
     this.session.startPass()
+    this.toMarker()
+    this.frames = [] // the sung line starts afresh
     await engine.play()
     this.playing = true
   }
@@ -352,14 +384,20 @@ export class GuPractice extends LitElement {
   requestFrame = (cb: () => void) => void requestAnimationFrame(cb)
   private redrawQueued = false
 
-  /** Frames only join the buffer; at most one redraw per animation frame (while playing the engine tick redraws). */
+  /** Frames only join the buffer; at most one redraw per animation frame (while playing the engine tick redraws). Paused: only the readout's. */
   private onFrame(f: PitchFrame) {
     this.session.frame(f)
-    const vote = f.midi === null ? null : octaveVote(f.midi, f.t, this.session.myNotes())
-    if (vote !== null) this.octaves.set(vote, (this.octaves.get(vote) ?? 0) + 1)
-    this.frames.push(f)
-    while (this.frames[0].t < f.t - 2) this.frames.shift()
-    if (this.playing || this.redrawQueued) return
+    if (this.playing) {
+      const vote = f.midi === null ? null : octaveVote(f.midi, f.t, this.session.myNotes())
+      if (vote !== null) this.octaves.set(vote, (this.octaves.get(vote) ?? 0) + 1)
+      this.frames.push(f)
+      while (this.frames[0].t < f.t - 2) this.frames.shift()
+      return
+    }
+    const s = performance.now() / 1000
+    this.held.push({ s, midi: f.midi })
+    while (this.held[0].s < s - 1) this.held.shift()
+    if (this.redrawQueued) return
     this.redrawQueued = true
     this.requestFrame(() => {
       this.redrawQueued = false
@@ -380,8 +418,102 @@ export class GuPractice extends LitElement {
   }
 
   private seek(sec: number) {
+    this.toMarker()
     getContext().engine.seek(sec)
     this.t = sec
+  }
+
+  /** Staff and roll follow the heard time again; a coast stops. */
+  private toMarker() {
+    this.stopCoast()
+    this.view = null
+  }
+
+  /** Ends a running coast; true when one ran. */
+  private stopCoast(): boolean {
+    const was = this.coasting
+    this.coastRun++
+    this.coasting = false
+    return was
+  }
+
+  /** Song time under x of canvas `c` with the view at `view`, and the x of its playhead spot. */
+  private axis(c: HTMLCanvasElement): { at: (view: number, x: number) => number; spot: number } {
+    const w = c.clientWidth
+    if (c.closest('.roll')) return { at: (view, x) => rollTimeAt(w, view, x), spot: w * ROLL_SPOT }
+    const { song } = this.loaded!
+    const roles = getContext().settings.get().roles
+    const ctx = c.getContext('2d')!
+    return { at: (view, x) => staffTimeAt(ctx, song, roles, view, x), spot: staffSpot(ctx, song, roles) }
+  }
+
+  /** Moves the view as a finger moving `dx` px over `c` (left = later), within the song; false when it stood at an end. */
+  private pan(c: HTMLCanvasElement, dx: number): boolean {
+    const { at, spot } = this.axis(c)
+    const from = this.view ?? this.heard()
+    this.view = Math.min(this.loaded!.meta.durationSec, Math.max(0, at(from, spot - dx)))
+    return this.view !== from
+  }
+
+  private down = (e: PointerEvent) => {
+    if (this.playing || !this.loaded) return
+    const c = e.currentTarget as HTMLCanvasElement
+    c.setPointerCapture?.(e.pointerId)
+    this.drag = { c, x0: e.clientX, last: e.clientX, moved: false, tap: !this.stopCoast(), recent: [[performance.now(), e.clientX]] }
+  }
+
+  private move = (e: PointerEvent) => {
+    const d = this.drag
+    if (!d || (!d.moved && Math.abs(e.clientX - d.x0) < TAP_PX)) return
+    d.moved = true
+    this.pan(d.c, e.clientX - d.last)
+    d.last = e.clientX
+    const now = performance.now()
+    d.recent.push([now, e.clientX])
+    while (d.recent.length > 2 && d.recent[0][0] < now - FLICK_MS) d.recent.shift()
+  }
+
+  private up = (e: PointerEvent) => {
+    const d = this.drag
+    if (!d) return
+    this.move(e)
+    this.drag = null
+    if (d.moved) {
+      const [[t0, x0], [t1, x1]] = [d.recent[0], d.recent[d.recent.length - 1]]
+      const fresh = performance.now() - t1 < FLICK_MS // a finger held still before letting go does not coast
+      if (fresh && t1 > t0) this.startCoast(d.c, ((x1 - x0) / (t1 - t0)) * 1000)
+    } else if (d.tap && e.type === 'pointerup') this.tapAt(d.c, d.x0 - d.c.getBoundingClientRect().left)
+  }
+
+  private wheel = (e: WheelEvent) => {
+    if (this.playing || !this.loaded) return
+    e.preventDefault()
+    this.stopCoast()
+    const px = (e.deltaX || e.deltaY) * (e.deltaMode === 1 ? 16 : 1) // Firefox may count lines
+    this.pan(e.currentTarget as HTMLCanvasElement, -px)
+  }
+
+  /** Coasts at `v` px/s, slowing down, one step per animation frame, until it stops, hits an end or something stops it. */
+  private startCoast(c: HTMLCanvasElement, v: number) {
+    const run = ++this.coastRun
+    this.coasting = true
+    let last = performance.now()
+    const step = () => {
+      if (run !== this.coastRun) return
+      const now = performance.now()
+      const [dx, left] = coast(v, (now - last) / 1000)
+      ;[last, v] = [now, left]
+      if (this.pan(c, dx) && v !== 0) this.requestFrame(step)
+      else this.coasting = false
+    }
+    this.requestFrame(step)
+  }
+
+  /** Marker to the onset (any role) nearest the time under x of `c`; the view follows it again. */
+  private tapAt(c: HTMLCanvasElement, x: number) {
+    const time = this.axis(c).at(this.view ?? this.heard(), x)
+    const near = this.loaded!.song.notes.reduce<number | null>((a, n) => (a === null || Math.abs(n.start - time) < Math.abs(a - time) ? n.start : a), null)
+    this.seek(Math.max(0, near ?? time))
   }
 
   /** Song time the singer hears now: the playback position minus the delay (drawing and readout use it; transport and seek keep `t`). */
@@ -396,6 +528,7 @@ export class GuPractice extends LitElement {
   }
 
   private setRange(kind: RepeatKind, range: Range | null) {
+    this.toMarker()
     getContext().engine.setLoop(range)
     this.repeat = range
     this.kind = kind
@@ -431,6 +564,7 @@ export class GuPractice extends LitElement {
   /** Seek to the lead-in landing before `start`. */
   private leadInTo(start: number) {
     const { engine } = getContext()
+    this.toMarker()
     engine.seekLeadIn(start)
     this.t = engine.time()
   }
@@ -504,7 +638,15 @@ export class GuPractice extends LitElement {
     const s = getContext().settings.get()
     const { song } = this.loaded!
     const t = this.heard()
-    const d = liveDeviation(song, s.roles, t, this.frames)
+    let d = liveDeviation(song, s.roles, t, this.frames)
+    if (!this.playing) {
+      // song time stands still: wall clock frames against my note at the marker, else my next one
+      const now = performance.now() / 1000
+      const target = song.notes.find((n) => s.roles.includes(n.role) && !n.spoken && n.end > t)
+      d = target ? heldDeviation(target, now, this.held) : null
+      const sung = this.held.findLast((f) => f.midi !== null && f.s >= now - 0.15)
+      if (!target && sung) return { big: noteName(sung.midi!), label: '', text: '', cents: null, mean: null }
+    }
     const rap = song.notes.some((n) => n.spoken && s.roles.includes(n.role) && n.start <= t && t < n.end)
     if (!d) return { big: '–', label: '', text: rap ? 'Rap · ohne Bewertung' : entryCountdown(song, s.roles, t, this.tempo), cents: null, mean: null }
     return { big: noteName(d.sungMidiFolded), label: `Ziel ${noteName(d.note.midi)}`, text: '', cents: d.cents, mean: d.meanCents }
@@ -534,6 +676,10 @@ export class GuPractice extends LitElement {
     const pct = (sec: number) => `${(sec / dur) * 100}%`
     const skip = this.skipTargets()
     const intro = this.introEnd()
+    // paused: the roll's window around the view time
+    const span = rollWindow(this.renderRoot.querySelector<HTMLElement>('.roll canvas')?.clientWidth ?? 0)
+    const at = (this.view ?? this.heard()) - span * ROLL_SPOT
+    const view = this.playing ? null : [Math.max(0, at), Math.min(dur, at + span)]
     return html`<header>
       <button class="round" aria-label="Zurück zur Auswahl" @click=${this.back}>${BACK}</button>
       <div>
@@ -559,9 +705,9 @@ export class GuPractice extends LitElement {
     <button class="mode" ?disabled=${!this.singsHere && !this.rapsHere} @click=${() => this.setMode(MODES[this.mode][1])}><span>Voicetrack</span><b>${MODES[this.mode][0]}${CHEVRON}</b></button>
     <section class="card staff">
       <div class="legend"><span><i></i>Meine Stimme · ${mine}</span><span><i class="other"></i>Andere</span></div>
-      <canvas></canvas>
+      <canvas @pointerdown=${this.down} @pointermove=${this.move} @pointerup=${this.up} @pointercancel=${this.up} @wheel=${this.wheel}></canvas>
     </section>
-    <section class="card roll"><canvas></canvas></section>
+    <section class="card roll"><canvas @pointerdown=${this.down} @pointermove=${this.move} @pointerup=${this.up} @pointercancel=${this.up} @wheel=${this.wheel}></canvas></section>
     <section class="card readout" aria-live="polite">
       <div class="line"><span><big>${readout.big}</big><small>${readout.label}</small></span><strong>${readout.text}</strong></div>
       <div class="meter">
@@ -577,7 +723,13 @@ export class GuPractice extends LitElement {
         <div class="line">
           <span class="label">Wiederholen</span>
           ${status ? html`<p class="status" role="status">${status}</p>` : ''}
-          ${intro === null ? '' : html`<button class="intro" @click=${() => this.skipTo(intro)}>Intro überspringen</button>`}
+          ${
+            !this.playing && this.view !== null
+              ? html`<button class="intro" @click=${() => this.toMarker()}>Zum Marker</button>`
+              : intro === null
+                ? ''
+                : html`<button class="intro" @click=${() => this.skipTo(intro)}>Intro überspringen</button>`
+          }
         </div>
         <div class="chips">
           ${CHIPS.filter(([k]) => k !== 'section' || sections).map(
@@ -606,6 +758,7 @@ export class GuPractice extends LitElement {
                     <div class="range" style="left:${pct(marks.start)};right:${pct(dur - marks.end)}"></div>`
                 : ''
             }
+            ${view ? html`<div class="view" style="left:${pct(view[0])};right:${pct(dur - view[1])}"></div>` : ''}
             <input type="range" aria-label="Position" min="0" max=${dur} step="0.1" .value=${String(this.t)} @input=${(e: Event) => this.seek(+(e.target as HTMLInputElement).value)} />
           </div>
         </div>

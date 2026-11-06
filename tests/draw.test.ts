@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { COLORS } from '../src/app/draw/canvas'
-import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
+import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollTimeAt, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
@@ -22,6 +22,7 @@ import {
   restsIn,
   splitPages,
   staffPos,
+  staffTimeAt,
 } from '../src/app/draw/staff'
 import { arcTarget, type Note, type Song } from '../src/core/content'
 
@@ -549,6 +550,16 @@ describe('piano roll', () => {
     )
     expect(verticals).toEqual([48, 192, 336, 120]) // three bar lines, then the playhead at 30 %
   })
+  it('browsing: the view time stands at 30 %, the playhead moves with the notes, rollTimeAt maps back', () => {
+    const song = { notes: [], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3, view: 5, frames: [], tolerance: 50 })
+    const px = 400 / rollWindow(400) // 72 px per second
+    const head = calls.findLast(([k]) => k === 'moveTo')![1][0] as number
+    expect(head).toBeCloseTo(120 - 2 * px) // 2 s left of the spot
+    expect(rollTimeAt(400, 5, head)).toBeCloseTo(3)
+    expect(rollTimeAt(400, 5, 120)).toBeCloseTo(5)
+  })
 })
 
 describe('scrolling staff', () => {
@@ -584,6 +595,20 @@ describe('scrolling staff', () => {
   })
   it('shows the next bar before the playhead gets there', () => {
     expect(frame(3).shown).toEqual([0, 2])
+  })
+  it('browsing: the view time stands at the playhead spot, staffTimeAt maps back, the playhead goes out of view', () => {
+    const at = (t: number, view: number) => {
+      const { ctx, calls } = recorder()
+      drawStaff(ctx, { song, roles: ['chor'], names: {}, t, view, frames: [], tolerance: 50, scroll: true })
+      const xs = calls.filter(([c, a]) => c === 'moveTo' && Math.abs((a[1] as number) - 22 * (200 / 112)) < 1e-6).map(([, a]) => a[0] as number)
+      return { ctx, playhead: xs }
+    }
+    const spot = frame(3).playhead[0]
+    const { ctx, playhead } = at(4.2, 5)
+    expect(playhead[0]).toBeLessThan(spot) // 0.8 s back, left of the spot
+    expect(staffTimeAt(ctx, song, ['chor'], 5, spot)).toBeCloseTo(5)
+    expect(staffTimeAt(ctx, song, ['chor'], 5, playhead[0])).toBeCloseTo(4.2)
+    expect(at(0, 14).playhead).toEqual([]) // far out of view: not drawn at the edge
   })
 })
 
