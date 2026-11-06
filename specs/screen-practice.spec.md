@@ -76,12 +76,21 @@ Strings:
 
 ## Piano roll (canvas)
 
-- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …); above 12 rows only the rows without sharp (`C`, `D`, `E` …). Range = all my sung notes of every phrase that has one of my notes in view (also the part outside the window, so the rows change only when a phrase comes or goes), ±2 semitones, min 10 rows. Without my notes in view: the sung notes in view. Zoom: while a sung-line point of the last 2 s lies outside these rows, they widen about the same centre until it fits with a semitone to spare (`zoomRange`, at most 12 semitones either side), so a far-off pitch shows for 2 s and the rows then go back. Every change of the rows (zoom, a new phrase) eases from the rows drawn last (exponential, 80 ms time constant), the first draw takes them as they are.
+- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …); above 12 rows only the rows without sharp (`C`, `D`, `E` …). Range = all my sung notes of every phrase that has one of my notes in view (also the part outside the window, so the rows change only when a phrase comes or goes), ±2 semitones, min 10 rows. Without my notes in view: the sung notes in view. Zoom: the rows also hold every sung-line point drawn in view, of every take, with the same ±2 to spare (`zoomRange`); points more than 12 semitones from the centre of the note rows do not count (a detector slip must not squash the rows) and are cut off at the edge. Every change of the rows (zoom, a new phrase) eases from the rows drawn last (exponential, 80 ms time constant), the first draw takes them as they are.
 - Bar lines: muted, half opacity, 1 px, over the rows (not the lyric strip) at each bar start in view, moving with the notes.
 - Horizontal: window `rollWindow` = canvas width / 72 px per second, 5…8 s (a wider screen shows more of what comes), playhead at 30 % width. Browsing: the view time stands at 30 %, the playhead moves with the notes (`rollTimeAt` maps canvas x back to song time). Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`. Spoken notes: no bar, not in the row range, syllable in the lyric strip only; the sung line folds to sung notes only.
 - Heard time: staff, piano roll, page and readout show `engine.time() − pitch.delay()`, the song position the singer hears now (Android Chrome measured 760 ms on Bluetooth). Transport and seek keep the playback position.
-- Sung line: pitch frames of the last 2 s by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), shifted by one octave for the whole song, not per note (the voice keeps its octave; men sing an octave under the written notes): every voiced frame inside one of my notes votes for the whole octaves that bring it nearest that note (`octaveVote`), the shift with most votes since the song was opened wins. Before the first vote each frame folds into the octave of the nearest target note at that time. Octave slips of the detector folded back first (`foldSlips`, line and zoom): a voiced stretch splits where two frames lie more than 6 semitones apart (a voice cannot leap that in 5 ms); each piece under 0.3 s moves by whole octaves to the longest piece's octave. Pitchy's own `k` stays 0.9: higher made more octave-down slips on the vocal stems. `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame. Only while playing: paused, the roll draws no sung line, no dot and no zoom from sung pitches (frames of a paused song all carry the same time).
+- Sung line: the takes' pitch frames in view by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), shifted by one octave for the whole song, not per note (the voice keeps its octave; men sing an octave under the written notes): every voiced frame inside one of my notes votes for the whole octaves that bring it nearest that note (`octaveVote`), the shift with most votes since the song was opened wins. Before the first vote each frame folds into the octave of the nearest target note at that time. Octave slips of the detector folded back first (`foldSlips`, line and zoom): a voiced stretch splits where two frames lie more than 6 semitones apart (a voice cannot leap that in 5 ms); each piece under 0.3 s moves by whole octaves to the longest piece's octave. Pitchy's own `k` stays 0.9: higher made more octave-down slips on the vocal stems. `null` breaks the line. Level 0 (see Takes): white, 4 px, dark outline. Levels 1, 2, 3: `--other`, 2 px, no outline, opacity 0.7, 0.45, 0.2; drawn under level 0. Dot at the newest frame, only while playing. Frames of a paused song all carry the same time: they join no take.
 - Lyric strip: 22 px under the rows (the playhead runs through it). One syllable per onset in view (mine first), 12 px, at its note's start, pushed right only as far as needed to keep 6 px after the previous one (`lyricXs`), so none is left out or overprinted. Mine accent, others `--other`, my sounding one bold.
+
+## Takes
+
+The singer sees how they sang, and how they sang before, all over the song.
+
+- Take: the frames of one run through the song, kept for the session with this song (also across results and back; gone on leaving the song; never stored). Play starts a new take; so does a frame whose `t` lies more than 0.05 s before or 0.5 s after the take's latest (repeat wrap, seek). A take covers its first to its latest frame time.
+- Ahead of a take: from its latest frame time on for the length of the two bars from the bar holding it.
+- Level of take k at time τ: the newer takes covering τ, plus 1 when any newer take has τ ahead of it (at most 1 for all of them). Level 4 or more: hidden there. So a repeated stretch shows the newest take on top and the older ones fading; the two bars after it drop one level, never more, so they do not go empty.
+- A take hidden all over (4 newer takes each covering all of it) is dropped.
 
 ## Browse while paused
 
@@ -97,6 +106,7 @@ Paused, the singer looks around the song without moving the playhead (the marker
 - Playing: swipe, tap and wheel do nothing.
 - Readout, countdown, skip targets, `introSkip`, repeat chips and the progress position follow the marker, never the view.
 - Progress bar, paused: a translucent box over the roll's window around the view time.
+- The roll shows the takes wherever the view goes (see Takes), without a dot.
 
 ## Repeat
 
@@ -155,7 +165,7 @@ Selector row `repeatLabel` with chips `repeatValues`. One kind active at a time;
 - Play again after pause: `session.startPass`, engine.play.
 - The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
-- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s. Paused frames feed only the readout: no sung line, no octave vote. Play starts the sung line afresh.
+- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s. Paused frames feed only the readout: no take, no octave vote.
   `[@test] ../tests/steps/screen-practice.steps.ts`
 
 ```gherkin
@@ -504,10 +514,10 @@ Feature: Browse while paused
     When I press play
     Then the progress bar shows no view box
 
-  Scenario: paused, the roll draws no sung line
-    Given the screen paused at 8.5
-    When a sung frame arrives at 74
-    Then the roll draws no sung line
+  Scenario: paused, the roll shows what was sung, without a dot
+    Given I sang D5 from 8.2 to 8.6 and paused
+    When a sung frame arrives at 76
+    Then the roll draws the sung line up to the marker and no dot
 
   Scenario: paused, the readout names what I sing against my next note
     Given the screen paused at 3.0
@@ -519,4 +529,32 @@ Feature: Browse while paused
     Given the screen paused at 12.0
     When a sung frame arrives at 69
     Then the big note is "A" and there is no target
+
+Feature: Takes
+  # bars every 2 s
+  Scenario: a new take on play, on a jump back and on a jump ahead
+    Given frames sung from 0.0 to 4.0
+    When frames go on from 4.3 to 5.0
+    Then there is 1 take
+    When frames jump back to 2.0 and go on to 3.0
+    Then there are 2 takes
+    When frames jump ahead to 4.0 and go on to 5.0
+    Then there are 3 takes
+    When play starts and frames go on from 5.0 to 6.0
+    Then there are 4 takes
+
+  Scenario: a repeated stretch fades the older takes, the two bars after it one level
+    Given a take over [0,20]
+    And 5 takes over [6,12]
+    Then at 8.0 the levels are 5, 4, 3, 2, 1, 0
+    And at 13.0 the first take has level 1
+    And at 15.9 the first take has level 1
+    And at 16.5 the first take has level 0
+
+  Scenario: takes hidden all over are dropped
+    Given a take over [0,20]
+    And 5 takes over [6,12]
+    And 4 takes over [0,20]
+    When play starts
+    Then there are 4 takes
 ```

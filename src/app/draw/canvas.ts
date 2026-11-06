@@ -1,6 +1,7 @@
 import type { RoleId, Song } from '../../core/content'
 import type { Tolerance } from '../../core/scorer'
 import type { PitchFrame } from '../../core/types'
+import type { Take } from '../takes'
 
 /** What the practice screen hands both canvases on every update. */
 export interface DrawState {
@@ -15,6 +16,8 @@ export interface DrawState {
   view?: number
   /** Pitch frames of the last 2 s (by scoring stamp `t`, the heard time), oldest first; `midi: null` breaks the sung line. */
   frames: PitchFrame[]
+  /** The roll's sung lines, oldest first; unset: `frames` as one take. The dot stays at the newest of `frames`. */
+  takes?: Take[]
   /** Semitones the roll adds to every sung pitch: the singer's octave for the song. Unset: each frame folds to its nearest note. */
   octave?: number | null
   tolerance: Tolerance

@@ -10,6 +10,7 @@ import { draw as drawRoll, octaveVote, ROLL_SPOT, rollTimeAt, rollWindow } from 
 import { barsPerPage, draw as drawStaff, pageOf, staffSpot, staffTimeAt } from '../draw/staff'
 import { icon, shapes } from '../icons'
 import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
+import { Takes } from '../takes'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -243,8 +244,10 @@ export class GuPractice extends LitElement {
   /** The role set only raps here: spoken notes, shown and muted like singing, never scored (rap hint). */
   rapsHere = false
   session!: Session
-  /** Pitch frames of the last 2 s (the roll's zoom hold), oldest first. */
+  /** Pitch frames of the last 2 s while playing (readout, the roll's dot), oldest first. */
   frames: PitchFrame[] = []
+  /** What was sung in this session with the song, run by run; the roll draws them. */
+  private takes = new Takes()
   /** Octave shift (semitones) -> frames voting for it, this song; the roll draws the sung line in the winner (the voice stays in its octave). */
   private octaves = new Map<number, number>()
   /** [first bar, count] of the bars the scrolling staff last showed; null before the first draw. */
@@ -295,8 +298,8 @@ export class GuPractice extends LitElement {
       names,
       t: this.heard(),
       view: this.view ?? undefined,
-      frames: this.playing ? this.frames : [], // paused frames all carry the same time: no sung line
-
+      frames: this.playing ? this.frames : [], // the dot only while playing
+      takes: this.takes.list,
       octave: [...this.octaves].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
       tolerance: s.tolerance,
       repeat: this.marks(),
@@ -320,6 +323,7 @@ export class GuPractice extends LitElement {
     const loaded = back?.song ?? (await library.getSong(this.songId))
     if (!back) await engine.load(loaded, s.roles)
     this.session = back?.session ?? new Session(loaded.song, s.roles, s.tolerance)
+    this.takes = back?.takes ?? new Takes()
     if (!back) this.octaves.clear()
     this.singsHere = this.session.myNotes().length > 0
     this.rapsHere = !this.singsHere && loaded.song.notes.some((n) => s.roles.includes(n.role))
@@ -351,7 +355,7 @@ export class GuPractice extends LitElement {
           () => engine.latency(),
           s.micDeviceId,
         )) === 'ok'
-    ctx.live = { songId: this.songId, song: loaded, session: this.session }
+    ctx.live = { songId: this.songId, song: loaded, session: this.session, takes: this.takes }
     this.t = engine.time()
     this.loaded = loaded
   }
@@ -361,7 +365,8 @@ export class GuPractice extends LitElement {
     await ensureHeadphoneSheet()
     this.session.startPass()
     this.toMarker()
-    this.frames = [] // the sung line starts afresh
+    this.frames = [] // the dot and the readout start afresh
+    this.takes.cut()
     await engine.play()
     this.playing = true
   }
@@ -391,6 +396,7 @@ export class GuPractice extends LitElement {
       const vote = f.midi === null ? null : octaveVote(f.midi, f.t, this.session.myNotes())
       if (vote !== null) this.octaves.set(vote, (this.octaves.get(vote) ?? 0) + 1)
       this.frames.push(f)
+      this.takes.add(f.t, f.midi)
       while (this.frames[0].t < f.t - 2) this.frames.shift()
       return
     }

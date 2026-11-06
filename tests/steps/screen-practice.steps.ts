@@ -3,6 +3,7 @@ import { type AppContext, setContext } from '../../src/app/context'
 import { ownSpans as mergedSpans } from '../../src/app/repeat'
 import { coast, entryCountdown, type GuPractice } from '../../src/app/screens/practice'
 import { settings } from '../../src/app/settings'
+import { level, Takes } from '../../src/app/takes'
 import { leadInStart } from '../../src/core/audio-engine'
 import type { Note, Song, SongMeta } from '../../src/core/content'
 import type { PitchFrame } from '../../src/core/types'
@@ -884,7 +885,47 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^the progress bar shows no view box$/, (ctx) => expect(viewBox(ctx)).toBeNull())
   When(/^a sung frame arrives at ([\d.]+)$/, (ctx, m) => frame(ctx, { midi: +m }))
-  Then(/^the roll draws no sung line$/, (ctx) => expect(ctx.draws.roll.some(([k]: [string]) => k === 'arc')).toBe(false))
+  Given(/^I sang D5 from 8\.2 to 8\.6 and paused$/, async (ctx) => {
+    await screen(ctx)
+    await play(ctx)
+    for (const t of [8.2, 8.4, 8.6]) {
+      await tick(ctx, t)
+      await frame(ctx, { midi: 74 })
+    }
+    await pause(ctx)
+  })
+  Then(/^the roll draws the sung line up to the marker and no dot$/, (ctx) => {
+    const log = ctx.draws.roll as [string, ...number[]][]
+    expect(log.some(([k, x, y]) => k === 'lineTo' && Math.abs(x - 180) < 1e-6 && y > 0 && y < 166)).toBe(true) // 166 = rows above the lyric strip
+    expect(log.some(([k]) => k === 'arc')).toBe(false)
+  })
+
+  // Takes: bars every 2 s
+  const takes = (ctx: any): Takes => (ctx.takes ??= new Takes())
+  const sing = (ctx: any, from: number, to: number) => {
+    for (let t = from; t <= to + 1e-9; t += 0.05) takes(ctx).add(t, 74)
+  }
+  Given(/^frames sung from ([\d.]+) to ([\d.]+)$/, (ctx, a, b) => {
+    takes(ctx).cut()
+    sing(ctx, +a, +b)
+  })
+  When(/^frames (?:go on|jump back to|jump ahead to) (?:from )?([\d.]+) (?:and go on )?to ([\d.]+)$/, (ctx, a, b) => sing(ctx, +a, +b))
+  When(/^play starts(?: and frames go on from ([\d.]+) to ([\d.]+))?$/, (ctx, a, b) => {
+    takes(ctx).cut()
+    if (a) sing(ctx, +a, +b)
+  })
+  Then(/^there (?:is|are) (\d+) takes?$/, (ctx, n) => expect(takes(ctx).list).toHaveLength(+n))
+  Given(/^(a|\d+) takes? over \[([\d.]+),([\d.]+)\]$/, (ctx, n, a, b) => {
+    for (let i = 0; i < (n === 'a' ? 1 : +n); i++) {
+      takes(ctx).cut()
+      sing(ctx, +a, +b)
+    }
+  })
+  const BARS = Array.from({ length: 16 }, (_, i) => i * 2)
+  Then(/^at ([\d.]+) the levels are ([\d, ]+)$/, (ctx, t, list) => {
+    expect(takes(ctx).list.map((_, k) => level(takes(ctx).list, k, +t, BARS))).toEqual(list.split(', ').map(Number))
+  })
+  Then(/^at ([\d.]+) the first take has level (\d+)$/, (ctx, t, n) => expect(level(takes(ctx).list, 0, +t, BARS)).toBe(+n))
   Then(/^the big note is "([^"]+)" and there is no target$/, (ctx, big) => {
     expect(ctx.el.shadowRoot!.querySelector('.readout big')!.textContent).toBe(big)
     expect(text(ctx.el)).not.toContain('Ziel')
