@@ -32,6 +32,7 @@ Strings:
 | skipPrev | aria `Zum vorigen Einsatz` |
 | skipNext | aria `Zum nächsten Einsatz` |
 | introSkip | `Intro überspringen` |
+| toMarker | `Zum Marker` |
 | phraseStart | aria `Zurück zum Anfang der Phrase` |
 | pause | aria `Pause` |
 | results | aria `Auswertung` (chart icon) |
@@ -64,7 +65,7 @@ Strings:
 - Beams (`beamGroups`): eighths and shorter of one role, back to back (each starts where the previous written value ends), in the same bar and beat (quarter), share a beam instead of flags; one note alone keeps its flag. Group stems all point one way, set by the head farthest from the middle line. Beam: straight from first to last stem, slope at most 1/4, moved off the heads so the shortest stem keeps its minimum length (`beamTips`). Sixteenths get a second beam between neighbouring sixteenths, a lone one a stub towards the note before it (after it when first).
 - Hyphens: a syllable ending in `-` is drawn without it; a `-` sits centred in the gap to the next syllable of its role on the page, or just after the syllable when that one is on a later page. Spacing leaves room for it.
 - Spacing per bar: each onset gets room ∝ (time to the next onset or bar end)^0.6, scaled to fill the bar; a rest before the first note keeps its room. Minimum distance between onsets = head (more before an accidental) and half of each neighbour's syllable + 4 px; short notes take it from long ones.
-- Scrolling (`scroll`): the whole song is one row (`layoutStrip`, cached per song, canvas height and roles), lyric font at 12 px. Room ∝ time up to a quarter, so the row moves at one speed through sixteenths, eighths and quarters, over bar lines too (the room after a bar's last onset includes the next bar's lead); longer values get time^0.6, the row slows there. Per bar, px per quarter = the least that keeps every minimum distance (heads, syllables, hyphens), at least 35 px × drawing scale; a dense bar runs faster. Syllables are never left out and always on one row. The playhead stands still at 25 % of the room right of clef and key; notes, rests, syllables and bar lines move past it, so the singer sees what comes instead of a page flip at the bar end. Clef, key signature and staff lines stay; the row slides away under them. Only the bars in view are drawn.
+- Scrolling (`scroll`): the whole song is one row (`layoutStrip`, cached per song, canvas height and roles), lyric font at 12 px. Room ∝ time up to a quarter, so the row moves at one speed through sixteenths, eighths and quarters, over bar lines too (the room after a bar's last onset includes the next bar's lead); longer values get time^0.6, the row slows there. Per bar, px per quarter = the least that keeps every minimum distance (heads, syllables, hyphens), at least 35 px × drawing scale; a dense bar runs faster. Syllables are never left out and always on one row. The playhead stands still at 25 % of the room right of clef and key; notes, rests, syllables and bar lines move past it, so the singer sees what comes instead of a page flip at the bar end. Browsing (see Browse while paused): that spot shows the view time instead; the playhead moves with the row and is not drawn while out of view. Clef, key signature and staff lines stay; the row slides away under them. Only the bars in view are drawn.
 - Pages (the editor; the player without `scroll`): the song is split once per canvas size and roles (`staffPages`, cached): each page takes up to `barsPerPage` bars (canvas width / 150 px, 2…4), fewer while its syllables do not fit on one row at 10 px, at least 1. Bar widths follow each bar's minimum width; too dense: lyric font shrinks down to 10 px. The page shown is the one holding the bar of the heard time.
 - Bar lines: solid, text colour, 1.5 px, full staff height, at every bar start after the first and at the end of the last bar drawn. Bar number (muted, 10 px) over each bar's start. Role name: scrolling, over the first note of a run and none for a run begun out of view, so names never jump while bars come and go.
 - Notes drawn = `visibleNotes(song.notes, roles)`: one line where I sing (same for the piano roll).
@@ -75,12 +76,37 @@ Strings:
 
 ## Piano roll (canvas)
 
-- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …); above 12 rows only the rows without sharp (`C`, `D`, `E` …). Range = all my sung notes of every phrase that has one of my notes in view (also the part outside the window, so the rows change only when a phrase comes or goes), ±2 semitones, min 10 rows. Without my notes in view: the sung notes in view. Zoom: while a sung-line point of the last 2 s lies outside these rows, they widen about the same centre until it fits with a semitone to spare (`zoomRange`, at most 12 semitones either side), so a far-off pitch shows for 2 s and the rows then go back. Every change of the rows (zoom, a new phrase) eases from the rows drawn last (exponential, 80 ms time constant), the first draw takes them as they are.
+- Vertical: semitones, labels every semitone row without octave (`C`, `C#`, `D` …); above 12 rows only the rows without sharp (`C`, `D`, `E` …). Range = all my sung notes of every phrase that has one of my notes in view (also the part outside the window, so the rows change only when a phrase comes or goes), ±2 semitones, min 10 rows. Without my notes in view: the sung notes in view. Zoom: the rows also hold every sung-line point drawn in view, of every take, with the same ±2 to spare (`zoomRange`); points more than 12 semitones from the centre of the note rows do not count (a detector slip must not squash the rows) and are cut off at the edge. Every change of the rows (zoom, a new phrase) eases from the rows drawn last (exponential, 80 ms time constant), the first draw takes them as they are.
 - Bar lines: muted, half opacity, 1 px, over the rows (not the lyric strip) at each bar start in view, moving with the notes.
-- Horizontal: window `rollWindow` = canvas width / 72 px per second, 5…8 s (a wider screen shows more of what comes), playhead at 30 % width. Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`. Spoken notes: no bar, not in the row range, syllable in the lyric strip only; the sung line folds to sung notes only.
+- Horizontal: window `rollWindow` = canvas width / 72 px per second, 5…8 s (a wider screen shows more of what comes), playhead at 30 % width. Browsing: the view time stands at 30 %, the playhead moves with the notes (`rollTimeAt` maps canvas x back to song time). Target bars = my notes, accent; filled portion = elapsed part. Other roles' notes dashed in `--other`. Spoken notes: no bar, not in the row range, syllable in the lyric strip only; the sung line folds to sung notes only.
 - Heard time: staff, piano roll, page and readout show `engine.time() − pitch.delay()`, the song position the singer hears now (Android Chrome measured 760 ms on Bluetooth). Transport and seek keep the playback position.
-- Sung line: pitch frames of the last 2 s by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), shifted by one octave for the whole song, not per note (the voice keeps its octave; men sing an octave under the written notes): every voiced frame inside one of my notes votes for the whole octaves that bring it nearest that note (`octaveVote`), the shift with most votes since the song was opened wins. Before the first vote each frame folds into the octave of the nearest target note at that time. Octave slips of the detector folded back first (`foldSlips`, line and zoom): a voiced stretch splits where two frames lie more than 6 semitones apart (a voice cannot leap that in 5 ms); each piece under 0.3 s moves by whole octaves to the longest piece's octave. Pitchy's own `k` stays 0.9: higher made more octave-down slips on the vocal stems. `null` breaks the line. White, 4 px, dark outline. Dot at the newest frame.
+- Sung line: the takes' pitch frames in view by their scoring stamp `t` (the sung moment in heard time, so the newest point sits at the playhead and the line lies on the note it was sung to), shifted by one octave for the whole song, not per note (the voice keeps its octave; men sing an octave under the written notes): every voiced frame inside one of my notes votes for the whole octaves that bring it nearest that note (`octaveVote`), the shift with most votes since the song was opened wins. Before the first vote each frame folds into the octave of the nearest target note at that time. Octave slips of the detector folded back first (`foldSlips`, line and zoom): a voiced stretch splits where two frames lie more than 6 semitones apart (a voice cannot leap that in 5 ms); each piece under 0.3 s moves by whole octaves to the longest piece's octave. Pitchy's own `k` stays 0.9: higher made more octave-down slips on the vocal stems. `null` breaks the line. Level 0 (see Takes): white, 4 px, dark outline. Levels 1, 2, 3: `--other`, 2 px, no outline, opacity 0.7, 0.45, 0.2; drawn under level 0. Dot at the newest frame, only while playing. Frames of a paused song all carry the same time: they join no take.
 - Lyric strip: 22 px under the rows (the playhead runs through it). One syllable per onset in view (mine first), 12 px, at its note's start, pushed right only as far as needed to keep 6 px after the previous one (`lyricXs`), so none is left out or overprinted. Mine accent, others `--other`, my sounding one bold.
+
+## Takes
+
+The singer sees how they sang, and how they sang before, all over the song.
+
+- Take: the frames of one run through the song, kept for the session with this song (also across results and back; gone on leaving the song; never stored). Play starts a new take; so does a frame whose `t` lies more than 0.05 s before or 0.5 s after the take's latest (repeat wrap, seek). A take covers its first to its latest frame time.
+- Ahead of a take: from its latest frame time on for the length of the two bars from the bar holding it.
+- Level of take k at time τ: the newer takes covering τ, plus 1 when any newer take has τ ahead of it (at most 1 for all of them). Level 4 or more: hidden there. So a repeated stretch shows the newest take on top and the older ones fading; the two bars after it drop one level, never more, so they do not go empty.
+- A take hidden all over (4 newer takes each covering all of it) is dropped.
+
+## Browse while paused
+
+Paused, the singer looks around the song without moving the playhead (the marker), and taps to move the marker.
+
+- View time: the song time staff and roll show at their playhead spot (staff 25 %, roll 30 %). Follows the heard time until the singer swipes; then it stays where the swipe left it.
+- Swipe (pointer down, moved 8 px or more sideways): the view follows the finger 1:1, each canvas in its own scale (roll `rollTimeAt`, staff `staffTimeAt`); the other canvas follows the view time. Clamped to 0…song end.
+- Release: the view coasts on at the finger's speed (last 100 ms), slowing exponentially (`coast`, time constant 325 ms), stops under 10 px/s or hard at 0 or the song end. A pointer down while coasting stops it and is no tap.
+- Tap (moved under 8 px): the marker goes to the onset (note start, any role) nearest the tapped time, seek there; the view follows the heard time again. No onset in the song: the tapped time. An active repeat stays on.
+- Mouse: drag as swipe. Wheel and trackpad over a canvas: `deltaX`, else `deltaY`, px as a swipe of that length (positive goes forward in the song), no coast.
+- `toMarker` button, in the place of `introSkip` and instead of it: only while paused and the view does not follow the heard time. Press: the view follows the heard time again.
+- Play, seek, skip, `phraseStart`, `introSkip`, repeat chips and section segments: the view follows the heard time again, coasting stops.
+- Playing: swipe, tap and wheel do nothing.
+- Readout, countdown, skip targets, `introSkip`, repeat chips and the progress position follow the marker, never the view.
+- Progress bar, paused: a translucent box over the roll's window around the view time.
+- The roll shows the takes wherever the view goes (see Takes), without a dot.
 
 ## Repeat
 
@@ -112,6 +138,7 @@ Selector row `repeatLabel` with chips `repeatValues`. One kind active at a time;
 - Sections show as labelled segments on the bar, always (also without a repeat). No sections: plain bar.
 - Tap on a segment: Abschnitt repeat for that section, seek to its lead-in landing. Tap elsewhere: seek.
 - Active range highlighted, the lead-in before it marked.
+- Paused: view box (see Browse while paused).
 
 ## Upright phone
 
@@ -125,6 +152,7 @@ Selector row `repeatLabel` with chips `repeatValues`. One kind active at a time;
 
 - Sung = latest voiced frame whose `t` lies in the 150 ms before the heard time. Target = my note containing that `t` (onset grace ignored here). Mean = `liveDeviation.meanCents`, the last 1 s: the newest frame jumps too fast to read.
 - Shows the mean's note name (no octave, as everywhere) and `target`. No cent numbers in words: the meter shows the deviation. No target or no frame: `noTarget`, and while none of my notes sounds, the countdown to my next entry in the text slot: `Einsatz in {n} Takten · {s} s` (`1 Takt`; n = bar lines up to the entry; s = seconds at the current tempo, rounded up), `Einsatz in {s} s` within the bar, nothing under 1 s. While a spoken note of mine sounds: `noTarget` and `rapNow` in the text slot.
+- Paused: song time stands still, so the readout goes by wall clock. Sung = latest voiced frame of the last 150 ms, mean = the last 1 s (`heldDeviation`). Target = my sung (not spoken) note at the marker, else my next one. Big = mean's note name, `target`, meter against it. No target: big = the sung note's name, no `target`, no meter marks. No voiced frame: `noTarget` and the countdown as above.
 - Meter: passive display, no control look. Thin bar with tolerance band and centre tick, `meterEnds` under it. Dot at the newest frame's cents, vertical mark at the mean, both clamped ±100 and only while a voiced frame exists.
 - Mic indicator in the transport row: small status icon, no button styling.
 
@@ -137,7 +165,7 @@ Selector row `repeatLabel` with chips `repeatValues`. One kind active at a time;
 - Play again after pause: `session.startPass`, engine.play.
 - The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
-- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s.
+- Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s. Paused frames feed only the readout: no take, no octave vote.
   `[@test] ../tests/steps/screen-practice.steps.ts`
 
 ```gherkin
@@ -433,4 +461,100 @@ Feature: Intro skip
   Scenario: hidden when the lead-in would land at 0
     Given the first sung note of any role starts at 2.0
     Then the button "Intro überspringen" is not shown
+
+Feature: Browse while paused
+  # roll 600 px wide: 8 s window, 75 px per second, playhead spot at 180 px
+  Scenario: swipe moves the view, not the marker
+    Given the screen paused at 2.0
+    When I swipe the roll 150 px to the left
+    Then the roll shows 4.0 at its playhead spot
+    And time() is 2
+    And the button "Zum Marker" is visible
+    When I press "Zum Marker"
+    Then the roll shows 2.0 at its playhead spot
+    And the button "Zum Marker" is not shown
+
+  Scenario: the view stops at the song start
+    Given the screen paused at 2.0
+    When I swipe the roll 600 px to the right
+    Then the roll shows 0.0 at its playhead spot
+
+  Scenario: tap moves the marker to the nearest onset
+    Given the screen paused at 2.0
+    When I swipe the roll 150 px to the left
+    And I tap the roll at 6.2 s
+    Then time() is 8
+    And the roll shows 8.0 at its playhead spot
+
+  Scenario: play brings the view back to the marker
+    Given the screen paused at 2.0
+    When I swipe the roll 150 px to the left
+    And I press play
+    Then the roll shows 2.0 at its playhead spot
+
+  Scenario: playing ignores swipe and tap
+    Given the screen playing at 2.0
+    When I swipe the roll 150 px to the left
+    Then the roll shows 2.0 at its playhead spot
+    When I tap the roll at 6.2 s
+    Then time() is 2
+
+  Scenario: the wheel swipes too
+    Given the screen paused at 2.0
+    When I turn the wheel by 75 px over the roll
+    Then the roll shows 3.0 at its playhead spot
+
+  Scenario: coasting slows down and stops
+    Then coasting at 1000 px/s for 325 ms moves 205 px and leaves 368 px/s
+    And coasting at 10.3 px/s for 16 ms stops
+
+  Scenario: the view box on the progress bar
+    Given the screen paused at 2.0
+    Then the progress bar shows a view box over [0.0,7.6]
+    When I press play
+    Then the progress bar shows no view box
+
+  Scenario: paused, the roll shows what was sung, without a dot
+    Given I sang D5 from 8.2 to 8.6 and paused
+    When a sung frame arrives at 76
+    Then the roll draws the sung line up to the marker and no dot
+
+  Scenario: paused, the readout names what I sing against my next note
+    Given the screen paused at 3.0
+    When a sung frame arrives at 74.2
+    Then the readout shows "D" and "Ziel D"
+    And the meter shows the mark at 20
+
+  Scenario: paused after my last note, the readout names only what I sing
+    Given the screen paused at 12.0
+    When a sung frame arrives at 69
+    Then the big note is "A" and there is no target
+
+Feature: Takes
+  # bars every 2 s
+  Scenario: a new take on play, on a jump back and on a jump ahead
+    Given frames sung from 0.0 to 4.0
+    When frames go on from 4.3 to 5.0
+    Then there is 1 take
+    When frames jump back to 2.0 and go on to 3.0
+    Then there are 2 takes
+    When frames jump ahead to 4.0 and go on to 5.0
+    Then there are 3 takes
+    When play starts and frames go on from 5.0 to 6.0
+    Then there are 4 takes
+
+  Scenario: a repeated stretch fades the older takes, the two bars after it one level
+    Given a take over [0,20]
+    And 5 takes over [6,12]
+    Then at 8.0 the levels are 5, 4, 3, 2, 1, 0
+    And at 13.0 the first take has level 1
+    And at 15.9 the first take has level 1
+    And at 16.5 the first take has level 0
+
+  Scenario: takes hidden all over are dropped
+    Given a take over [0,20]
+    And 5 takes over [6,12]
+    And 4 takes over [0,20]
+    When play starts
+    Then there are 4 takes
 ```

@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { COLORS } from '../src/app/draw/canvas'
-import { draw as drawRoll, foldSlips, foldToTargetOctave, lyricXs, octaveVote, rollWindow, rowRange, zoomRange } from '../src/app/draw/roll'
+import {
+  draw as drawRoll,
+  foldSlips,
+  foldToTargetOctave,
+  inWindow,
+  lyricXs,
+  octaveVote,
+  rollTimeAt,
+  rollWindow,
+  rowRange,
+  zoomRange,
+} from '../src/app/draw/roll'
 import {
   barsPerPage,
   beamGroups,
@@ -22,6 +33,7 @@ import {
   restsIn,
   splitPages,
   staffPos,
+  staffTimeAt,
 } from '../src/app/draw/staff'
 import { arcTarget, type Note, type Song } from '../src/core/content'
 
@@ -510,9 +522,9 @@ describe('piano roll', () => {
     const { ctx, calls } = recorder()
     drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 1.5, frames, tolerance: 50, octave: 12 })
     const dot = calls.find(([k]) => k === 'arc')![1]
-    expect(dot[1]).toBeCloseTo((73 - 61 + 0.5) * (178 / 14)) // 61 is the 2nd row from the bottom of 60…73 (zoomed out)
+    expect(dot[1]).toBeCloseTo((71 - 61 + 0.5) * (178 / 13)) // 61 is the 3rd row from the bottom of 59…71 (widened by the sung 61)
   })
-  it('zooms out for 2 s after a sung pitch outside the rows', () => {
+  it('widens the rows while a sung pitch outside them is in view', () => {
     const song = { notes: [mineAt(3, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
     const frames = [{ t: 1.5, at: 1.5, midi: 61, clarity: 1, rms: 0.1 }] // under 62…71
     const rows = (t: number) => {
@@ -520,8 +532,21 @@ describe('piano roll', () => {
       drawRoll(ctx, { song, roles: ['maria'], names: {}, t, frames, tolerance: 50, octave: 0 })
       return labels(calls)
     }
-    expect(rows(3.4)).toBe(8) // 60…73 about the same centre: 14 rows, labelled without sharps
-    expect(rows(3.6)).toBe(10)
+    expect(rows(2)).toBe(8) // 59…71: 13 rows, labelled without sharps
+    expect(rows(4)).toBe(10) // 1.5 s left the window (starts at 2.33)
+  })
+  it('finds the frames of a take in the window, also where the times step back a hair', () => {
+    expect(inWindow([0, 1, 2, 2.97, 3, 4], 2, 3)).toEqual([2, 3, 4])
+    expect(inWindow([0, 1, 2.02, 1.98, 2.5, 4], 2, 3)).toEqual([2, 4])
+    expect(inWindow([], 2, 3)).toEqual([])
+  })
+  it('draws older takes thin under the newest, hides level 4 and more', () => {
+    const song = { notes: [mineAt(1, 67, 0)], bars: [0, 2, 4, 6], timeSig: [4, 4] } as unknown as Song
+    const take = (k: number) => ({ from: 0, to: 2, t: [1, 1.5], midi: [67 + k / 10, 67 + k / 10] })
+    const { ctx, calls } = recorder()
+    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 2, frames: [], takes: [0, 1, 2, 3, 4].map(take), tolerance: 50, octave: 0 })
+    const strokes = calls.filter(([k]) => k === 'stroke').length
+    expect(strokes).toBe(1 + 1 + 3 + 2 + 1) // rows, bar lines, levels 3…1, outline and white of level 0, playhead
   })
   it('eases into the zoom instead of jumping', () => {
     const song = { notes: [mineAt(3, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
@@ -536,7 +561,7 @@ describe('piano roll', () => {
     }
     expect(rows(0, [])).toBe(10)
     expect(rows(16, out)).toBe(10) // one animation frame in: still close to 62…71
-    expect(rows(1000, out)).toBe(8) // 60…73, no sharps
+    expect(rows(1000, out)).toBe(8) // 59…71, no sharps
     now.mockRestore()
   })
   it('draws a bar line at each bar start in view', () => {
@@ -548,6 +573,16 @@ describe('piano roll', () => {
       k === 'moveTo' && calls[i + 1][0] === 'lineTo' && calls[i + 1][1][0] === a[0] ? [Math.round(a[0] as number)] : [],
     )
     expect(verticals).toEqual([48, 192, 336, 120]) // three bar lines, then the playhead at 30 %
+  })
+  it('browsing: the view time stands at 30 %, the playhead moves with the notes, rollTimeAt maps back', () => {
+    const song = { notes: [], bars: [0], timeSig: [4, 4] } as unknown as Song
+    const { ctx, calls } = recorder()
+    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3, view: 5, frames: [], tolerance: 50 })
+    const px = 400 / rollWindow(400) // 72 px per second
+    const head = calls.findLast(([k]) => k === 'moveTo')![1][0] as number
+    expect(head).toBeCloseTo(120 - 2 * px) // 2 s left of the spot
+    expect(rollTimeAt(400, 5, head)).toBeCloseTo(3)
+    expect(rollTimeAt(400, 5, 120)).toBeCloseTo(5)
   })
 })
 
@@ -584,6 +619,20 @@ describe('scrolling staff', () => {
   })
   it('shows the next bar before the playhead gets there', () => {
     expect(frame(3).shown).toEqual([0, 2])
+  })
+  it('browsing: the view time stands at the playhead spot, staffTimeAt maps back, the playhead goes out of view', () => {
+    const at = (t: number, view: number) => {
+      const { ctx, calls } = recorder()
+      drawStaff(ctx, { song, roles: ['chor'], names: {}, t, view, frames: [], tolerance: 50, scroll: true })
+      const xs = calls.filter(([c, a]) => c === 'moveTo' && Math.abs((a[1] as number) - 22 * (200 / 112)) < 1e-6).map(([, a]) => a[0] as number)
+      return { ctx, playhead: xs }
+    }
+    const spot = frame(3).playhead[0]
+    const { ctx, playhead } = at(4.2, 5)
+    expect(playhead[0]).toBeLessThan(spot) // 0.8 s back, left of the spot
+    expect(staffTimeAt(ctx, song, ['chor'], 5, spot)).toBeCloseTo(5)
+    expect(staffTimeAt(ctx, song, ['chor'], 5, playhead[0])).toBeCloseTo(4.2)
+    expect(at(0, 14).playhead).toEqual([]) // far out of view: not drawn at the edge
   })
 })
 
@@ -682,11 +731,12 @@ describe('roll layout', () => {
     expect(rowRange([])).toEqual([62, 71])
   })
 
-  it('zooms out about the centre to hold sung pitches with a semitone to spare, at most an octave either side', () => {
+  it('widens to hold sung pitches with two semitones to spare, ignoring those over an octave off the centre', () => {
     expect(zoomRange([62, 71], [])).toEqual([62, 71])
-    expect(zoomRange([62, 71], [64, 70.5])).toEqual([62, 71])
-    expect(zoomRange([62, 71], [73.2])).toEqual([58, 75])
-    expect(zoomRange([62, 71], [40])).toEqual([54, 79])
+    expect(zoomRange([62, 71], [64, 69.4])).toEqual([62, 71])
+    expect(zoomRange([62, 71], [70.5])).toEqual([62, 73])
+    expect(zoomRange([62, 71], [73.2, 61])).toEqual([59, 75])
+    expect(zoomRange([62, 71], [40])).toEqual([62, 71]) // a detector slip
     expect(zoomRange([40, 80], [61])).toEqual([40, 80]) // a wide phrase never shrinks
   })
 

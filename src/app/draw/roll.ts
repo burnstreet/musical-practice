@@ -1,5 +1,6 @@
 import { type Note, visibleNotes } from '../../core/content'
 import { foldCents, noteName } from '../../core/scorer'
+import { HIDDEN, level } from '../takes'
 import { COLORS, type DrawState, dimOutside, FONT, fit } from './canvas'
 
 const BEHIND_SHARE = 0.3
@@ -9,10 +10,10 @@ const SHARP_LABELS_MAX = 12
 /** Lyric strip under the rows, px. */
 const LYRICS = 22
 const MARGIN = 2
-/** Seconds a sung pitch outside the rows keeps them zoomed out. */
-const ZOOM_HOLD = 2
-/** Most semitones the zoom shows either side of the centre: an octave slip of the pitch detector must not squash the rows. */
+/** Sung pitches further than this many semitones from the centre of the note rows do not widen them: an octave slip of the pitch detector must not squash the rows. */
 const ZOOM_MAX = 12
+/** Older takes by level 1, 2, 3: opacity; level 0 is the white line. */
+const FADE = [1, 0.7, 0.45, 0.2]
 /** Time constant of the zoom easing, ms: there in about a quarter second. */
 const ZOOM_EASE_MS = 80
 /** Rows each roll canvas drew last, for the easing. */
@@ -27,11 +28,11 @@ export function rowRange(midis: number[]): [number, number] {
   return [lo, hi]
 }
 
-/** `rows` widened about their centre so every sung pitch outside them fits with a semitone to spare, at most ZOOM_MAX either side. */
+/** `rows` widened so every sung pitch fits with MARGIN to spare; pitches over ZOOM_MAX off their centre do not count. */
 export function zoomRange([lo, hi]: [number, number], sung: number[]): [number, number] {
   const c = (lo + hi) / 2
-  const half = Math.max(hi - c, ...sung.map((m) => (Math.abs(m - c) > hi - c ? Math.min(ZOOM_MAX, Math.abs(m - c) + 1) : 0)))
-  return [Math.floor(c - half), Math.ceil(c + half)]
+  const near = sung.filter((m) => Math.abs(m - c) <= ZOOM_MAX).map(Math.round)
+  return [Math.min(lo, ...near.map((m) => m - MARGIN)), Math.max(hi, ...near.map((m) => m + MARGIN))]
 }
 
 /** Sung midi folded into the octave of my note nearest in time to `t` (the one sounding, if any). */
@@ -77,8 +78,34 @@ export function foldSlips(frames: { t: number; midi: number | null }[]): (number
   return out
 }
 
+/**
+ * Indices of the times from t0 to t1. A take's times only ever step back a hair (a bigger step starts a new take), so a
+ * binary search for t0 less a margin finds the start; a full take holds some 30 000 frames.
+ */
+export function inWindow(ts: number[], t0: number, t1: number): number[] {
+  const SLACK = 0.1
+  let [lo, hi] = [0, ts.length]
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (ts[mid] < t0 - SLACK) lo = mid + 1
+    else hi = mid
+  }
+  const out: number[] = []
+  for (let i = lo; i < ts.length && ts[i] <= t1 + SLACK; i++) if (ts[i] >= t0 && ts[i] <= t1) out.push(i)
+  return out
+}
+
 /** Seconds the roll shows at a canvas width: 72 px per second, 5…8 s (a wider screen shows more of what comes). */
 export const rollWindow = (cssWidth: number) => Math.min(8, Math.max(5, cssWidth / 72))
+
+/** Where the roll's playhead spot stands: this share of the width. */
+export const ROLL_SPOT = BEHIND_SHARE
+
+/** Song time under x on a roll `w` wide whose spot shows `view`. */
+export function rollTimeAt(w: number, view: number, x: number): number {
+  const span = rollWindow(w)
+  return view - span * BEHIND_SHARE + (x / w) * span
+}
 
 /**
  * Syllable positions in the lyric strip: each at its note's start, pushed right just enough to keep `gap` px after the
@@ -99,7 +126,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const h = full - LYRICS
   const { song, roles, t, frames } = state
   const span = rollWindow(w)
-  const t0 = t - span * BEHIND_SHARE
+  const t0 = rollTimeAt(w, state.view ?? t, 0)
   const t1 = t0 + span
   const x = (time: number) => ((time - t0) / (t1 - t0)) * w
   const notes = visibleNotes(song.notes, roles)
@@ -112,9 +139,20 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
   const { octave } = state
   const pitch = (midi: number, time: number) => (octave == null ? foldToTargetOctave(midi, time, mine) : midi + octave)
-  const midis = foldSlips(frames)
-  const recent = frames.flatMap((f, i) => (midis[i] != null && f.t >= t - ZOOM_HOLD ? [pitch(midis[i], f.t)] : []))
-  const [toLo, toHi] = zoomRange(rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi)), recent)
+  // Sung points in view, slips folded per take, with each point's level; hidden ones left out
+  const takes = state.takes ?? [{ from: frames[0]?.t ?? 0, to: frames.at(-1)?.t ?? 0, t: frames.map((f) => f.t), midi: frames.map((f) => f.midi) }]
+  const lines = takes.flatMap((take, k) => {
+    const idx = inWindow(take.t, t0, t1)
+    const folded = foldSlips(idx.map((i) => ({ t: take.t[i], midi: take.midi[i] })))
+    const pts = idx.map((i, j) => {
+      const m = folded[j]
+      const lv = level(takes, k, take.t[i], song.bars)
+      return m == null || lv >= HIDDEN ? null : { t: take.t[i], p: pitch(m, take.t[i]), lv }
+    })
+    return pts.length ? [pts] : []
+  })
+  const sungPitches = lines.flatMap((pts) => pts.flatMap((q) => (q ? [q.p] : [])))
+  const [toLo, toHi] = zoomRange(rowRange((myPhrases.length ? myPhrases : sungInView).map((n) => n.midi)), sungPitches)
   // ease from the rows drawn last towards these (fractional while it moves)
   const now = performance.now()
   const was = shown.get(ctx)
@@ -247,25 +285,38 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   ctx.stroke()
   ctx.setLineDash([])
 
-  // Sung line: dark outline under a 4 px white line, null frames break it
-  const pts = frames.map((f, i) => (midis[i] == null ? null : [x(f.t), y(pitch(midis[i], f.t))]))
+  // Sung lines: older levels thin in `other`, fading, under level 0 (dark outline under a 4 px white line); null frames break a line
   ctx.lineCap = ctx.lineJoin = 'round'
+  const trace = (lv: number) => {
+    let any = false
+    ctx.beginPath()
+    for (const pts of lines)
+      pts.forEach((q, i) => {
+        if (q?.lv !== lv) return
+        any = true
+        const prev = pts[i - 1]
+        if (prev?.lv === lv) ctx.lineTo(x(q.t), y(q.p))
+        else ctx.moveTo(x(q.t), y(q.p))
+      })
+    return any
+  }
+  for (let lv = HIDDEN - 1; lv >= 1; lv--) {
+    ctx.strokeStyle = COLORS.other
+    ctx.lineWidth = 2
+    ctx.globalAlpha = FADE[lv]
+    if (trace(lv)) ctx.stroke()
+  }
+  ctx.globalAlpha = 1
   for (const [colour, width] of [
     [COLORS.surface, 8],
     [COLORS.text, 4],
   ] as const) {
     ctx.strokeStyle = colour
     ctx.lineWidth = width
-    ctx.beginPath()
-    pts.forEach((p, i) => {
-      if (p) {
-        if (pts[i - 1]) ctx.lineTo(p[0], p[1])
-        else ctx.moveTo(p[0], p[1])
-      }
-    })
-    ctx.stroke()
+    if (trace(0)) ctx.stroke()
   }
-  const last = pts.at(-1)
+  const newest = frames.at(-1)
+  const last = newest?.midi != null ? [x(newest.t), y(pitch(foldSlips(frames).at(-1)!, newest.t))] : null
   if (last) {
     ctx.beginPath()
     ctx.arc(last[0], last[1], 7, 0, 2 * Math.PI)

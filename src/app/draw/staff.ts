@@ -497,8 +497,8 @@ const stripCache = new WeakMap<Song, Map<string, Strip>>()
 /** Where the scrolling staff's playhead stands: this share into the room right of clef and key. */
 const SCROLL_AT = 0.25
 
-/** The bars of the scrolling row in view at `t` as a page: the row shifted so the playhead stands at `SCROLL_AT`. */
-function scrolled(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number, t: number) {
+/** The cached row of `song` for this canvas height, roles and font state. */
+function strip(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number): Strip {
   const key = `${h}|${roles.join()}|${globalThis.document?.fonts?.status}`
   const byKey = stripCache.get(song) ?? new Map<string, Strip>()
   stripCache.set(song, byKey)
@@ -507,8 +507,40 @@ function scrolled(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w:
     const L = measurePage(ctx, song, content, w, h / BASE, true)
     byKey.set(key, { content, L, points: pagePoints(song, content, L) })
   }
-  const { content: c, L, points } = byKey.get(key)!
-  const off = playheadX(points, t) - L.startX - SCROLL_AT * (w - 4 - L.startX)
+  return byKey.get(key)!
+}
+
+/** How far the row is shifted left so song time `view` stands at `SCROLL_AT`. */
+const stripOffset = ({ L, points }: Strip, w: number, view: number) => playheadX(points, view) - L.startX - SCROLL_AT * (w - 4 - L.startX)
+
+/** Song time of x between (time, x) points sorted by time: the inverse of `playheadX`, clamped to the ends. */
+export function timeAtX(points: [number, number][], x: number): number {
+  const i = points.findIndex(([, px]) => px > x)
+  if (i === -1) return points[points.length - 1][0]
+  if (i === 0) return points[0][0]
+  const [[t0, x0], [t1, x1]] = [points[i - 1], points[i]]
+  return t0 + ((x - x0) / (x1 - x0)) * (t1 - t0)
+}
+
+/** Song time under canvas x of the scrolling staff whose playhead spot shows `view`. */
+export function staffTimeAt(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], view: number, x: number): number {
+  const { clientWidth: w, clientHeight: h } = ctx.canvas
+  const s = strip(ctx, song, roles, w, h)
+  return timeAtX(s.points, x + stripOffset(s, w, view))
+}
+
+/** Canvas x of the scrolling staff's playhead spot. */
+export function staffSpot(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[]): number {
+  const { clientWidth: w, clientHeight: h } = ctx.canvas
+  const { L } = strip(ctx, song, roles, w, h)
+  return L.startX + SCROLL_AT * (w - 4 - L.startX)
+}
+
+/** The bars of the scrolling row in view at `view` as a page: the row shifted so `view` stands at `SCROLL_AT`. */
+function scrolled(ctx: CanvasRenderingContext2D, song: Song, roles: RoleId[], w: number, h: number, view: number) {
+  const s = strip(ctx, song, roles, w, h)
+  const { content: c, L } = s
+  const off = stripOffset(s, w, view)
   const bars = c.bars.filter((_, i) => L.barX[i] + L.barW[i] - off > 0 && L.startX + L.barX[i] - off < w)
   const [first, end] = [bars[0], bars[0] + bars.length]
   const k0 = c.onsets.findIndex((o) => o.bar >= first)
@@ -533,7 +565,7 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   const { w, h } = fit(ctx)
   let content: ReturnType<typeof pageContent>
   let L: ReturnType<typeof measurePage>
-  if (state.scroll) ({ content, L } = scrolled(ctx, song, roles, w, h, t))
+  if (state.scroll) ({ content, L } = scrolled(ctx, song, roles, w, h, state.view ?? t))
   else {
     const [first, per] = pageAt(staffPages(ctx, song, roles, w, h, state.bars), song.bars, t)
     content = pageContent(song, roles, first, per)
@@ -612,16 +644,19 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): [n
   }
 
   // Playhead, dashed as in the piano roll: moves from onset to onset, so the singer sees the next entry coming
+  // Browsing: none while the playhead is out of view (clamped, it would stand at the edge)
   const points = pagePoints(song, content, L)
-  const px = playheadX(points, t)
-  ctx.strokeStyle = COLORS.text
-  ctx.lineWidth = 1.5
-  ctx.setLineDash([3, 4])
-  ctx.beginPath()
-  ctx.moveTo(px, 22 * s)
-  ctx.lineTo(px, 78 * s)
-  ctx.stroke()
-  ctx.setLineDash([])
+  if (state.view === undefined || (t >= points[0][0] && t <= points[points.length - 1][0])) {
+    const px = playheadX(points, t)
+    ctx.strokeStyle = COLORS.text
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([3, 4])
+    ctx.beginPath()
+    ctx.moveTo(px, 22 * s)
+    ctx.lineTo(px, 78 * s)
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
 
   // Role name above each run of same-role notes; one that would overprint the previous is left out. Scrolling: over
   // the run's first note, none for a run begun out of view, so names do not jump as bars come and go

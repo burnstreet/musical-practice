@@ -7,6 +7,7 @@ import type { LoadedSong } from '../core/types'
 import type { Vault } from '../core/vault'
 import type { RepeatState } from './repeat'
 import type { Route, settings } from './settings'
+import type { Takes } from './takes'
 
 export type { Route }
 
@@ -32,7 +33,7 @@ export interface AppContext extends ShellDeps {
   settings: typeof settings
   route(to: Route): void
   /** Set by the practice screen on enter; shell clears it on routes outside practice and results. */
-  live: { songId: string; song: LoadedSong; session: Session; repeat?: RepeatState } | null
+  live: { songId: string; song: LoadedSong; session: Session; repeat?: RepeatState; takes?: Takes } | null
   /** Where the practice screen's back button goes instead of songs (a song cue of the run-through sets it); shell clears it on routes outside practice and results. */
   returnTo: Route | null
   openSettings(): void
