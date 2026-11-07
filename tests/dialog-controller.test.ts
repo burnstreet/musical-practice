@@ -48,6 +48,25 @@ describe('dialog controller', () => {
     settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, rate: 1.2, silenceMs: 500 } })
   })
 
+  it('opens paused: no audio, no mic until resume', async () => {
+    const { t, ctx, deps } = setup()
+    const d = await openDialog(ctx, { sceneId: 's1', paused: true }, () => {}, deps)
+    await flush()
+    expect(d.cue.state).toBe('paused')
+    expect(t.played).toEqual([])
+    expect(t.mic).toBe(false)
+    d.send({ type: 'resume' })
+    await flush()
+    expect(t.played).toEqual([['m001', 1.2]])
+  })
+
+  it("repeats the scene's stored range", async () => {
+    settings.set({ dialogRepeats: { s1: { from: 'm001', to: 'a001' } } })
+    const { ctx, deps } = setup()
+    const d = await openDialog(ctx, { sceneId: 's1', itemId: 'a001', paused: true }, () => {}, deps)
+    expect(d.cue.next.map((i) => i.id)).toEqual(['m001'])
+  })
+
   it('plays other lines at the rate, opens the mic on my turn, moves on after speech and silence, stores the position', async () => {
     const { t, ctx, deps } = setup()
     const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)

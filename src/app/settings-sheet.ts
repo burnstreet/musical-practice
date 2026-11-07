@@ -273,7 +273,6 @@ export class GuTextSettings extends LitElement {
     button[aria-pressed='true'] { font-weight: 700; }
     .box { display: flex; flex-direction: column; background: var(--surface); border-radius: 16px; }
     .box label { justify-content: space-between; gap: 12px; min-height: 52px; padding: 0 14px; font-size: 14px; }
-    .box hr { height: 1px; border: 0; background: var(--bg); margin: 0 14px; }
     .phones { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 16px; padding: 12px 14px; font-size: 13px; line-height: 1.45; color: var(--accent); }
     .phones div { flex: 1; color: var(--text); }
     .meter { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; }
@@ -356,8 +355,6 @@ export class GuTextSettings extends LitElement {
 
         <div class="box">
           <label>Regieanweisungen anzeigen<input type="checkbox" .checked=${d.showDirections} @change=${(e: Event) => this.set({ showDirections: (e.target as HTMLInputElement).checked })} /></label>
-          <hr />
-          <label>Szene wiederholen<input type="checkbox" .checked=${d.loopScene} @change=${(e: Event) => this.set({ loopScene: (e.target as HTMLInputElement).checked })} /></label>
         </div>
 
         <div class="phones">

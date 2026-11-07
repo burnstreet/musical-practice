@@ -1,5 +1,6 @@
 import type { Mode } from '../core/audio-engine'
 import type { RoleId } from '../core/content'
+import type { CueRepeat } from '../core/cue'
 import type { Tolerance } from '../core/scorer'
 import { production } from '../production'
 
@@ -14,7 +15,6 @@ export interface DialogSettings {
   /** Playback rate of the other roles, 0.8..1.3. */
   rate: number
   showDirections: boolean
-  loopScene: boolean
 }
 
 /** Where a role set stopped last; `at` = epoch ms. */
@@ -39,13 +39,15 @@ export interface Settings {
   dialog: DialogSettings
   /** Per role set (roleSetKey). */
   dialogPositions: Record<string, DialogPosition>
+  /** Repeat per scene id, same for every role set. */
+  dialogRepeats: Record<string, Omit<CueRepeat, 'sceneId'>>
 }
 
 /** Key of a role set in dialogPositions: order does not matter. */
 export const roleSetKey = (roles: RoleId[]): string => [...roles].sort().join(',')
 
 const KEY = `${production.storageId}.settings`
-const DIALOG: DialogSettings = { hint: 'start', silenceMs: 1200, rate: 1, showDirections: true, loopScene: false }
+const DIALOG: DialogSettings = { hint: 'start', silenceMs: 1200, rate: 1, showDirections: true }
 const DEFAULTS: Settings = {
   tolerance: 50,
   delayMs: null,
@@ -57,6 +59,7 @@ const DEFAULTS: Settings = {
   tab: 'songs',
   dialog: DIALOG,
   dialogPositions: {},
+  dialogRepeats: {},
 }
 
 export const settings = {

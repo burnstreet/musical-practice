@@ -101,6 +101,21 @@ async function run(ctx: any, itemId?: string) {
   return el
 }
 
+/** The play control of the paused run-through. */
+async function pressPlay(ctx: any) {
+  const b = all(ctx).find((e) => e.matches('.controls .main'))
+  if (!b) throw new Error(`no play control in: ${text(ctx)}`)
+  ;(b as HTMLElement).click()
+  await settle(ctx.el)
+}
+
+/** Opens the run-through of s1 at `itemId`, presses play, clears `ctx.sent`. */
+async function running(ctx: any, itemId?: string) {
+  await run(ctx, itemId)
+  await pressPlay(ctx)
+  ctx.sent = []
+}
+
 export default steps(({ Given, When, Then }) => {
   // Role bar
   Given(/^settings\.roles \[(.*)\]$/, (ctx, ids) => {
@@ -175,7 +190,7 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ['lena'] })
     ctx.script = { scenes: [scene('s1', [line('m001', 'vater', t), line('a001', 'lena', 'Ja.')])] }
-    await run(ctx)
+    await running(ctx)
     expect(ctx.el.dialog.cue.state).toBe('playing')
   })
   Then(/^a card shows "([^"]+)" and "([^"]+)"$/, (ctx, a, b) => {
@@ -197,8 +212,8 @@ export default steps(({ Given, When, Then }) => {
       scenes: [scene('s1', [...[a, b, c].map((text, i): ScriptItem => ({ id: `d00${i + 1}`, type: 'direction', text })), line('m001', 'vater', 'Hallo.')])],
     }
   })
-  When(/^the run-through starts at "([^"]+)"$/, (ctx, t) => run(ctx, ctx.dirs[t]))
-  When(/^the run-through starts at the line$/, (ctx) => run(ctx, 'm001'))
+  When(/^the run-through starts at "([^"]+)" and I press play$/, (ctx, t) => running(ctx, ctx.dirs[t]))
+  When(/^the run-through starts at the line and I press play$/, (ctx) => running(ctx, 'm001'))
   Then(/^the direction card is highlighted$/, (ctx) => {
     expect(ctx.el.dialog.cue.state).toBe('direction')
     expect(
@@ -243,7 +258,7 @@ export default steps(({ Given, When, Then }) => {
     settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })
     ctx.script = { scenes: [scene('s1', [line('a001', 'lena', t), line('m001', 'vater', 'Gut.')])] }
     ctx.full = t
-    await run(ctx)
+    await running(ctx)
   })
   Then(/^the card reads "([^"]+)" and "([^"]+)" and offers "([^"]+)"$/, (ctx, a, b, c) => {
     expect(card(ctx)).toContain(a)
@@ -264,7 +279,7 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ['lena'] })
     ctx.script = { scenes: [scene('s1', [line('a001', 'lena', 'Ich komme.'), line('m001', 'vater', 'Gut.')])] }
-    await run(ctx)
+    await running(ctx)
     expect(ctx.el.dialog.cue.state).toBe('waiting')
   })
   Then(/^the cue engine receives tap$/, (ctx) => {
@@ -275,7 +290,7 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ['lena'] })
     ctx.script = { scenes: [scene('s1', [line('a001', 'lena', 'Ich komme.'), line('m001', 'vater', 'Gut.')])] }
-    await run(ctx)
+    await running(ctx)
     ctx.now = 20000
     ctx.tick()
     await settle(ctx.el)
@@ -289,7 +304,7 @@ export default steps(({ Given, When, Then }) => {
     settings.set({ roles: ['lena'] })
     ctx.songs = [{ id, number: +id, title: 'Schneelied', durationSec: 60, roles: ['lena'], files: {} }]
     ctx.script = { scenes: [scene('s1', [line('m001', 'vater', 'Hör mal.'), { id: 'g001', type: 'song', songId: id }, line('m002', 'vater', 'Schön.')])] }
-    await run(ctx, 'g001')
+    await running(ctx, 'g001')
     expect(ctx.el.dialog.cue.state).toBe('song')
   })
   Then(/^the route is "([^"]+)"$/, (ctx, hash) => {
@@ -306,6 +321,7 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.el.dialog.cue.state).toBe('song')
     expect(ctx.el.dialog.cue.turn[0].id).toBe('g001')
     expect(card(ctx)).toContain('Lied 4 · Schneelied')
+    expect(ctx.c.returnTo).toBe(null) // used up: opening the song item later starts paused
   })
   When(/^I press the space bar$/, async (ctx) => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space' }))
@@ -317,12 +333,12 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     await mount(ctx, 'gu-text-settings')
   })
-  Then(/^the sheet shows "([^"]+)", ([\d,]+ s), ([\d,]+×), directions on and loop off$/, (ctx, hint, silence, rate) => {
+  Then(/^the sheet shows "([^"]+)", ([\d,]+ s), ([\d,]+×) and directions on$/, (ctx, hint, silence, rate) => {
     expect(clickable(ctx, hint)!.getAttribute('aria-pressed')).toBe('true')
     expect(text(ctx)).toContain(silence)
     expect(clickable(ctx, rate)!.getAttribute('aria-pressed')).toBe('true')
-    const box = (t: string) => (clickable(ctx, t) as HTMLLabelElement).querySelector('input') as HTMLInputElement
-    expect(box('Regieanweisungen anzeigen').checked).toBe(true)
-    expect(box('Szene wiederholen').checked).toBe(false)
+    const box = (clickable(ctx, 'Regieanweisungen anzeigen') as HTMLLabelElement).querySelector('input') as HTMLInputElement
+    expect(box.checked).toBe(true)
+    expect(text(ctx)).not.toContain('Szene wiederholen')
   })
 })

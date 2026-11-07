@@ -182,7 +182,6 @@ Feature: Run-through
     Given the cue state playing line of vater "Oh. [Donnergrollen] Wer da?"
     Then the card shows "Oh.", the inline direction "Donnergrollen" and "Wer da?", and no "["
 
-  @todo
   Scenario: directions for my roles highlighted
     Given roles [lena] and scene s1 with directions "Vorhang zu", "Lena setzt sich", "Tante Ilse winkt" and a line of vater
     When the run-through starts at "Lena setzt sich" and I press play
@@ -228,7 +227,6 @@ Feature: Run-through
     Then the cue engine receives tap
 
 Feature: Text settings
-  @todo
   Scenario: defaults
     Given empty settings
     Then the sheet shows "Anfang", 1,2 s, 1,0× and directions on

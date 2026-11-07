@@ -1,4 +1,4 @@
-import { CUE_DEFAULTS, type Cue, type CueEffect, type CueEvent, cueStart, cueStep } from '../core/cue'
+import { CUE_DEFAULTS, type Cue, type CueEffect, type CueEvent, type CueOptions, cueStart, cueStep } from '../core/cue'
 import type { LoadedScript } from '../core/types'
 import { createVoiceDetect, type VoiceDetect } from '../core/voice-detect'
 import type { AppContext } from './context'
@@ -96,25 +96,24 @@ export interface Dialog {
   /** Mic level 0..1 while my turn is open. */
   level(): number
   send(ev: CueEvent): void
-  /** Settings changed (directions, loop): enter the current turn again with them. */
+  /** Settings changed (directions): enter the current turn again with them. */
   restart(): void
   /** Leaving the screen: store the position, stop audio, mic off. */
   dispose(): void
 }
 
-/** Opens a run-through of the selected roles at `at`. `onChange` fires after every step and every tick of my turn (level). */
-export async function openDialog(
-  ctx: AppContext,
-  at: { sceneId: string; itemId?: string },
-  onChange: () => void,
-  deps: DialogDeps = browserDeps,
-): Promise<Dialog> {
+/** Where a run-through opens; `paused`: no audio, no mic until resume. */
+type CueAt = Parameters<typeof cueStart>[2]
+
+/** Opens a run-through of the selected roles at `at`, with the scene's stored repeat. `onChange` fires after every step and every tick of my turn (level). */
+export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => void, deps: DialogDeps = browserDeps): Promise<Dialog> {
   const { library, pitch, settings } = ctx
   const loaded = await library.getScript()
   const roles = settings.get().roles
-  const options = () => {
-    const d = settings.get().dialog
-    return { roles, ...CUE_DEFAULTS, showDirections: d.showDirections, repeat: null }
+  const options = (sceneId: string): CueOptions => {
+    const { dialog, dialogRepeats } = settings.get()
+    const r = dialogRepeats[sceneId]
+    return { roles, ...CUE_DEFAULTS, showDirections: dialog.showDirections, repeat: r ? { ...r, sceneId } : null }
   }
   let cue: Cue
   let missed = false
@@ -210,8 +209,8 @@ export async function openDialog(
   })
   const offTick = deps.every(100, () => dialog.send({ type: 'tick' }))
 
-  const enter = (to: { sceneId: string; itemId?: string }) => {
-    cue = cueStart(loaded.script, options(), to, deps.now())
+  const enter = (to: CueAt) => {
+    cue = cueStart(loaded.script, options(to.sceneId), to, deps.now())
     run(cue.effects)
   }
   enter(at)

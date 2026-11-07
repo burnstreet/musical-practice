@@ -5,7 +5,6 @@ import type { ScriptItem } from '../../core/types'
 import { getContext } from '../context'
 import { type Dialog, type DialogDeps, openDialog, unlockAudio } from '../dialog'
 import { icon, shapes } from '../icons'
-import type { DialogSettings } from '../settings'
 import { oneDecimalDe } from '../settings-sheet'
 import '../settings-sheet'
 import { lineCount, sceneNo } from './text'
@@ -167,8 +166,8 @@ export class GuRun extends LitElement {
   /** Controller seams; tests swap them. */
   deps?: DialogDeps
   private opening = 0
-  /** Text settings when the sheet opened. */
-  private settingsBefore: DialogSettings | null = null
+  /** `showDirections` when the sheet opened. */
+  private directionsBefore: boolean | null = null
 
   constructor() {
     super()
@@ -204,7 +203,11 @@ export class GuRun extends LitElement {
     const n = ++this.opening
     this.dialog?.dispose()
     this.dialog = null
-    const d = await openDialog(getContext(), { sceneId: this.sceneId, itemId: this.itemId || undefined }, () => this.changed(), this.deps)
+    // back from `Lied üben`: resume at the song item instead of paused
+    const ctx = getContext()
+    const back = ctx.returnTo === `#/text/${this.sceneId}/${this.itemId}`
+    if (back) ctx.returnTo = null
+    const d = await openDialog(ctx, { sceneId: this.sceneId, itemId: this.itemId || undefined, paused: !back }, () => this.changed(), this.deps)
     if (n !== this.opening) return d.dispose()
     this.dialog = d
   }
@@ -247,15 +250,14 @@ export class GuRun extends LitElement {
   private openSettings() {
     const s = this.dialog?.cue.state
     if (s && s !== 'paused' && s !== 'done') this.send('pause')
-    this.settingsBefore = { ...getContext().settings.get().dialog }
+    this.directionsBefore = getContext().settings.get().dialog.showDirections
     this.settingsOpen = true
   }
 
-  /** Directions or loop changed: the cue starts again at the current turn with them. */
+  /** Directions changed: the cue starts again at the current turn with them. */
   private closeSettings() {
     this.settingsOpen = false
-    const d = getContext().settings.get().dialog
-    if (d.showDirections !== this.settingsBefore?.showDirections || d.loopScene !== this.settingsBefore?.loopScene) this.dialog?.restart()
+    if (getContext().settings.get().dialog.showDirections !== this.directionsBefore) this.dialog?.restart()
   }
 
   private practiceSong(songId: string) {
