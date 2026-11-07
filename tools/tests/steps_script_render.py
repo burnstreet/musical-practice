@@ -31,7 +31,7 @@ def sentence(n, ch="a"):
 def rctx(tmp_path, monkeypatch, capsys):
     """Content root = cwd. Fake engine `sine`: 0.5 s tone per call (pad seconds of silence around it), records its texts."""
     monkeypatch.chdir(tmp_path)
-    c = {"root": tmp_path, "texts": [], "pad": 0.0, "roles": {"anna": VOICE}, "lines": []}
+    c = {"root": tmp_path, "texts": [], "pad": 0.0, "roles": {"lena": VOICE}, "lines": []}
 
     def sine(text, voice):
         c["texts"].append(text)
@@ -53,7 +53,7 @@ def write_project(c):
     (c["root"] / "web" / "data" / "script.json").write_text(json.dumps(script, ensure_ascii=False), encoding="utf-8")
 
 
-def line(c, id_, text, role="anna", **rest):
+def line(c, id_, text, role="lena", **rest):
     c["lines"].append((id_, role, text, rest))
 
 
@@ -160,9 +160,9 @@ def _(rctx, text, say):
     line(rctx, "a", text, say=say)
 
 
-@given("a line of role anna and no voice for anna")
+@given("a line of role lena and no voice for lena")
 def _(rctx):
-    rctx["roles"] = {"anna": None}
+    rctx["roles"] = {"lena": None}
     line(rctx, "a", "Hallo.")
 
 
@@ -180,7 +180,7 @@ def _(rctx):
 
 @when("line a's text changes and I render")
 def _(rctx):
-    rctx["lines"][0] = ("a", "anna", "Hallo Welt.", {})
+    rctx["lines"][0] = ("a", "lena", "Hallo Welt.", {})
     render(rctx)
 
 
@@ -239,23 +239,23 @@ def _(rctx):
 # --- openai engine ---
 
 
-@given(parsers.parse('role josef on engine {engine} with model "{model}", voice "{voice}" and instructions "{instructions}"'))
+@given(parsers.parse('role tom on engine {engine} with model "{model}", voice "{voice}" and instructions "{instructions}"'))
 def _(rctx, monkeypatch, engine, model, voice, instructions):
-    rctx["roles"]["josef"] = {"engine": engine, "model": model, "voice": voice, "instructions": instructions}
+    rctx["roles"]["tom"] = {"engine": engine, "model": model, "voice": voice, "instructions": instructions}
     rctx["instructions"] = []
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
 
-@given(parsers.parse('a line of josef with text "{text}" followed by {n:d} sentences of {size:d} characters'))
+@given(parsers.parse('a line of tom with text "{text}" followed by {n:d} sentences of {size:d} characters'))
 def _(rctx, text, n, size):
     more = [sentence(size, "bcdefg"[i]) for i in range(n)]
-    line(rctx, "a", " ".join([text, *more]), role="josef")
+    line(rctx, "a", " ".join([text, *more]), role="tom")
     rctx["spoken"] = " ".join(["Nur noch kurz.", *more])
 
 
-@given(parsers.parse('a line of josef with text "{text}"'))
+@given(parsers.parse('a line of tom with text "{text}"'))
 def _(rctx, text):
-    line(rctx, "a", text, role="josef")
+    line(rctx, "a", text, role="tom")
 
 
 @given("no OPENAI_API_KEY")
@@ -354,7 +354,7 @@ def _(rctx):
 # --- voice test ---
 
 
-@given(parsers.parse('role anna with lines "{one}" and "{two}"'))
+@given(parsers.parse('role lena with lines "{one}" and "{two}"'))
 def _(rctx, one, two):
     line(rctx, "a", one)
     line(rctx, "b", two)
@@ -365,8 +365,8 @@ def _(rctx):
     render(rctx, "--test")
 
 
-@then(parsers.parse('work/voice-test/anna.mp3 exists and the engine received "{text}"'))
+@then(parsers.parse('work/voice-test/lena.mp3 exists and the engine received "{text}"'))
 def _(rctx, text):
-    assert (rctx["root"] / "work" / "voice-test" / "anna.mp3").is_file()
+    assert (rctx["root"] / "work" / "voice-test" / "lena.mp3").is_file()
     assert rctx["texts"] == [text]
     assert not audio_dir(rctx).exists() or not mp3s(rctx)

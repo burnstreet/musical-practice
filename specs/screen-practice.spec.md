@@ -240,7 +240,7 @@ Feature: Practice screen
     Given a pass with at least one entered note
     Then there is no "Auswertung" button
     When I press pause
-    Then the day history got one pass for "08" and [maria]
+    Then the day history got one pass for "08" and [clara]
     When I press "Auswertung"
     Then the route is "#/results/08"
 

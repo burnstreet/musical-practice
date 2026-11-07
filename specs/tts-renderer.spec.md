@@ -32,38 +32,38 @@ ENGINES: dict[str, Callable[[str, dict], tuple[np.ndarray, int]]]  # name -> syn
 ```gherkin
 Feature: OpenAI engine
   Scenario: line with direction, in one call
-    Given role josef on engine openai with model "m", voice "echo" and instructions "Sanft."
-    And a line of josef with text "[fleht] Nur noch kurz." followed by 4 sentences of 100 characters
+    Given role tom on engine openai with model "m", voice "echo" and instructions "Sanft."
+    And a line of tom with text "[fleht] Nur noch kurz." followed by 4 sentences of 100 characters
     When I render against a fake OpenAI answering 1 s of PCM
     Then OpenAI got one request with model "m", voice "echo", response format "pcm" and the spoken text
     And its instructions are "Sanft.\nRegie zu dieser Zeile: fleht"
     And the line has audio
 
   Scenario: no key stops the run
-    Given role josef on engine openai with model "m", voice "echo" and instructions "Sanft."
-    And a line of josef with text "Hallo."
+    Given role tom on engine openai with model "m", voice "echo" and instructions "Sanft."
+    And a line of tom with text "Hallo."
     And no OPENAI_API_KEY
     When I render
     Then the exit code is 1, the output names OPENAI_API_KEY, and nothing is rendered
 
 Feature: OpenAI Realtime engine
   Scenario: line with direction, in one session
-    Given role josef on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
-    And a line of josef with text "[fleht] Nur noch kurz." followed by 4 sentences of 100 characters
+    Given role tom on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
+    And a line of tom with text "[fleht] Nur noch kurz." followed by 4 sentences of 100 characters
     When I render against a fake Realtime that reads the text
     Then Realtime got one session for model "m" with voice "echo", audio output and the spoken text as user message
     And its instructions are "Sanft.\nRegie zu dieser Zeile: fleht"
     And the line has audio
 
   Scenario: case and punctuation do not matter
-    Given role josef on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
-    And a line of josef with text "„Hallo, Wirt!“"
-    When I render against a fake Realtime that says "hallo Wirt."
+    Given role tom on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
+    And a line of tom with text "„Hallo, Kioskfrau!“"
+    When I render against a fake Realtime that says "hallo Kioskfrau."
     Then Realtime got 1 sessions and the line has audio
 
   Scenario: changed words are spoken again, then fail
-    Given role josef on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
-    And a line of josef with text "Hallo Wirt."
+    Given role tom on engine openai-realtime with model "m", voice "echo" and instructions "Sanft."
+    And a line of tom with text "Hallo Kioskfrau."
     When I render against a fake Realtime that says "Hallo Welt."
     Then Realtime got 3 sessions, the run failed naming "Hallo Welt.", and the line has no audio
 ```
@@ -127,9 +127,9 @@ Feature: Rendering
     Then the engine received "Joh"
 
   Scenario: role without voice stops the run
-    Given a line of role anna and no voice for anna
+    Given a line of role lena and no voice for lena
     When I render
-    Then the exit code is 1, the output names anna, and nothing is rendered
+    Then the exit code is 1, the output names lena, and nothing is rendered
 
   Scenario: output format
     Given a line rendered by engine sine with 1 s of silence before and after
@@ -145,9 +145,9 @@ Feature: Rendering
 ```gherkin
 Feature: Voice test
   Scenario: two sentences per role
-    Given role anna with lines "Eins. Zwei. Drei." and "Vier."
+    Given role lena with lines "Eins. Zwei. Drei." and "Vier."
     When I run the voice test
-    Then work/voice-test/anna.mp3 exists and the engine received "Eins. Zwei."
+    Then work/voice-test/lena.mp3 exists and the engine received "Eins. Zwei."
 ```
 
 ## Setup and license

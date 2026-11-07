@@ -22,17 +22,17 @@ const note = (midi: number, start: number, end: number, role: Note['role'], phra
   dur: 1,
 })
 
-/** 16 bars of 2 s. Josef sings in phrase 0, Maria D5 then F5 in phrase 1. */
+/** 16 bars of 2 s. Tom sings in phrase 0, Clara D5 then F5 in phrase 1. */
 function fixture(): { meta: SongMeta; song: Song } {
   return {
-    meta: { id: '08', number: 8, title: '[Titel]', durationSec: 135, roles: ['josef', 'maria', 'esel'], files: { voices: 'v', backing: 'b', notes: 'n' } },
+    meta: { id: '08', number: 8, title: '[Titel]', durationSec: 135, roles: ['tom', 'clara', 'esel'], files: { voices: 'v', backing: 'b', notes: 'n' } },
     song: {
       id: '08',
       bpm: 93,
       key: 'F',
       timeSig: [4, 4],
       bars: Array.from({ length: 16 }, (_, i) => i * 2),
-      notes: [note(69, 1, 2, 'josef', 0), note(74, 8, 9.5, 'maria', 1, 'ge'), note(77, 10, 11, 'maria', 1)],
+      notes: [note(69, 1, 2, 'tom', 0), note(74, 8, 9.5, 'clara', 1, 'ge'), note(77, 10, 11, 'clara', 1)],
       phrases: [
         { index: 0, label: 'p0', start: 0, end: 3 },
         { index: 1, label: 'p1', start: 8, end: 11 },
@@ -48,7 +48,7 @@ function world(ctx: any) {
   document.body.innerHTML = ''
   localStorage.clear()
   history.replaceState(null, '', '#/practice/08')
-  settings.set({ roles: ['maria'] })
+  settings.set({ roles: ['clara'] })
   ctx.data = fixture()
   ctx.calls = [] as string[]
   ctx.time = 0
@@ -67,8 +67,8 @@ function world(ctx: any) {
     vault: {} as any,
     library: {
       roles: () => [
-        { id: 'josef', name: 'Josef', sings: true },
-        { id: 'maria', name: 'Maria', sings: true },
+        { id: 'tom', name: 'Tom', sings: true },
+        { id: 'clara', name: 'Clara', sings: true },
         { id: 'esel', name: 'Esel', sings: true },
       ],
       getSong: async (id: string) => ({ ...ctx.data, voices: new Blob(), backing: new Blob(), id }),
@@ -223,11 +223,11 @@ async function frame(ctx: any, f: Partial<PitchFrame>) {
 
 export default steps(({ Given, When, Then }) => {
   Given(/^my next note starts at ([\d.]+) in bars of 2 s$/, (ctx, start) => {
-    ctx.song = fixture().song // Maria D5 from 8.0, bars every 2 s
-    expect(ctx.song.notes.find((n: Note) => n.role === 'maria').start).toBe(+start)
+    ctx.song = fixture().song // Clara D5 from 8.0, bars every 2 s
+    expect(ctx.song.notes.find((n: Note) => n.role === 'clara').start).toBe(+start)
   })
   Then(/^at ([\d.]+)(?: at tempo (\d+))? the readout shows (?:"([^"]+)"|no countdown)$/, (ctx, t, tempo, text) => {
-    expect(entryCountdown(ctx.song, ['maria'], +t, +(tempo ?? 100))).toBe(text ?? '')
+    expect(entryCountdown(ctx.song, ['clara'], +t, +(tempo ?? 100))).toBe(text ?? '')
   })
 
   Given(/^song "(\w+)" loaded with key "(\w+)", bpm (\d+), title placeholder$/, (ctx, _id, key, bpm) => {
@@ -271,7 +271,7 @@ export default steps(({ Given, When, Then }) => {
     expect(settings.get().mode).toBe(m)
   })
 
-  // Readout: playhead inside Maria's D5 (8–9.5 s)
+  // Readout: playhead inside Clara's D5 (8–9.5 s)
   Given(/^target D5 and a sung frame (?:(\d+) cents above|at D4 plus (\d+) cents)$/, async (ctx, above, d4) => {
     await screen(ctx)
     await play(ctx) // playing: the readout goes by song time
@@ -453,7 +453,7 @@ export default steps(({ Given, When, Then }) => {
     expect(location.hash).toBe(route)
   })
   Given(/^my spoken note sounds at 12\.0$/, (ctx) => {
-    rap(ctx, 'maria')
+    rap(ctx, 'clara')
   })
   Then(/^at ([\d.]+) the readout shows "([^"]+)" and "([^"]+)"$/, async (ctx, t, big, s) => {
     await screen(ctx)
@@ -493,7 +493,7 @@ export default steps(({ Given, When, Then }) => {
   })
   When(/^I navigate back$/, (ctx) => press(ctx, 'Zurück zur Auswahl'))
   Then(/^history\.record was called with two passes and engine\.unload ran$/, (ctx) => {
-    expect(ctx.recorded).toMatchObject({ id: '08', roles: ['maria'] })
+    expect(ctx.recorded).toMatchObject({ id: '08', roles: ['clara'] })
     expect(ctx.recorded.passes).toHaveLength(2)
     expect(ctx.calls).toContain('unload')
     expect(ctx.calls).toContain('pitch.stop')
@@ -515,11 +515,11 @@ export default steps(({ Given, When, Then }) => {
       [22, 26],
       [28, 32],
     ].map(([start, end], index) => ({ index, label: `p${index}`, start, end }))
-    ctx.data.song.notes.push(note(74, 30, 31, 'maria', 5)) // a later own span to skip to
+    ctx.data.song.notes.push(note(74, 30, 31, 'clara', 5)) // a later own span to skip to
   }
   const ownSpans = (ctx: any, spans: [number, number][]) => {
     ctx.data.song.bars = Array.from({ length: 30 }, (_, i) => i * 2)
-    ctx.data.song.notes = spans.map(([s, e], i) => note(74, s, e, 'maria', i))
+    ctx.data.song.notes = spans.map(([s, e], i) => note(74, s, e, 'clara', i))
   }
   const at = async (ctx: any, t: number) => {
     await screen(ctx)
@@ -629,7 +629,7 @@ export default steps(({ Given, When, Then }) => {
   Then(/^only the chip "(\w+)" is active and the repeat range is that span's range$/, (ctx, label) => {
     const on = [...ctx.el.shadowRoot!.querySelectorAll('.chip[aria-pressed="true"]')]
     expect(on).toEqual([chip(ctx, label)])
-    expect(ctx.loop).toMatchObject({ start: 8, end: 11, leadIn: true }) // Maria's notes 8–9.5 and 10–11 merge
+    expect(ctx.loop).toMatchObject({ start: 8, end: 11, leadIn: true }) // Clara's notes 8–9.5 and 10–11 merge
   })
   Then(/^the repeat range is still the range of phrase (\d+)$/, (ctx, i) => {
     const p = ctx.data.song.phrases[+i]
@@ -770,7 +770,7 @@ export default steps(({ Given, When, Then }) => {
     ownSpans(ctx, pairs(list))
   })
   Then(/^the own spans are (\[.+\])$/, (ctx, list) => {
-    expect(mergedSpans(ctx.data.song, ['maria']).map((s) => [s.start, s.end])).toEqual(pairs(list))
+    expect(mergedSpans(ctx.data.song, ['clara']).map((s) => [s.start, s.end])).toEqual(pairs(list))
   })
   Then(/^"(Zum nächsten Einsatz)" from ([\d.]+) has no target$/, async (ctx, label, t) => {
     await at(ctx, +t)
@@ -811,7 +811,7 @@ export default steps(({ Given, When, Then }) => {
     [...ctx.el.shadowRoot!.querySelectorAll('button')].find((b: HTMLElement) => b.textContent!.trim() === 'Intro überspringen') as HTMLElement | undefined
   Given(/^the first sung note of any role starts at ([\d.]+)(?: and bars every 2 s)?$/, (ctx, t) => {
     world(ctx)
-    ctx.data.song.notes = [note(69, +t, +t + 1, 'josef', 0), note(74, +t + 2, +t + 3, 'maria', 0)] // not mine first: any role counts
+    ctx.data.song.notes = [note(69, +t, +t + 1, 'tom', 0), note(74, +t + 2, +t + 3, 'clara', 0)] // not mine first: any role counts
   })
   Then(/^the button "Intro überspringen" is visible$/, (ctx) => expect(intro(ctx)).toBeDefined())
   When(/^I press it$/, (ctx) => tap(ctx, intro(ctx)!))

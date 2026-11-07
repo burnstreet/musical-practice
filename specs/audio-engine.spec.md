@@ -58,13 +58,13 @@ export interface AudioEngine {
 ```gherkin
 Feature: Muting by role
   Scenario: others mode mutes my spans
-    Given a song with maria notes at [1.0,2.0] and josef notes at [3.0,4.0], roles [maria], mode others
+    Given a song with clara notes at [1.0,2.0] and tom notes at [3.0,4.0], roles [clara], mode others
     When playback runs from 0 to 5
     Then voices gain is 1 at 0.5, 0 at 1.5, 1 at 3.5
     And the ramp to 0 starts at 0.85 and ends by 0.88
 
   Scenario: all mode never mutes
-    Given the same song, roles [maria], mode all
+    Given the same song, roles [clara], mode all
     When playback runs from 0 to 5
     Then voices gain is 1 throughout
 

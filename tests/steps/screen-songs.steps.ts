@@ -73,16 +73,16 @@ const button = (ctx: any, name: string) =>
   [...ctx.el.shadowRoot.querySelectorAll('button, label')].find((b: any) => b.textContent.trim() === name) as HTMLElement
 
 export default steps(({ Given, When, Then }) => {
-  Given(/^roles maria \(sings\) and esel \(not sings\)$/, (ctx) => {
+  Given(/^roles clara \(sings\) and esel \(not sings\)$/, (ctx) => {
     fake(ctx)
     ctx.roles = [
-      { id: 'maria', name: 'Maria', sings: true },
+      { id: 'clara', name: 'Clara', sings: true },
       { id: 'esel', name: 'Esel', sings: false },
     ]
   })
   Given(/^song "(\d+)" with roles \[(.*)\] and song "(\d+)" with roles \[(.*)\]$/, (ctx, a, ra, b, rb) => {
     fake(ctx)
-    ctx.roles = ['maria', 'chor', 'josef'].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), sings: true }))
+    ctx.roles = ['clara', 'chor', 'tom'].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), sings: true }))
     const ids = (s: string) => s.split(',').map((x) => x.trim())
     ctx.songs = [meta(b, ids(rb)), meta(a, ids(ra))]
   })
@@ -137,7 +137,7 @@ export default steps(({ Given, When, Then }) => {
   Then(/^row (\d+) shows the marker and row (\d+) does not$/, (ctx, a, b) => {
     expect(row(ctx, a).querySelector('.dot')).toBeTruthy()
     expect(row(ctx, b).querySelector('.dot')).toBeNull()
-    expect(settings.get().roles).toEqual(['maria'])
+    expect(settings.get().roles).toEqual(['clara'])
   })
   Then(/^row (\d+) shows "([^"]+)"$/, (ctx, n, t) => {
     expect(row(ctx, n).textContent).toContain(t)

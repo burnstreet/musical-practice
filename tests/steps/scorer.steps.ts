@@ -10,7 +10,7 @@ const note = (start: number, end: number, midi: number, o: Partial<Note> = {}): 
   end,
   midi,
   syllable: 'la',
-  role: 'maria' as RoleId,
+  role: 'clara' as RoleId,
   phrase: 0,
   bar: 0,
   beat: 0,
@@ -57,7 +57,7 @@ const STATS = [
 ]
 const statsSong = (ctx: any) => {
   ctx.song = song([{ phrase: 0 }, { phrase: 0 }, { phrase: 1 }, { phrase: 1 }])
-  ctx.roles = ['maria']
+  ctx.roles = ['clara']
   ctx.byNote = new Map()
 }
 const statsFrames = (ctx: any) =>
@@ -100,7 +100,7 @@ export default steps(({ Given, When, Then }) => {
   When(/^I score the note with tolerance (\d+)$/, (ctx, tol) => {
     ctx.result = scoreNote(ctx.note, ctx.frames, +tol as Tolerance)
   })
-  Given(/^a song with 4 maria notes in phrases 0,0,1,1 and roles \[maria\]$/, statsSong)
+  Given(/^a song with 4 clara notes in phrases 0,0,1,1 and roles \[clara\]$/, statsSong)
   Given(/^frames giving note cents 10, -10, -60, -40 with 6 frames each$/, statsFrames)
   When(/^I score the pass with tolerance (\d+)$/, (ctx, tol) => pass(ctx, +tol))
   When(/^I score the pass$/, (ctx) => pass(ctx))
@@ -123,10 +123,10 @@ export default steps(({ Given, When, Then }) => {
     expect(s.meanCents).toBeCloseTo(+c, 6)
   })
 
-  Given(/^maria notes (.*), one quarter each, all entered$/, (ctx, list) => {
+  Given(/^clara notes (.*), one quarter each, all entered$/, (ctx, list) => {
     const notes = [...list.matchAll(/\[([\d.]+),([\d.]+)\](?: in phrase (\d+))?/g)].map(([, a, b, p]) => note(+a, +b, 67, { phrase: +(p ?? 0) }))
     ctx.song = { ...song([{}]), notes, phrases: [0, 1].map((index) => ({ index, label: '', start: 0, end: 0 })) }
-    ctx.roles = ['maria']
+    ctx.roles = ['clara']
     ctx.byNote = new Map(notes.map((n, i) => [i, sing(n, [0, 0, 0])]))
   })
   Then(/^notes (\d+) and (\d+) are entries(?: and note (\d+) is not)?$/, (ctx, a, b, not) => {
@@ -137,7 +137,7 @@ export default steps(({ Given, When, Then }) => {
   Given(/^entry note \[4.0,5.0\] midi 67 with (.*)$/, (ctx, how) => {
     const n = note(4, 5, 67)
     ctx.song = { ...song([{}]), notes: [n] }
-    ctx.roles = ['maria']
+    ctx.roles = ['clara']
     const f =
       how === 'frames at 67 from 4.02'
         ? frames(times(50, 67), 4.02, 5)
@@ -168,7 +168,7 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^a pass where phrase 0 has cents near 0 and 2 of 4 notes unsung, first unsung syllable "(.*)"$/, (ctx, syl) => {
     ctx.song = song([{}, { syllable: syl }, {}, {}])
-    ctx.roles = ['maria']
+    ctx.roles = ['clara']
     ctx.byNote = new Map()
     enter(ctx, 0, [2, 2, 2])
     enter(ctx, 1)
@@ -180,12 +180,12 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.result.tip).toBe(tip)
   })
 
-  Given(/^a song with maria and josef notes and roles \[maria\]$/, (ctx) => {
-    ctx.song = song([{}, { role: 'josef' }, {}, { role: 'josef' }])
-    ctx.roles = ['maria']
+  Given(/^a song with clara and tom notes and roles \[clara\]$/, (ctx) => {
+    ctx.song = song([{}, { role: 'tom' }, {}, { role: 'tom' }])
+    ctx.roles = ['clara']
     ctx.byNote = new Map()
   })
-  Given(/^frames inside josef notes only$/, (ctx) => {
+  Given(/^frames inside tom notes only$/, (ctx) => {
     ;[0, 2].forEach((i) => {
       enter(ctx, i)
     })
@@ -193,21 +193,21 @@ export default steps(({ Given, When, Then }) => {
       enter(ctx, i, [0, 0, 0])
     })
   })
-  Then(/^scoredNotes counts only entered maria notes and josef frames change nothing$/, (ctx) => {
+  Then(/^scoredNotes counts only entered clara notes and tom frames change nothing$/, (ctx) => {
     expect(ctx.result.scoredNotes).toBe(2)
     expect(ctx.result).toMatchObject({ hits: 0, meanCents: null, rangeMidi: null })
-    const mariaOnly = new Map<number, PitchFrame[]>([...ctx.byNote].filter(([i]) => i % 2 === 0))
-    expect(ctx.result).toEqual(scorePass(ctx.song, ctx.roles, mariaOnly, 50))
+    const claraOnly = new Map<number, PitchFrame[]>([...ctx.byNote].filter(([i]) => i % 2 === 0))
+    expect(ctx.result).toEqual(scorePass(ctx.song, ctx.roles, claraOnly, 50))
   })
-  Given(/^a song with 10 maria notes and only notes 1-4 entered$/, (ctx) => {
+  Given(/^a song with 10 clara notes and only notes 1-4 entered$/, (ctx) => {
     ctx.song = song(Array(10).fill({}))
-    ctx.roles = ['maria']
+    ctx.roles = ['clara']
     ctx.byNote = new Map()
     for (const i of [0, 1, 2, 3]) enter(ctx, i)
   })
   Given(/^target midi 67 and frames at midi 55 and 57$/, (ctx) => {
     ctx.song = song([{}])
-    ctx.roles = ['maria']
+    ctx.roles = ['clara']
     ctx.byNote = new Map([[0, frames([55, 57])]])
   })
   Then(/^rangeMidi is \[(\d+), (\d+)\]$/, (ctx, lo, hi) => {
@@ -215,7 +215,7 @@ export default steps(({ Given, When, Then }) => {
   })
 
   Given(/^a session with note 0 \[1.0,2.0\] midi 67$/, (ctx) => {
-    ctx.session = new Session(song([{}]), ['maria'], 50)
+    ctx.session = new Session(song([{}]), ['clara'], 50)
   })
   When(/^I start a pass, enter note 0, feed frames at 60, enter note 0 again, feed frames at 67, end the pass$/, (ctx) => {
     const s: Session = ctx.session
@@ -251,7 +251,7 @@ export default steps(({ Given, When, Then }) => {
 
   Given(/^a session$/, (ctx) => {
     ctx.song = song(Array(5).fill({}))
-    ctx.session = new Session(ctx.song, ['maria'], 50)
+    ctx.session = new Session(ctx.song, ['clara'], 50)
   })
   When(/^I complete passes with hitPct (.*)$/, (ctx, list) => {
     const s: Session = ctx.session
@@ -280,10 +280,10 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.session.passes()).toEqual([])
   })
 
-  Given(/^a session for roles \[maria, josef\] with maria and josef both on note \[1.0,2.0\] midi 67$/, (ctx) => {
-    const s = song([{}, { role: 'josef' }])
-    s.notes[1] = { ...s.notes[0], role: 'josef' } // song() spaces notes; put the josef copy on the maria note
-    ctx.session = new Session(s, ['maria', 'josef'], 50)
+  Given(/^a session for roles \[clara, tom\] with clara and tom both on note \[1.0,2.0\] midi 67$/, (ctx) => {
+    const s = song([{}, { role: 'tom' }])
+    s.notes[1] = { ...s.notes[0], role: 'tom' } // song() spaces notes; put the tom copy on the clara note
+    ctx.session = new Session(s, ['clara', 'tom'], 50)
   })
   When(/^I start a pass, enter both copies, feed frames at 67, end the pass$/, (ctx) => {
     const s: Session = ctx.session
@@ -300,10 +300,10 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.session.myNotes()).toHaveLength(+m)
   })
 
-  Given(/^a session for roles \[maria\] with a sung note and a spoken note$/, (ctx) => {
+  Given(/^a session for roles \[clara\] with a sung note and a spoken note$/, (ctx) => {
     ctx.song = song([{}, {}])
     ctx.song.notes[1].spoken = true
-    ctx.session = new Session(ctx.song, ['maria'], 50)
+    ctx.session = new Session(ctx.song, ['clara'], 50)
   })
   When(/^I start a pass, enter both notes, feed frames inside both, end the pass$/, (ctx) => {
     const s: Session = ctx.session
@@ -316,20 +316,20 @@ export default steps(({ Given, When, Then }) => {
     })
     ctx.result = s.endPass()
   })
-  Given(/^a session for roles \[maria\] with note 0 \[1.0,2.0\] tied to note 1 \[3.0,4.0\]$/, (ctx) => {
+  Given(/^a session for roles \[clara\] with note 0 \[1.0,2.0\] tied to note 1 \[3.0,4.0\]$/, (ctx) => {
     ctx.song = song([{}, {}])
     ctx.song.notes[0].tie = true
-    ctx.session = new Session(ctx.song, ['maria'], 50)
+    ctx.session = new Session(ctx.song, ['clara'], 50)
   })
   Then(/^the scored note spans (\d+) to (\d+)$/, (ctx, a, b) => {
     expect([ctx.result.notes[0].note.start, ctx.result.notes[0].note.end]).toEqual([+a, +b])
   })
-  Given(/^a spoken maria note \[1.0,2.0\] and a frame at 1.5$/, (ctx) => {
+  Given(/^a spoken clara note \[1.0,2.0\] and a frame at 1.5$/, (ctx) => {
     ctx.song = song([{}])
     ctx.song.notes[0].spoken = true
     ctx.frames = frames([67], 1.5, 1.5)
   })
-  Given(/^a maria note \[1.0,3.0\] midi 67 and frames at (-?\d+), (-?\d+) and (-?\d+) cents from 1.0 to 2.8$/, (ctx, a, b, c) => {
+  Given(/^a clara note \[1.0,3.0\] midi 67 and frames at (-?\d+), (-?\d+) and (-?\d+) cents from 1.0 to 2.8$/, (ctx, a, b, c) => {
     ctx.song = song([{}])
     ctx.song.notes[0].end = 3
     ctx.frames = frames(
@@ -338,8 +338,8 @@ export default steps(({ Given, When, Then }) => {
       2.8,
     )
   })
-  When(/^I take the live deviation at ([\d.]+) for \[maria\]$/, (ctx, t) => {
-    ctx.result = liveDeviation(ctx.song, ['maria'], +t, ctx.frames)
+  When(/^I take the live deviation at ([\d.]+) for \[clara\]$/, (ctx, t) => {
+    ctx.result = liveDeviation(ctx.song, ['clara'], +t, ctx.frames)
   })
   Then(/^there is no live deviation$/, (ctx) => {
     expect(ctx.result).toBeNull()

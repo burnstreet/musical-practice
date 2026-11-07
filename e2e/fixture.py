@@ -45,14 +45,14 @@ def sine_mp3(path, secs, freq):
     )
 
 
-# 18 notes on A4, 1 s apart from 1 s; maria sings the first 12, chor the rest. 3 phrases.
+# 18 notes on A4, 1 s apart from 1 s; clara sings the first 12, chor the rest. 3 phrases.
 notes = [
     {
         "start": 1.0 + i,
         "end": 1.9 + i,
         "midi": 69,
         "lyric": "la",
-        "role": "maria" if i < 12 else "chor",
+        "role": "clara" if i < 12 else "chor",
         "phrase": i // 6,
         "bar": i // 4,
         "beat": float(i % 4),
@@ -63,7 +63,7 @@ notes = [
 (data / "90.json").write_text(json.dumps({"notes": notes}), encoding="utf-8")
 sine_mp3(data / "90_mix.mp3", 20, 330)
 sine_mp3(data / "90_playback.mp3", 20, 220)
-roles = [{"id": "maria", "name": "Maria", "sings": True}, {"id": "chor", "name": "Chor", "sings": True}]
+roles = [{"id": "clara", "name": "Clara", "sings": True}, {"id": "chor", "name": "Chor", "sings": True}]
 song = {"id": "90", "number": 90, "title": "E2E Testlied", "backing": "playback", "bpm": 60, "key": "A", "playbackOffsetSec": 0.0}
 (work / "sources" / "config.json").write_text(json.dumps({"roles": roles, "songs": [song]}), encoding="utf-8")
 

@@ -16,8 +16,8 @@ const manifest = (o: object = {}) => ({
   ...o,
 })
 const files = { voices: '0000000000000001', backing: '0000000000000002', notes: '0000000000000003' }
-const song = (id: string, number: number, roles = ['maria']) => ({ id, number, title: 't', durationSec: 10, roles, files })
-const note = (start: number, end: number, role = 'maria', phrase = 0) => ({ start, end, midi: 60, syllable: 'la', role, phrase, bar: 0, beat: 0, dur: 1 })
+const song = (id: string, number: number, roles = ['clara']) => ({ id, number, title: 't', durationSec: 10, roles, files })
+const note = (start: number, end: number, role = 'clara', phrase = 0) => ({ start, end, midi: 60, syllable: 'la', role, phrase, bar: 0, beat: 0, dur: 1 })
 const songJson = (notes: object[], phrases = [{ index: 0, label: 'p', start: 0, end: 1 }], extra: object = {}) => ({
   id: '08',
   bpm: 90,
@@ -64,18 +64,18 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.error.field).toBe(field)
   })
 
-  Given(/^a library JSON with roles \[maria\] and a song with roles \[maria, ghost\]$/, (ctx) => {
-    ctx.json = { roles: [{ id: 'maria', name: 'Maria', sings: true }], songs: [song('01', 1, ['maria', 'ghost'])] }
+  Given(/^a library JSON with roles \[clara\] and a song with roles \[clara, ghost\]$/, (ctx) => {
+    ctx.json = { roles: [{ id: 'clara', name: 'Clara', sings: true }], songs: [song('01', 1, ['clara', 'ghost'])] }
   })
-  Given(/^a library JSON with roles \[onkel\] and a song with roles \[onkel\]$/, (ctx) => {
-    ctx.json = { roles: [{ id: 'onkel', name: 'Onkel', sings: true }], songs: [song('06', 6, ['onkel'])] }
+  Given(/^a library JSON with roles \[schaffner\] and a song with roles \[schaffner\]$/, (ctx) => {
+    ctx.json = { roles: [{ id: 'schaffner', name: 'Schaffner', sings: true }], songs: [song('06', 6, ['schaffner'])] }
   })
-  Then(/^the library has role onkel$/, (ctx) => {
+  Then(/^the library has role schaffner$/, (ctx) => {
     expect(ctx.error).toBeUndefined()
-    expect(ctx.result.roles.map((r: any) => r.id)).toEqual(['onkel'])
+    expect(ctx.result.roles.map((r: any) => r.id)).toEqual(['schaffner'])
   })
   Given(/^a library JSON with songs numbered 3, 1, 2$/, (ctx) => {
-    ctx.json = { roles: [{ id: 'maria', name: 'Maria', sings: true }], songs: [song('c', 3), song('a', 1), song('b', 2)] }
+    ctx.json = { roles: [{ id: 'clara', name: 'Clara', sings: true }], songs: [song('c', 3), song('a', 1), song('b', 2)] }
   })
   When(/^I parse it as a library$/, (ctx) => attempt(ctx, () => parseLibrary(ctx.json)))
   Then(/^song ids come back in order of number 1, 2, 3$/, (ctx) => {
@@ -86,7 +86,7 @@ export default steps(({ Given, When, Then }) => {
     ctx.json = songJson([note(2, 3), note(1, 1.5)])
   })
   Given(/^a song JSON with one phrase and a note with phrase 3$/, (ctx) => {
-    ctx.json = songJson([note(1, 2, 'maria', 3)])
+    ctx.json = songJson([note(1, 2, 'clara', 3)])
   })
   Given(/^a song JSON with a note marked spoken (.*)$/, (ctx, v) => {
     ctx.json = songJson([{ ...note(1, 2), spoken: JSON.parse(v) }])
@@ -120,11 +120,11 @@ export default steps(({ Given, When, Then }) => {
   })
   When(/^I parse it as a song$/, (ctx) => attempt(ctx, () => parseSong(ctx.json)))
 
-  Given(/^notes for role maria at (.*) and a note for josef at (.*)$/, (ctx, a, b) => {
-    ctx.notes = [...pairs(a).map((p) => note(p.start, p.end)), ...pairs(b).map((p) => note(p.start, p.end, 'josef'))]
+  Given(/^notes for role clara at (.*) and a note for tom at (.*)$/, (ctx, a, b) => {
+    ctx.notes = [...pairs(a).map((p) => note(p.start, p.end)), ...pairs(b).map((p) => note(p.start, p.end, 'tom'))]
   })
-  Given(/^notes for role maria at (.*) and for josef at (.*)$/, (ctx, a, b) => {
-    ctx.notes = [...pairs(a).map((p) => note(p.start, p.end)), ...pairs(b).map((p) => note(p.start, p.end, 'josef'))]
+  Given(/^notes for role clara at (.*) and for tom at (.*)$/, (ctx, a, b) => {
+    ctx.notes = [...pairs(a).map((p) => note(p.start, p.end)), ...pairs(b).map((p) => note(p.start, p.end, 'tom'))]
   })
   When(/^I compute role spans for \[(.*)\]$/, (ctx, r) => {
     ctx.result = roleSpans(ctx.notes, r.split(',').map((s: string) => s.trim()) as RoleId[])
@@ -133,7 +133,7 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.result).toEqual(pairs(s))
   })
 
-  // "maria 67 at [1.0,2.0], josef 64 at [3.0,4.0]" -> role, midi, start, end
+  // "clara 67 at [1.0,2.0], tom 64 at [3.0,4.0]" -> role, midi, start, end
   const voiced = (s: string) =>
     [...s.matchAll(/(\w+) (\d+) at \[([\d.]+),([\d.]+)\]/g)].map(([, role, midi, a, b]) => ({ role, midi: +midi, start: +a, end: +b }))
   Given(/^notes (.* at \[.*)$/, (ctx, s) => {
@@ -147,7 +147,7 @@ export default steps(({ Given, When, Then }) => {
   })
 
   const scriptLib = (extra: object = {}, role: object = { sings: true }) => ({
-    roles: [{ id: 'maria', name: 'Maria', ...role }],
+    roles: [{ id: 'clara', name: 'Clara', ...role }],
     songs: [],
     ...extra,
   })
@@ -157,7 +157,7 @@ export default steps(({ Given, When, Then }) => {
   Given(/^a library JSON without a script field$/, (ctx) => {
     ctx.json = scriptLib()
   })
-  Given(/^a library JSON with role maria without speaks$/, (ctx) => {
+  Given(/^a library JSON with role clara without speaks$/, (ctx) => {
     ctx.json = scriptLib()
   })
   Then(/^library.script.file is "(.*)"$/, (ctx, file) => {
@@ -168,11 +168,11 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.error).toBeUndefined()
     expect(ctx.result.script).toBeUndefined()
   })
-  Then(/^role maria has speaks false$/, (ctx) => {
+  Then(/^role clara has speaks false$/, (ctx) => {
     expect(ctx.result.roles[0].speaks).toBe(false)
   })
-  Given(/^a script JSON with a line of erzaehler1 without audio$/, (ctx) => {
-    ctx.json = { scenes: [{ id: 's1', title: '', items: [{ id: 'p0x2', type: 'line', role: 'erzaehler1', text: 'Es schneit.' }] }] }
+  Given(/^a script JSON with a line of erzaehler without audio$/, (ctx) => {
+    ctx.json = { scenes: [{ id: 's1', title: '', items: [{ id: 'p0x2', type: 'line', role: 'erzaehler', text: 'Es schneit.' }] }] }
   })
-  When(/^I parse it as a script$/, (ctx) => attempt(ctx, () => parseScript(ctx.json, [{ id: 'erzaehler1', name: 'Erzähler 1', sings: false, speaks: true }])))
+  When(/^I parse it as a script$/, (ctx) => attempt(ctx, () => parseScript(ctx.json, [{ id: 'erzaehler', name: 'Erzähler', sings: false, speaks: true }])))
 })

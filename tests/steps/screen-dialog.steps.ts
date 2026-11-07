@@ -10,8 +10,8 @@ import '../../src/app/screens/run'
 import '../../src/app/settings-sheet'
 
 const ROLES = [
-  { id: 'anna', name: 'Anna', sings: true, speaks: true },
-  { id: 'mutter', name: 'Mutter', sings: true, speaks: true },
+  { id: 'lena', name: 'Lena', sings: true, speaks: true },
+  { id: 'vater', name: 'Vater', sings: true, speaks: true },
 ]
 const line = (id: string, role: string, text: string): ScriptItem => ({ id, type: 'line', role, text, audio: '0000000000000000' })
 const scene = (id: string, items: ScriptItem[]) => ({ id, title: `Titel ${id}`, items })
@@ -23,7 +23,7 @@ function fake(ctx: any) {
   localStorage.clear()
   ctx.roles = ROLES
   ctx.songs = []
-  ctx.script = { scenes: [scene('s1', [line('l001', 'mutter', 'Hallo.')])] } as Script
+  ctx.script = { scenes: [scene('s1', [line('l001', 'vater', 'Hallo.')])] } as Script
   ctx.hasScript = true
   ctx.routed = [] as string[]
   ctx.now = 0
@@ -107,11 +107,11 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ids ? ids.split(',').map((s) => s.trim()) : [] })
   })
-  Given(/^roles maria \(sings\), erzaehler1 \(speaks\) and esel \(neither\)$/, (ctx) => {
+  Given(/^roles clara \(sings\), erzaehler \(speaks\) and esel \(neither\)$/, (ctx) => {
     fake(ctx)
     ctx.roles = [
-      { id: 'maria', name: 'Maria', sings: true, speaks: false },
-      { id: 'erzaehler1', name: 'Erzähler 1', sings: false, speaks: true },
+      { id: 'clara', name: 'Clara', sings: true, speaks: false },
+      { id: 'erzaehler', name: 'Erzähler', sings: false, speaks: true },
       { id: 'esel', name: 'Esel', sings: false, speaks: false },
     ]
   })
@@ -130,7 +130,7 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^it shows "([^"]+)" and the role chips, and no "([^"]+)"$/, (ctx, none, done) => {
     expect(text(ctx)).toContain(none)
-    expect(chipNames(ctx)).toEqual(['Anna', 'Mutter'])
+    expect(chipNames(ctx)).toEqual(['Lena', 'Vater'])
     expect(text(ctx)).not.toContain(done)
   })
   Then(/^chips "([^"]+)" and "([^"]+)" exist and no chip "([^"]+)"$/, (ctx, a, b, no) => {
@@ -141,18 +141,18 @@ export default steps(({ Given, When, Then }) => {
   // Scene selection
   Given(/^a stored position (s\d+) for role set \[(.*)\]$/, (ctx, sceneId, ids) => {
     fake(ctx)
-    ctx.script = { scenes: ['s1', 's2', 's3', 's4'].map((id) => scene(id, [line(`${id}aa`, 'mutter', 'Hallo.')])) }
+    ctx.script = { scenes: ['s1', 's2', 's3', 's4'].map((id) => scene(id, [line(`${id}aa`, 'vater', 'Hallo.')])) }
     settings.set({ roles: ids.split(','), dialogPositions: { [ids]: { sceneId, itemId: `${sceneId}aa`, at: Date.now() } } })
   })
   When(/^the text screen renders$/, (ctx) => mount(ctx, 'gu-text'))
   Then(/^"([^"]+)" is visible$/, (ctx, t) => {
     expect(text(ctx)).toContain(t)
   })
-  Given(/^scene s2 with (\d+) lines of anna and roles \[anna\]$/, (ctx, n) => {
+  Given(/^scene s2 with (\d+) lines of lena and roles \[lena\]$/, (ctx, n) => {
     fake(ctx)
-    const mine = Array.from({ length: +n }, (_, i) => line(`a00${i}`, 'anna', 'Ja.'))
-    ctx.script = { scenes: [scene('s1', [line('m001', 'mutter', 'Hallo.')]), scene('s2', [line('m002', 'mutter', 'Na?'), ...mine])] }
-    settings.set({ roles: ['anna'] })
+    const mine = Array.from({ length: +n }, (_, i) => line(`a00${i}`, 'lena', 'Ja.'))
+    ctx.script = { scenes: [scene('s1', [line('m001', 'vater', 'Hallo.')]), scene('s2', [line('m002', 'vater', 'Na?'), ...mine])] }
+    settings.set({ roles: ['lena'] })
   })
   Then(/^row (\d+) shows "([^"]+)"$/, async (ctx, n, t) => {
     await mount(ctx, 'gu-text')
@@ -171,10 +171,10 @@ export default steps(({ Given, When, Then }) => {
   })
 
   // Run-through
-  Given(/^the cue state playing line of mutter "([^"]+)"$/, async (ctx, t) => {
+  Given(/^the cue state playing line of vater "([^"]+)"$/, async (ctx, t) => {
     fake(ctx)
-    settings.set({ roles: ['anna'] })
-    ctx.script = { scenes: [scene('s1', [line('m001', 'mutter', t), line('a001', 'anna', 'Ja.')])] }
+    settings.set({ roles: ['lena'] })
+    ctx.script = { scenes: [scene('s1', [line('m001', 'vater', t), line('a001', 'lena', 'Ja.')])] }
     await run(ctx)
     expect(ctx.el.dialog.cue.state).toBe('playing')
   })
@@ -189,12 +189,12 @@ export default steps(({ Given, When, Then }) => {
     const em = all(ctx).find((e) => e.matches('.current .inl'))
     expect(em?.textContent).toBe(dir)
   })
-  Given(/^roles \[anna\] and scene s1 with directions "([^"]+)", "([^"]+)", "([^"]+)" and a line of mutter$/, (ctx, a, b, c) => {
+  Given(/^roles \[lena\] and scene s1 with directions "([^"]+)", "([^"]+)", "([^"]+)" and a line of vater$/, (ctx, a, b, c) => {
     fake(ctx)
-    settings.set({ roles: ['anna'] })
+    settings.set({ roles: ['lena'] })
     ctx.dirs = { [a]: 'd001', [b]: 'd002', [c]: 'd003' }
     ctx.script = {
-      scenes: [scene('s1', [...[a, b, c].map((text, i): ScriptItem => ({ id: `d00${i + 1}`, type: 'direction', text })), line('m001', 'mutter', 'Hallo.')])],
+      scenes: [scene('s1', [...[a, b, c].map((text, i): ScriptItem => ({ id: `d00${i + 1}`, type: 'direction', text })), line('m001', 'vater', 'Hallo.')])],
     }
   })
   When(/^the run-through starts at "([^"]+)"$/, (ctx, t) => run(ctx, ctx.dirs[t]))
@@ -213,11 +213,11 @@ export default steps(({ Given, When, Then }) => {
     expect(dir(no1).classList.contains('me')).toBe(false)
     expect(dir(no2).classList.contains('me')).toBe(false)
   })
-  Given(/^roles \[anna\] and scene s1 with a line of mutter, two lines of anna and a line of mutter$/, (ctx) => {
+  Given(/^roles \[lena\] and scene s1 with a line of vater, two lines of lena and a line of vater$/, (ctx) => {
     fake(ctx)
-    settings.set({ roles: ['anna'] })
+    settings.set({ roles: ['lena'] })
     ctx.script = {
-      scenes: [scene('s1', [line('m001', 'mutter', 'Na?'), line('a001', 'anna', 'Ja.'), line('a002', 'anna', 'Gut.'), line('m002', 'mutter', 'Schön.')])],
+      scenes: [scene('s1', [line('m001', 'vater', 'Na?'), line('a001', 'lena', 'Ja.'), line('a002', 'lena', 'Gut.'), line('m002', 'vater', 'Schön.')])],
     }
   })
   When(/^the run-through starts at the last line$/, (ctx) => run(ctx, 'm002'))
@@ -240,8 +240,8 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^settings\.dialog\.hint "(\w+)" and the cue state waiting with my line "([^"]+)"$/, async (ctx, hint, t) => {
     fake(ctx)
-    settings.set({ roles: ['anna'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })
-    ctx.script = { scenes: [scene('s1', [line('a001', 'anna', t), line('m001', 'mutter', 'Gut.')])] }
+    settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })
+    ctx.script = { scenes: [scene('s1', [line('a001', 'lena', t), line('m001', 'vater', 'Gut.')])] }
     ctx.full = t
     await run(ctx)
   })
@@ -262,8 +262,8 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^the cue state waiting$/, async (ctx) => {
     fake(ctx)
-    settings.set({ roles: ['anna'] })
-    ctx.script = { scenes: [scene('s1', [line('a001', 'anna', 'Ich komme.'), line('m001', 'mutter', 'Gut.')])] }
+    settings.set({ roles: ['lena'] })
+    ctx.script = { scenes: [scene('s1', [line('a001', 'lena', 'Ich komme.'), line('m001', 'vater', 'Gut.')])] }
     await run(ctx)
     expect(ctx.el.dialog.cue.state).toBe('waiting')
   })
@@ -273,8 +273,8 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^the cue effect missed$/, async (ctx) => {
     fake(ctx)
-    settings.set({ roles: ['anna'] })
-    ctx.script = { scenes: [scene('s1', [line('a001', 'anna', 'Ich komme.'), line('m001', 'mutter', 'Gut.')])] }
+    settings.set({ roles: ['lena'] })
+    ctx.script = { scenes: [scene('s1', [line('a001', 'lena', 'Ich komme.'), line('m001', 'vater', 'Gut.')])] }
     await run(ctx)
     ctx.now = 20000
     ctx.tick()
@@ -286,9 +286,9 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^the cue state song with song "(\d+)"$/, async (ctx, id) => {
     fake(ctx)
-    settings.set({ roles: ['anna'] })
-    ctx.songs = [{ id, number: +id, title: 'Schneelied', durationSec: 60, roles: ['anna'], files: {} }]
-    ctx.script = { scenes: [scene('s1', [line('m001', 'mutter', 'Hör mal.'), { id: 'g001', type: 'song', songId: id }, line('m002', 'mutter', 'Schön.')])] }
+    settings.set({ roles: ['lena'] })
+    ctx.songs = [{ id, number: +id, title: 'Schneelied', durationSec: 60, roles: ['lena'], files: {} }]
+    ctx.script = { scenes: [scene('s1', [line('m001', 'vater', 'Hör mal.'), { id: 'g001', type: 'song', songId: id }, line('m002', 'vater', 'Schön.')])] }
     await run(ctx, 'g001')
     expect(ctx.el.dialog.cue.state).toBe('song')
   })

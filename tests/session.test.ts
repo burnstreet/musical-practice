@@ -9,20 +9,20 @@ const song: Song = {
   key: 'F',
   timeSig: [4, 4],
   bars: [0],
-  notes: [note(1, 'maria'), note(3, 'josef')],
+  notes: [note(1, 'clara'), note(3, 'tom')],
   phrases: [{ index: 0, label: 'P1', start: 0, end: 4 }],
   sections: [],
 }
 const f = (t: number) => ({ t, at: t, midi: 67, clarity: 0.9, rms: 0.1 })
 
 it('frame ignores frames outside entered notes and frames of other roles', () => {
-  const s = new Session(song, ['maria'], 50)
+  const s = new Session(song, ['clara'], 50)
   s.startPass()
-  s.frame(f(1.5)) // maria note not entered yet
+  s.frame(f(1.5)) // clara note not entered yet
   s.enter(0)
-  s.enter(1) // josef: not mine
+  s.enter(1) // tom: not mine
   s.frame(f(2.5)) // between notes
-  s.frame(f(3.5)) // inside josef note
+  s.frame(f(3.5)) // inside tom note
   const r = s.endPass()!
   expect(r.scoredNotes).toBe(1)
   expect(r.notes[0].sung).toBe(false)

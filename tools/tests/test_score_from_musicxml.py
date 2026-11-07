@@ -108,8 +108,8 @@ def test_syllable_of_a_word_that_goes_on_ends_in_a_hyphen(tmp_path):
 
 
 def test_roles_from_voices(tmp_path):
-    got = [(n["voice"], n.get("role")) for n in run(tmp_path, "--roles", "1=anna,2=chor")]
-    assert got == [("1", "anna"), ("1", "anna"), ("2", "chor"), ("2", "chor")]
+    got = [(n["voice"], n.get("role")) for n in run(tmp_path, "--roles", "1=lena,2=chor")]
+    assert got == [("1", "lena"), ("1", "lena"), ("2", "chor"), ("2", "chor")]
 
 
 def test_verse_lines_and_tied_notes_kept_as_written(tmp_path):
