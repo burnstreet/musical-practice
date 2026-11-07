@@ -22,7 +22,7 @@ export function parseScript(json: unknown, roles: Role[]): Script   // throws Co
   "scenes": [
     { "id": "s1", "title": "Im Zimmer", "items": [
       { "id": "k3f9", "type": "direction", "text": "Sie sitzt am Fenster." },
-      { "id": "p0x2", "type": "line", "role": "erzaehler1", "text": "Es schneit.", "say": "Es schneit." },
+      { "id": "p0x2", "type": "line", "role": "erzaehler", "text": "Es schneit.", "say": "Es schneit." },
       { "id": "z8m1", "type": "song", "songId": "01" }
     ] }
   ]
@@ -42,8 +42,8 @@ export function parseScript(json: unknown, roles: Role[]): Script   // throws Co
 ```gherkin
 Feature: Script source
   Scenario: valid script loads
-    Given a config with speaking role erzaehler1 and song "01"
-    And a script with scene s1 holding a direction, a line of erzaehler1 and a song item "01"
+    Given a config with speaking role erzaehler and song "01"
+    And a script with scene s1 holding a direction, a line of erzaehler and a song item "01"
     When I load the script
     Then I get one scene with three items
 
@@ -93,8 +93,8 @@ Feature: Line hash
 ## Config additions (`sources/config.json`)
 
 ```json
-{ "roles": [ { "id": "erzaehler1", "name": "Erzähler 1", "sings": false, "speaks": true,
-               "aliases": ["Erzähler 1"], "voice": { "engine": "xtts", "speaker": "Ana Florence" } } ] }
+{ "roles": [ { "id": "erzaehler", "name": "Erzähler", "sings": false, "speaks": true,
+               "aliases": ["Sprecher"], "voice": { "engine": "xtts", "speaker": "Ana Florence" } } ] }
 ```
 
 - `speaks` optional, default false. `aliases` optional: speaker names as written in the DOCX, matched case-insensitively besides `name`. `voice`: engine and its settings, see tts-renderer. Required for every speaking role before render or pack.
@@ -120,12 +120,12 @@ Feature: Packed script
     Then library.script is undefined
 
   Scenario: role speaks defaults to false
-    Given a library JSON with role maria without speaks
+    Given a library JSON with role clara without speaks
     When I parse it as a library
-    Then role maria has speaks false
+    Then role clara has speaks false
 
   Scenario: line without audio rejected
-    Given a script JSON with a line of erzaehler1 without audio
+    Given a script JSON with a line of erzaehler without audio
     When I parse it as a script
     Then parsing fails with ContentError "audio"
 ```

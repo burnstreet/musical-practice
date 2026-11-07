@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pack  # noqa: E402
 import script_format  # noqa: E402
 
-ROLES = [{"id": r, "name": r.title(), "sings": True} for r in ("maria", "josef", "chor")]
+ROLES = [{"id": r, "name": r.title(), "sings": True} for r in ("clara", "tom", "chor")]
 
 
 def ffmpeg(*args):
@@ -32,7 +32,7 @@ def pcm(path):
 
 
 def notes():
-    spec = [("Sin", "maria"), ("ge", "maria"), ("mit", "josef"), ("hö", "josef"), ("re", "chor"), ("zu", "chor")]
+    spec = [("Sin", "clara"), ("ge", "clara"), ("mit", "tom"), ("hö", "tom"), ("re", "chor"), ("zu", "chor")]
     return [
         {
             "start": 1.0 + i,
@@ -270,7 +270,7 @@ def test_song_file_follows_content_format(ctx):
     run(ctx)
     lib = library(ctx)
     song = json.loads(decrypt_file(ctx, lib["songs"][0]["files"]["notes"]))
-    assert lib["songs"][0]["roles"] == ["maria", "josef", "chor"]
+    assert lib["songs"][0]["roles"] == ["clara", "tom", "chor"]
     assert song["notes"][0]["syllable"] == "Sin" and "lyric" not in song["notes"][0]
     assert song["phrases"] == [
         {"index": 0, "label": "Phrase 1", "start": 1.0, "end": 3.8},
@@ -281,7 +281,7 @@ def test_song_file_follows_content_format(ctx):
 
 def test_intro_gets_bars_before_the_first_sung_bar():
     # 60 bpm: 4 s bars; singing starts in bar 0 of the score at 9.0 s, beat 1 → that bar starts at 8.0 s
-    n = [{"start": 9.0, "end": 10.0, "midi": 60, "lyric": "a", "role": "maria", "phrase": 0, "bar": 0, "beat": 1.0, "dur": 1.0}]
+    n = [{"start": 9.0, "end": 10.0, "midi": 60, "lyric": "a", "role": "clara", "phrase": 0, "bar": 0, "beat": 1.0, "dur": 1.0}]
     song = pack.build_song({"id": "08", "bpm": 60, "key": "F"}, n, 16.0)
     assert song["bars"][:3] == [0.0, 4.0, 8.0]
     assert song["notes"][0]["bar"] == 2
@@ -290,8 +290,8 @@ def test_intro_gets_bars_before_the_first_sung_bar():
 def test_three_quarter_song_gets_bars_of_three_beats():
     # 60 bpm, "beats": 3 → 3 s bars; a pickup on beat 2 of bar 0, then bar 1 starts 1 s later
     n = [
-        {"start": 2.0, "end": 2.5, "midi": 60, "lyric": "a", "role": "maria", "phrase": 0, "bar": 0, "beat": 2.0, "dur": 0.5},
-        {"start": 3.0, "end": 4.0, "midi": 62, "lyric": "b", "role": "maria", "phrase": 0, "bar": 1, "beat": 0.0, "dur": 1.0},
+        {"start": 2.0, "end": 2.5, "midi": 60, "lyric": "a", "role": "clara", "phrase": 0, "bar": 0, "beat": 2.0, "dur": 0.5},
+        {"start": 3.0, "end": 4.0, "midi": 62, "lyric": "b", "role": "clara", "phrase": 0, "bar": 1, "beat": 0.0, "dur": 1.0},
     ]
     song = pack.build_song({"id": "01", "bpm": 60, "key": "D", "beats": 3}, n, 12.0)
     assert song["timeSig"] == [3, 4]
@@ -300,7 +300,7 @@ def test_three_quarter_song_gets_bars_of_three_beats():
 
 def test_repeat_gets_later_bar_and_bars_increase():
     n = [
-        {"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "maria", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}
+        {"start": t, "end": t + 1, "midi": 60, "lyric": "a", "role": "clara", "phrase": p, "bar": 0, "beat": 0.0, "dur": 1.0}
         for p, t in enumerate((0.0, 10.0))
     ]
     song = pack.build_song({"id": "08", "bpm": 60, "key": "F"}, n, 20.0)
@@ -314,13 +314,13 @@ VOICE = {"engine": "xtts", "speaker": "a"}
 
 
 def make_script(ctx, lines, with_audio):
-    """Script of maria lines (id, text); with_audio ids get an MP3 for their current hash."""
+    """Script of clara lines (id, text); with_audio ids get an MP3 for their current hash."""
     make_song(ctx)
     root = ctx["root"]
     cfg = json.loads((root / "sources" / "config.json").read_text(encoding="utf-8"))
     cfg["roles"][0].update(speaks=True, voice=VOICE)
     (root / "sources" / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
-    items = [{"id": i, "type": "line", "role": "maria", "text": t, "say": t + "!"} for i, t in lines]
+    items = [{"id": i, "type": "line", "role": "clara", "text": t, "say": t + "!"} for i, t in lines]
     (root / "web" / "data" / "script.json").write_text(
         json.dumps({"scenes": [{"id": "s1", "title": "", "items": items}]}), encoding="utf-8"
     )
@@ -364,10 +364,10 @@ def _(ctx):
     assert m["totalBytes"] == sum(p.stat().st_size for p in ctx["out"].glob("*.bin")) and len(m["files"]) == 7
 
 
-@then("the library role maria has only id, name, sings and speaks true")
+@then("the library role clara has only id, name, sings and speaks true")
 def _(ctx):
-    maria = next(r for r in library(ctx)["roles"] if r["id"] == "maria")
-    assert sorted(maria) == ["id", "name", "sings", "speaks"] and maria["speaks"] is True
+    clara = next(r for r in library(ctx)["roles"] if r["id"] == "clara")
+    assert sorted(clara) == ["id", "name", "sings", "speaks"] and clara["speaks"] is True
 
 
 @then("the library has no script and the song is packed")

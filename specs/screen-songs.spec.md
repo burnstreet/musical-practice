@@ -35,13 +35,13 @@ Strings:
 ```gherkin
 Feature: Songs screen
   Scenario: roles that neither sing nor speak are hidden
-    Given roles maria (sings) and esel (not sings)
+    Given roles clara (sings) and esel (not sings)
     When the screen renders
-    Then a chip "Maria" exists and no chip "Esel"
+    Then a chip "Clara" exists and no chip "Esel"
 
   Scenario: marker follows selection
-    Given song "08" with roles [maria, chor] and song "04" with roles [josef]
-    When I select "Maria"
+    Given song "08" with roles [clara, chor] and song "04" with roles [tom]
+    When I select "Clara"
     Then row 8 shows the marker and row 4 does not
 
   Scenario: badge from history

@@ -12,13 +12,13 @@ import script_format  # noqa: E402
 import serve  # noqa: E402
 
 VOICE = {"engine": "xtts", "speaker": "Claribel Dervla"}
-ROLES = [{"id": "anna", "name": "Anna", "speaks": True, "voice": VOICE}, {"id": "ben", "name": "Ben", "speaks": True}]
+ROLES = [{"id": "lena", "name": "Lena", "speaks": True, "voice": VOICE}, {"id": "ben", "name": "Ben", "speaks": True}]
 SCRIPT = {
     "scenes": [
         {
             "id": "s1",
             "items": [
-                {"id": "a", "type": "line", "role": "anna", "text": "Hallo."},
+                {"id": "a", "type": "line", "role": "lena", "text": "Hallo."},
                 {"id": "b", "type": "line", "role": "ben", "text": "Tschüss."},
             ],
         }

@@ -66,7 +66,7 @@ export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string
 
 - `show`: the text. `hide`: `""`. `start`: the first 3 words plus ` …`; 3 words or fewer: the text. An inline direction `[…]` counts as no word and stays where it is when it comes before the cut.
 
-Sample script of the scenarios: scene s1 = direction d1, lines l1 and l2 of mutter, lines l3 and l4 of anna, line l5 of mutter, song g1; scene s2 = line m1 of mutter. Unless a scenario says otherwise: roles [anna], directionMs 2500, hardTimeoutMs 20000, directions shown, no loop.
+Sample script of the scenarios: scene s1 = direction d1, lines l1 and l2 of vater, lines l3 and l4 of lena, line l5 of vater, song g1; scene s2 = line m1 of vater. Unless a scenario says otherwise: roles [lena], directionMs 2500, hardTimeoutMs 20000, directions shown, no loop.
   `[@test] ../tests/steps/cue.steps.ts`
 
 ```gherkin
@@ -145,7 +145,7 @@ Feature: Cue engine
     Then the state is playing with play [l1]
 
   Scenario: two roles of mine in a row form one turn
-    Given roles [anna, mutter]
+    Given roles [lena, vater]
     When I start at s1 after the direction
     Then the state is waiting with turn [l1, l2, l3, l4, l5]
 

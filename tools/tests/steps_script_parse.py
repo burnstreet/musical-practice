@@ -30,30 +30,30 @@ def role(rid, name, aliases=()):
     return {"id": rid, "name": name, "speaks": True, "sings": False, "aliases": list(aliases)}
 
 
-@given(parsers.parse('a config with speaking roles erzaehler1 "Erzähler 1" and anna "Anna" and song "01"'))
+@given(parsers.parse('a config with speaking roles erzaehler "Erzähler" and lena "Lena" and song "01"'))
 def _(ctx):
-    ctx["roles"] = [role("erzaehler1", "Erzähler 1"), role("anna", "Anna")]
+    ctx["roles"] = [role("erzaehler", "Erzähler"), role("lena", "Lena")]
     ctx["songs"] = [{"id": "01"}]
 
 
-@given(parsers.parse('a config with speaking roles anna "Anna" and mutter "Mutter"'))
+@given(parsers.parse('a config with speaking roles lena "Lena" and vater "Vater"'))
 def _(ctx):
-    ctx["roles"] = [role("anna", "Anna"), role("mutter", "Mutter")]
+    ctx["roles"] = [role("lena", "Lena"), role("vater", "Vater")]
 
 
-@given(parsers.parse('a config with speaking roles benjamin "Benjamin" and mutter "Mutter"'))
+@given(parsers.parse('a config with speaking roles max "Max" and vater "Vater"'))
 def _(ctx):
-    ctx["roles"] = [role("benjamin", "Benjamin"), role("mutter", "Mutter")]
+    ctx["roles"] = [role("max", "Max"), role("vater", "Vater")]
 
 
-@given(parsers.parse('a config with speaking role anna "Anna"'))
+@given(parsers.parse('a config with speaking role lena "Lena"'))
 def _(ctx):
-    ctx["roles"] = [role("anna", "Anna")]
+    ctx["roles"] = [role("lena", "Lena")]
 
 
-@given(parsers.parse('a config with speaking role onkel "Onkel" with alias "Hirte Onkel"'))
+@given(parsers.parse('a config with speaking role schaffner "Schaffner" with alias "Reisender Schaffner"'))
 def _(ctx):
-    ctx["roles"] = [role("onkel", "Onkel", ["Hirte Onkel"])]
+    ctx["roles"] = [role("schaffner", "Schaffner", ["Reisender Schaffner"])]
 
 
 @given(parsers.re(r"a DOCX with paragraphs (?P<text>.+)"))
@@ -103,14 +103,14 @@ def _(ctx, text):
 
 @given("a DOCX with 300 line paragraphs")
 def _(ctx):
-    ctx["roles"] = [role("anna", "Anna")]
-    ctx["paras"] = [[("Szene 1", None)]] + [[(f"Anna: Satz {i}", None)] for i in range(300)]
+    ctx["roles"] = [role("lena", "Lena")]
+    ctx["paras"] = [[("Szene 1", None)]] + [[(f"Lena: Satz {i}", None)] for i in range(300)]
 
 
 @given("web/data/script.json exists")
 def _(ctx):
     ctx["paras"] = [[("Szene 1", None)]]
-    ctx["roles"] = [role("anna", "Anna")]
+    ctx["roles"] = [role("lena", "Lena")]
     Path("web/data/script.json").write_text("old", encoding="utf-8")
 
 
@@ -158,20 +158,20 @@ def _():
         ("song", "01", None),
         ("direction", None, "Sie sitzt am Fenster."),
         ("direction", None, "Musik leiser"),
-        ("line", "erzaehler1", "Es schneit."),
-        ("line", "erzaehler1", "Es schneit sehr."),
-        ("line", "anna", "Wir gehen gleich"),
+        ("line", "erzaehler", "Es schneit."),
+        ("line", "erzaehler", "Es schneit sehr."),
+        ("line", "lena", "Wir gehen gleich"),
     ]
 
 
-@then(parsers.parse('the report lists "Stuhl, Schal" and "1+4 Anna & 2+3 Chor" as dropped'))
+@then(parsers.parse('the report lists "Stuhl, Schal" and "1+4 Lena & 2+3 Chor" as dropped'))
 def _(ctx):
-    assert "Stuhl, Schal" in ctx["report"] and "1+4 Anna & 2+3 Chor" in ctx["report"]
+    assert "Stuhl, Schal" in ctx["report"] and "1+4 Lena & 2+3 Chor" in ctx["report"]
 
 
-@then(parsers.parse('scene s1 has line anna "Hallo." and line anna "Sie sagte: Komm."'))
+@then(parsers.parse('scene s1 has line lena "Hallo." and line lena "Sie sagte: Komm."'))
 def _():
-    assert [brief(i) for i in scene(1)["items"]] == [("line", "anna", "Hallo."), ("line", "anna", "Sie sagte: Komm.")]
+    assert [brief(i) for i in scene(1)["items"]] == [("line", "lena", "Hallo."), ("line", "lena", "Sie sagte: Komm.")]
 
 
 @then(parsers.parse('the report warns maybe speaker "{name}"'))
@@ -179,9 +179,9 @@ def _(ctx, name):
     assert f'maybe speaker "{name}"' in ctx["report"]
 
 
-@then(parsers.parse('scene s1 has line onkel "{text}"'))
+@then(parsers.parse('scene s1 has line schaffner "{text}"'))
 def _(text):
-    assert [brief(i) for i in scene(1)["items"]] == [("line", "onkel", text)]
+    assert [brief(i) for i in scene(1)["items"]] == [("line", "schaffner", text)]
 
 
 @then(parsers.re(r"scene s1 has line (?P<text>.+)"))

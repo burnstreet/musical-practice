@@ -149,7 +149,7 @@ erzeugt MusicXML, das direkt über 3c einlesbar ist.
 Der Import nimmt den ersten Part und bei Akkorden den höchsten Ton, fasst
 Bindebögen zusammen und liest Stafftext/Studierzeichen als Abschnittsnamen
 (`section`). Jede Note behält ihre MuseScore-Stimme (`voice`); eine Pause fällt
-weg, solange eine andere Stimme singt. `--roles 1=anna,2=chor` setzt `role` aus
+weg, solange eine andere Stimme singt. `--roles 1=lena,2=chor` setzt `role` aus
 der Stimme (Rollen-IDs aus `sources/config.json`). Noten werden nach Rolle
 eingefärbt, wenn das Score-JSON `role` und `roles` enthält (siehe 5).
 
@@ -174,7 +174,7 @@ Flag für die ausgewählten Noten.
 Subsequenz-DTW, oktavunabhängig. Jeder Abschnitt (`section`) wird so oft
 gesucht, wie er in der Aufnahme vorkommt (`--passes`), solange die mittleren
 Kosten unter `--max-cost` (0.3) bleiben. `--repeat-bars` für Wiederholungen
-innerhalb eines Abschnitts. `--form "Refrain:anna,Strophe,Refrain:chor"` nennt
+innerhalb eines Abschnitts. `--form "Refrain:lena,Strophe,Refrain:chor"` nennt
 die Abschnitte in gesungener Reihenfolge, optional mit Rolle je Block; ersetzt
 `--passes` und bricht ab, wenn die Blöcke in anderer Reihenfolge gefunden werden. `--snap` ersetzt den Notenwert durch den
 gesungenen Ton, wenn sie deutlich abweichen (Feld `score_midi` bleibt
@@ -203,7 +203,7 @@ Kontrollbild: `./mp.ps1 tool plot_aligned work\pitch\NN_aligned.json work\pitch\
 Im Score-JSON pro Note `role` und oben `roles` mit Taktbereichen, z. B.:
 
 ```json
-"roles": [{"name": "Anna", "bars": [0, 7]}, {"name": "Chor", "bars": [8, 15]}, {"name": "Onkel", "bars": [16, 19]}]
+"roles": [{"name": "Lena", "bars": [0, 7]}, {"name": "Chor", "bars": [8, 15]}, {"name": "Schaffner", "bars": [16, 19]}]
 ```
 
 Die Ausrichtung reicht `role` durch; Seite und MusicXML färben danach.

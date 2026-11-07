@@ -8,7 +8,7 @@ import '../src/app/screens/practice'
 it('practice shows the engine tempo and loop it enters with', async () => {
   document.body.innerHTML = ''
   localStorage.clear()
-  settings.set({ roles: ['maria'] })
+  settings.set({ roles: ['clara'] })
   const phrase = { index: 0, label: 'p0', start: 0, end: 3 }
   const song = {
     id: '08',
@@ -18,16 +18,16 @@ it('practice shows the engine tempo and loop it enters with', async () => {
     bars: [0, 2],
     phrases: [phrase],
     sections: [],
-    notes: [{ midi: 74, start: 1, end: 2, role: 'maria', phrase: 0, syllable: 'la', bar: 0, beat: 2, dur: 1 }],
+    notes: [{ midi: 74, start: 1, end: 2, role: 'clara', phrase: 0, syllable: 'la', bar: 0, beat: 2, dur: 1 }],
   }
   const loaded = {
-    meta: { id: '08', number: 8, title: '[Titel]', durationSec: 10, roles: ['maria'], files: {} },
+    meta: { id: '08', number: 8, title: '[Titel]', durationSec: 10, roles: ['clara'], files: {} },
     song,
     voices: new Blob(),
     backing: new Blob(),
   }
   setContext({
-    library: { roles: () => [{ id: 'maria', name: 'Maria', sings: true }], getSong: async () => loaded },
+    library: { roles: () => [{ id: 'clara', name: 'Clara', sings: true }], getSong: async () => loaded },
     engine: {
       load: async () => {},
       setMode: () => {},

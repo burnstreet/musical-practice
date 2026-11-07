@@ -83,10 +83,10 @@ class FakeParam {
   }
 }
 
-const note = (start: number, end: number, role: RoleId = 'maria'): Note => ({ start, end, midi: 60, syllable: 'la', role, phrase: 0, bar: 0, beat: 0, dur: 1 })
+const note = (start: number, end: number, role: RoleId = 'clara'): Note => ({ start, end, midi: 60, syllable: 'la', role, phrase: 0, bar: 0, beat: 0, dur: 1 })
 const phrase = (index: number, start: number, end: number): Phrase => ({ index, label: `p${index}`, start, end })
 
-async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], phrases: Phrase[] = [phrase(0, 0, 100)]) {
+async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['clara'], phrases: Phrase[] = [phrase(0, 0, 100)]) {
   const clock: Clock = { t: 0 }
   const elements: FakeMedia[] = []
   const gains: { el?: FakeMedia; gain: FakeParam }[] = []
@@ -152,18 +152,18 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['maria'], 
 }
 
 const mutingSong = (ctx: any, roles: RoleId[], mode: string, m = [1, 2], j = [3, 4]) =>
-  setup(ctx, [note(m[0], m[1]), note(j[0], j[1], 'josef')], roles).then(() => ctx.engine.setMode(mode as Mode))
+  setup(ctx, [note(m[0], m[1]), note(j[0], j[1], 'tom')], roles).then(() => ctx.engine.setMode(mode as Mode))
 const run = (ctx: any, until: number) => {
   while (ctx.clock.t < until) ctx.tickAt(ctx.clock.t + 1 / 60)
 }
 const samples = () => Array.from({ length: 51 }, (_, i) => i / 10)
 
 export default steps(({ Given, When, Then }) => {
-  Given(/^a song with maria notes at \[([\d.]+),([\d.]+)\] and josef notes at \[([\d.]+),([\d.]+)\], roles \[(\w+)\], mode (\w+)$/, (ctx, a, b, c, d, r, m) =>
+  Given(/^a song with clara notes at \[([\d.]+),([\d.]+)\] and tom notes at \[([\d.]+),([\d.]+)\], roles \[(\w+)\], mode (\w+)$/, (ctx, a, b, c, d, r, m) =>
     mutingSong(ctx, [r as RoleId], m, [+a, +b], [+c, +d]),
   )
   Given(/^the same song, roles \[(\w+)\], mode (\w+)$/, (ctx, r, m) => mutingSong(ctx, [r as RoleId], m))
-  Given(/^the same song, mode (\w+)$/, (ctx, m) => mutingSong(ctx, ['maria'], m))
+  Given(/^the same song, mode (\w+)$/, (ctx, m) => mutingSong(ctx, ['clara'], m))
   When(/^playback runs from 0 to (\d+)$/, async (ctx, end) => {
     await ctx.engine.play()
     run(ctx, +end)
@@ -234,7 +234,7 @@ export default steps(({ Given, When, Then }) => {
   }
   Given(/^phrase (\d+) spanning \[([\d.]+),([\d.]+)\] set as loop range with phrase (\d+)$/, async (ctx, i, s, e) => {
     const phrases = [phrase(0, 0, 5), phrase(1, 5, 10), phrase(+i, +s, +e)]
-    await setup(ctx, [], ['maria'], phrases)
+    await setup(ctx, [], ['clara'], phrases)
     await startAt(ctx, +s, { start: +s, end: +e, phrase: phrases[+i] })
   })
   Given(/^a range \[([\d.]+),([\d.]+)\] without phrase$/, async (ctx, s, e) => {

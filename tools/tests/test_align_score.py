@@ -30,8 +30,8 @@ def test_nth_occurrence_sings_verse_n_and_last_verse_repeats():
 
 
 def test_form_gives_each_sung_block_its_role_in_time_order():
-    form = align_score.parse_form("Refrain:anna, Strophe:anna, Refrain:chor, Strophe 3, Refrain:chor")
-    assert form == [("Refrain", "anna"), ("Strophe", "anna"), ("Refrain", "chor"), ("Strophe 3", None), ("Refrain", "chor")]
+    form = align_score.parse_form("Refrain:lena, Strophe:lena, Refrain:chor, Strophe 3, Refrain:chor")
+    assert form == [("Refrain", "lena"), ("Strophe", "lena"), ("Refrain", "chor"), ("Strophe 3", None), ("Refrain", "chor")]
     notes = [
         {"section": "Refrain", "pass": 2, "start": 50.0, "role": "x"},
         {"section": "Refrain", "pass": 0, "start": 10.0, "role": "x"},
@@ -43,9 +43,9 @@ def test_form_gives_each_sung_block_its_role_in_time_order():
     align_score.apply_form(notes, form)
     assert [(n["start"], n["role"]) for n in notes] == [
         (50.0, "chor"),
-        (10.0, "anna"),
-        (11.0, "anna"),
-        (20.0, "anna"),
+        (10.0, "lena"),
+        (11.0, "lena"),
+        (20.0, "lena"),
         (40.0, "x"),
         (30.0, "chor"),
     ]

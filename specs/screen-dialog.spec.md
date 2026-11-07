@@ -112,9 +112,9 @@ Artboard D5. Sheet opened from the run-through and the scene selection.
 ```gherkin
 Feature: Role bar
   Scenario: collapsed with a selection
-    Given settings.roles [anna]
+    Given settings.roles [lena]
     When the role bar renders
-    Then it reads "Anna" with "ändern" and shows no chips
+    Then it reads "Lena" with "ändern" and shows no chips
 
   Scenario: expanded without a selection
     Given settings.roles []
@@ -122,18 +122,18 @@ Feature: Role bar
     Then it shows "Wähle mindestens eine Rolle" and the role chips, and no "fertig"
 
   Scenario: speaking and singing roles both offered
-    Given roles maria (sings), erzaehler1 (speaks) and esel (neither)
+    Given roles clara (sings), erzaehler (speaks) and esel (neither)
     When I expand the role bar
-    Then chips "Maria" and "Erzähler 1" exist and no chip "Esel"
+    Then chips "Clara" and "Erzähler" exist and no chip "Esel"
 
 Feature: Scene selection
   Scenario: resume card
-    Given a stored position s4 for role set [anna]
+    Given a stored position s4 for role set [lena]
     When the text screen renders
     Then "Weiter bei Szene 4" is visible
 
   Scenario: lines of my roles per scene
-    Given scene s2 with 8 lines of anna and roles [anna]
+    Given scene s2 with 8 lines of lena and roles [lena]
     Then row 2 shows "8 Zeilen"
 
   Scenario: no script, no tab
@@ -142,25 +142,25 @@ Feature: Scene selection
 
 Feature: Run-through
   Scenario: others speaking
-    Given the cue state playing line of mutter "Macht nichts."
-    Then a card shows "Mutter" and "Macht nichts."
+    Given the cue state playing line of vater "Macht nichts."
+    Then a card shows "Vater" and "Macht nichts."
 
   Scenario: inline direction shown as direction
-    Given the cue state playing line of mutter "Oh. [Donnergrollen] Wer da?"
+    Given the cue state playing line of vater "Oh. [Donnergrollen] Wer da?"
     Then the card shows "Oh.", the inline direction "Donnergrollen" and "Wer da?", and no "["
 
   Scenario: directions for my roles highlighted
-    Given roles [anna] and scene s1 with directions "Vorhang zu", "Anna setzt sich", "Großmutter winkt" and a line of mutter
-    When the run-through starts at "Anna setzt sich"
+    Given roles [lena] and scene s1 with directions "Vorhang zu", "Lena setzt sich", "Tante Ilse winkt" and a line of vater
+    When the run-through starts at "Lena setzt sich"
     Then the direction card is highlighted
     When the run-through starts at the line
-    Then in the flow "Anna setzt sich" is highlighted and "Vorhang zu" and "Großmutter winkt" are not
+    Then in the flow "Lena setzt sich" is highlighted and "Vorhang zu" and "Tante Ilse winkt" are not
 
   Scenario: my turn with first words
-    Given settings.dialog.hint "start" and the cue state waiting with my line "Oma mag doch Schneekugeln."
-    Then the card reads "Du bist dran" and "Oma mag doch …" and offers "Aufdecken"
+    Given settings.dialog.hint "start" and the cue state waiting with my line "Tante Ilse mag doch Schneekugeln."
+    Then the card reads "Du bist dran" and "Tante Ilse mag …" and offers "Aufdecken"
     When I press "Aufdecken"
-    Then the card reads "Oma mag doch Schneekugeln."
+    Then the card reads "Tante Ilse mag doch Schneekugeln."
 
   Scenario: next sends a tap
     Given the cue state waiting
@@ -168,7 +168,7 @@ Feature: Run-through
     Then the cue engine receives tap
 
   Scenario: progress counts turns
-    Given roles [anna] and scene s1 with a line of mutter, two lines of anna and a line of mutter
+    Given roles [lena] and scene s1 with a line of vater, two lines of lena and a line of vater
     When the run-through starts at the last line
     Then the progress reads "3 von 3"
 

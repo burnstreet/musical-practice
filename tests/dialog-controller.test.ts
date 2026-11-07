@@ -5,7 +5,7 @@ import { settings } from '../src/app/settings'
 import type { PitchFrame, ScriptItem } from '../src/core/types'
 
 const line = (id: string, role: string): ScriptItem => ({ id, type: 'line', role, text: `Text ${id}`, audio: '0000000000000000' })
-const script = { scenes: [{ id: 's1', title: '', items: [line('m001', 'mutter'), line('a001', 'anna'), line('m002', 'mutter')] }] }
+const script = { scenes: [{ id: 's1', title: '', items: [line('m001', 'vater'), line('a001', 'lena'), line('m002', 'vater')] }] }
 const flush = async () => {
   for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
 }
@@ -45,7 +45,7 @@ function setup() {
 describe('dialog controller', () => {
   beforeEach(() => {
     localStorage.clear()
-    settings.set({ roles: ['anna'], dialog: { ...settings.get().dialog, rate: 1.2, silenceMs: 500 } })
+    settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, rate: 1.2, silenceMs: 500 } })
   })
 
   it('plays other lines at the rate, opens the mic on my turn, moves on after speech and silence, stores the position', async () => {
@@ -70,7 +70,7 @@ describe('dialog controller', () => {
     expect(t.mic).toBe(false)
     expect(t.played.at(-1)).toEqual(['m002', 1.2])
     d.dispose()
-    expect(settings.get().dialogPositions.anna).toMatchObject({ sceneId: 's1', itemId: 'm002' })
+    expect(settings.get().dialogPositions.lena).toMatchObject({ sceneId: 's1', itemId: 'm002' })
   })
 
   it('a refused play pauses, so a tap on resume plays again', async () => {

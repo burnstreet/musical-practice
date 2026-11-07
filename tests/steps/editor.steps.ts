@@ -23,14 +23,14 @@ function edit(ctx: any, op: () => unknown) {
 
 export default steps(({ Given, When, Then }) => {
   Given(/^a loaded song with notes 1-4 and notes 2-3 selected$/, (ctx) => {
-    ctx.song = { notes: [0, 1, 2, 3].map((i) => ({ midi: 60 + i, role: 'maria' })) }
+    ctx.song = { notes: [0, 1, 2, 3].map((i) => ({ midi: 60 + i, role: 'clara' })) }
     ctx.selected = new Set([1, 2])
   })
   When(/^I choose role "(\w+)" and press "Rolle setzen"$/, (ctx, role) => {
     setRole(ctx.song.notes, ctx.selected, role)
   })
   Then(/^notes 2 and 3 have role "(\w+)" and notes 1 and 4 are unchanged$/, (ctx, role) => {
-    expect(ctx.song.notes.map((n: any) => n.role)).toEqual(['maria', role, role, 'maria'])
+    expect(ctx.song.notes.map((n: any) => n.role)).toEqual(['clara', role, role, 'clara'])
   })
 
   Given(/^note 3 selected without phraseStart$/, (ctx) => {
