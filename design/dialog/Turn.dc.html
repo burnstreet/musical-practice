@@ -102,19 +102,19 @@ this.state = { revealed: false };
 }
 renderVals() {
 const items = [
-  ['Mutter', 'Anna! Da bist du ja endlich. Ich warte schon eine halbe Ewigkeit.'],
-  ['Anna', 'Ich hab den Bus verpasst. Tut mir leid! Der nächste kam erst nach zwanzig Minuten.'],
-  [null, 'Mutter setzt sich auf die Bank.'],
-  ['Mutter', 'Macht nichts. Komm, wir suchen zusammen noch ein Geschenk für Oma. Sie wünscht sich doch jedes Jahr etwas, das glitzert.'],
+  ['Vater', 'Lena! Da bist du ja endlich. Ich warte schon eine halbe Ewigkeit.'],
+  ['Lena', 'Ich hab den Bus verpasst. Tut mir leid! Der nächste kam erst nach zwanzig Minuten.'],
+  [null, 'Vater setzt sich auf die Bank.'],
+  ['Vater', 'Macht nichts. Komm, wir kaufen noch schnell ein Geschenk für Tante Ilse. Sie wünscht sich doch jedes Jahr etwas, das klingelt.'],
 ];
 const n = items.length;
 const past = items.map(([role, text], i) => ({
-  role: role === 'Anna' ? 'Anna · du' : role, text,
+  role: role === 'Lena' ? 'Lena · du' : role, text,
   isLine: !!role, isDir: !role,
-  who: role === 'Anna' ? '#C8E05A' : '#A9D3F7',
+  who: role === 'Lena' ? '#C8E05A' : '#A9D3F7',
   fade: String(0.35 + 0.5 * (i + 1) / n),
 }));
-const texts = ['Oma mag doch Schneekugeln. Da drüben am Stand gibt es welche, mit kleinen Häusern drin!', 'Darf ich eine aussuchen?'];
+const texts = ['Tante Ilse mag doch Spieluhren. Da drüben am Kiosk gibt es welche, mit kleinen Eisenbahnen drin!', 'Darf ich eine aussuchen?'];
 const setting = { Zeigen: 'show', Anfang: 'start', Verstecken: 'hide' }[this.props.eigeneZeile ?? 'Anfang'] ?? 'start';
 const mode = this.state.revealed ? 'show' : setting;
 const hint = (t) => {
