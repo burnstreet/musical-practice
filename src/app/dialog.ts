@@ -114,7 +114,7 @@ export async function openDialog(
   const roles = settings.get().roles
   const options = () => {
     const d = settings.get().dialog
-    return { roles, ...CUE_DEFAULTS, showDirections: d.showDirections, loopScene: d.loopScene }
+    return { roles, ...CUE_DEFAULTS, showDirections: d.showDirections, repeat: null }
   }
   let cue: Cue
   let missed = false

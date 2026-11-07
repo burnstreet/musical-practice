@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import { type Cue, type CueEvent, type CueOptions, cueStart, cueStep, hintText } from '../../src/core/cue'
+import { type Cue, type CueEvent, type CueOptions, cueStart, cueStep, hintText, repeatRange } from '../../src/core/cue'
 import type { Script } from '../../src/core/types'
 import { steps } from '../gherkin'
 
@@ -26,14 +26,14 @@ const list = (s: string) => s.split(',').map((x) => x.trim())
 
 const env = (ctx: any) => {
   ctx.script = sample
-  ctx.opts ??= { roles: ['lena'], directionMs: 2500, hardTimeoutMs: 20000, showDirections: true, loopScene: false } satisfies CueOptions
+  ctx.opts ??= { roles: ['lena'], directionMs: 2500, hardTimeoutMs: 20000, showDirections: true, repeat: null } satisfies CueOptions
   return ctx.opts
 }
-const start = (ctx: any, itemId?: string, now = 0) => {
+const start = (ctx: any, itemId?: string, now = 0, paused?: boolean) => {
   env(ctx)
   const sceneId = itemId ? sample.scenes.find((s) => s.items.some((i) => i.id === itemId))!.id : 's1'
   ctx.now = now
-  ctx.cue = cueStart(ctx.script, ctx.opts, { sceneId, itemId }, now)
+  ctx.cue = cueStart(ctx.script, ctx.opts, { sceneId, itemId, paused }, now)
 }
 const send = (ctx: any, ev: CueEvent, at = ctx.now) => {
   ctx.now = at
@@ -52,12 +52,17 @@ export default steps(({ Given, When, Then }) => {
   })
   Given(/^I am playing (\w+)$/, (ctx, id) => start(ctx, id))
   Given(/^I am waiting at (\w+)(?: since (\d+) ms)?$/, (ctx, id, ms) => start(ctx, id, +(ms ?? 0)))
-  Given(/^loop is on and I am at the song (\w+)$/, (ctx, id) => {
-    env(ctx).loopScene = true
-    start(ctx, id)
-  })
+  Given(
+    /^(directions are not shown and )?repeat in (\w+) from (\w+)(?: to (\w+))?(?: and I am (?:playing|waiting at|at the song) (\w+))?$/,
+    (ctx, hidden, sceneId, from, to, at) => {
+      if (hidden) env(ctx).showDirections = false
+      env(ctx).repeat = { sceneId, from, to }
+      if (at) start(ctx, at)
+    },
+  )
 
   When(/^I start at s1$/, (ctx) => start(ctx))
+  When(/^I start at s1 (\w+) paused$/, (ctx, id) => start(ctx, id, 0, true))
   When(/^I start at s1 after the direction$/, (ctx) => {
     start(ctx)
     send(ctx, { type: 'tick' }, 2500)
@@ -74,6 +79,10 @@ export default steps(({ Given, When, Then }) => {
     send(ctx, { type: 'tick' }, +b)
   })
   When(/^I tap$/, (ctx) => send(ctx, { type: 'tap' }))
+  When(/^audio ends and I tap$/, (ctx) => {
+    send(ctx, { type: 'audioEnded' })
+    send(ctx, { type: 'tap' })
+  })
   When(/^I skip$/, (ctx) => send(ctx, { type: 'skip' }))
   When(/^I ask for a prompt$/, (ctx) => send(ctx, { type: 'prompt' }))
   When(/^I go back$/, (ctx) => send(ctx, { type: 'back' }))
@@ -87,28 +96,13 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.cue.state).toBe(s)
     expect(ctx.cue.sceneId).toBe(scene)
   })
-  Then(/^the state is (\w+) with play \[(.*)\] and mic (on|off)$/, (ctx, s, ids, m) => {
+  Then(/^the state is (\w+) with (play|turn) \[(.*)\](?: and (mic on|mic off|the effects hold stop|no effects))?$/, (ctx, s, kind, ids, and) => {
     expect(ctx.cue.state).toBe(s)
-    play(ctx, ids)
-    hasEffect(ctx, { type: 'mic', on: m === 'on' })
-  })
-  Then(/^the state is (\w+) with play \[(.*)\]$/, (ctx, s, ids) => {
-    expect(ctx.cue.state).toBe(s)
-    play(ctx, ids)
-  })
-  Then(/^the state is (\w+) with turn \[(.*)\] and mic (on|off)$/, (ctx, s, ids, m) => {
-    expect(ctx.cue.state).toBe(s)
-    expect(ctx.cue.turn.map((i: any) => i.id)).toEqual(list(ids))
-    hasEffect(ctx, { type: 'mic', on: m === 'on' })
-  })
-  Then(/^the state is (\w+) with turn \[(.*)\] and the effects hold stop$/, (ctx, s, ids) => {
-    expect(ctx.cue.state).toBe(s)
-    expect(ctx.cue.turn.map((i: any) => i.id)).toEqual(list(ids))
-    hasEffect(ctx, { type: 'stop' })
-  })
-  Then(/^the state is (\w+) with turn \[(.*)\]$/, (ctx, s, ids) => {
-    expect(ctx.cue.state).toBe(s)
-    expect(ctx.cue.turn.map((i: any) => i.id)).toEqual(list(ids))
+    if (kind === 'play') play(ctx, ids)
+    else expect(ctx.cue.turn.map((i: any) => i.id)).toEqual(list(ids))
+    if (and === 'no effects') expect(ctx.cue.effects).toEqual([])
+    else if (and === 'the effects hold stop') hasEffect(ctx, { type: 'stop' })
+    else if (and) hasEffect(ctx, { type: 'mic', on: and === 'mic on' })
   })
   Then(/^the state is (\w+) with mic (on|off)$/, (ctx, s, m) => {
     expect(ctx.cue.state).toBe(s)
@@ -123,6 +117,12 @@ export default steps(({ Given, When, Then }) => {
     hasEffect(ctx, { type: 'missed' })
     expect(ctx.cue.state).toBe(s)
     expect(ctx.cue.turn[0].id).toBe(id)
+  })
+  Then(/^the repeat range is (\w+) to (\w+)$/, (ctx, from, to) => {
+    expect(repeatRange(ctx.script, ctx.opts)).toEqual({ from, to })
+  })
+  Then(/^the next turn is \[(.*)\]$/, (ctx, ids) => {
+    expect(ctx.cue.next.map((i: any) => i.id)).toEqual(list(ids))
   })
   Then(/^the position is (\w+), (\w+)$/, (ctx, sceneId, itemId) => {
     expect(ctx.cue.position()).toEqual({ sceneId, itemId })
