@@ -33,11 +33,13 @@ export interface Cue {
   state: CueState
   sceneId: string
   turn: ScriptItem[]                      // items shown as current
-  next: ScriptItem[]                      // turn the next forward move enters, wrap included; [] after the last scene
+  next: ScriptItem[]                      // turn a tap or audio end enters, repeat applied; [] after the last scene
   effects: CueEffect[]                    // of the last step only
   position(): { sceneId: string; itemId: string }   // first item of the turn; host stores it per role set
 }
-export function cueStart(script: Script, opts: CueOptions, at: { sceneId: string; itemId?: string; paused?: boolean }, now: number): Cue
+/** Where a run-through opens; `paused`: no effects until resume. */
+export interface CueAt { sceneId: string; itemId?: string; paused?: boolean }
+export function cueStart(script: Script, opts: CueOptions, at: CueAt, now: number): Cue
 export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue
 /** First item of the range's first turn, last item of its last turn; null without a range. */
 export function repeatRange(script: Script, opts: CueOptions): { from: string; to: string } | null

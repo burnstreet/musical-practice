@@ -128,12 +128,13 @@ function pausedScene(ctx: any) {
         line('i4', 'vater', 'Komm jetzt rein.'),
         line('i5', 'lena', 'Wir gehen gleich nach Hause'),
       ]),
+      scene('s2', [line('j1', 'vater', 'Na dann.'), line('j2', 'lena', 'Bis gleich.'), line('j3', 'vater', 'Tschüss.')]),
     ],
   }
 }
-const repeatIn = (ctx: any, from: string, to: string) => {
+const repeatIn = (ctx: any, sceneId: string, from: string, to: string) => {
   pausedScene(ctx)
-  settings.set({ dialogRepeats: { s1: { from, to } } })
+  settings.set({ dialogRepeats: { [sceneId]: { from, to } } })
 }
 const row = (ctx: any, id: string) => {
   const r = all(ctx).find((e) => e.getAttribute('data-id') === id) as HTMLElement | undefined
@@ -384,6 +385,23 @@ export default steps(({ Given, When, Then }) => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space' }))
     await settle(ctx.el)
   })
+  Given(/^scene s1 with m1 of vater, a1 of lena, m2 and m3 of vater$/, (ctx) => {
+    fake(ctx)
+    ctx.script = { scenes: [scene('s1', [line('m1', 'vater', 'Na?'), line('a1', 'lena', 'Ja.'), line('m2', 'vater', 'Gut.'), line('m3', 'vater', 'Schön.')])] }
+  })
+  Given(/^the repeat in s1 is from (\w+) to (\w+)$/, (_ctx, from, to) => settings.set({ dialogRepeats: { s1: { from, to } } }))
+  When(/^the run-through (?:plays|runs at) (\w+)$/, (ctx, id) => running(ctx, id))
+  Then(/^the up-next hint reads "([^"]+)"$/, (ctx, t) => {
+    expect(
+      all(ctx)
+        .find((e) => e.matches('.next b'))
+        ?.textContent?.replace(/\s+/g, ' '),
+    ).toBe(t)
+  })
+  Then(/^no up-next hint is shown$/, (ctx) => {
+    expect(ctx.el.dialog.cue.state).toBe('playing')
+    expect(all(ctx).some((e) => e.matches('.next'))).toBe(false)
+  })
 
   // Paused scene view and repeat
   Given(/^the paused-view scene$/, (ctx) => pausedScene(ctx))
@@ -393,14 +411,14 @@ export default steps(({ Given, When, Then }) => {
     return run(ctx, at === 's1' ? undefined : at)
   })
   Given(/^repeat in s1 from (i\d) to (i\d)$/, (ctx, from, to) => {
-    repeatIn(ctx, from, to)
+    repeatIn(ctx, 's1', from, to)
     return run(ctx)
   })
   Given(/^repeat in s1 from (i\d) to (i\d), paused at (i\d)$/, (ctx, from, to, at) => {
-    repeatIn(ctx, from, to)
+    repeatIn(ctx, 's1', from, to)
     return run(ctx, at)
   })
-  Given(/^repeat in s1 from (i\d) to (i\d) stored$/, (ctx, from, to) => repeatIn(ctx, from, to))
+  Given(/^repeat in (s\d) from (\w\d) to (\w\d) stored$/, (ctx, sceneId, from, to) => repeatIn(ctx, sceneId, from, to))
   Then(/^the cue state is paused and no effect ran$/, (ctx) => {
     expect(ctx.el.dialog.cue.state).toBe('paused')
     expect(ctx.el.dialog.cue.effects).toEqual([])
@@ -448,13 +466,18 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the cue option repeat is from (i\d) in s1$/, (ctx, id) => {
     expect(ctx.el.dialog.options.repeat).toEqual({ sceneId: 's1', from: id })
   })
-  Then(/^"Hier geht es weiter" stands above (i\d) and the chip reads "([^"]+)"$/, (ctx, id, t) => {
-    expect(hereAt(ctx)).toBe(id)
+  Then(/^the chip reads "([^"]+)"$/, (ctx, t) => {
     expect(chip(ctx)?.textContent?.replace(/\s+/g, ' ').trim()).toBe(t)
   })
-  Then(/^"Hier geht es weiter" stands above (i\d) and the chip is visible$/, (ctx, id) => {
-    expect(hereAt(ctx)).toBe(id)
-    expect(chip(ctx)).toBeTruthy()
+  Then(/^the card is marked in the range$/, (ctx) => {
+    expect(
+      all(ctx)
+        .find((e) => e.matches('.current'))
+        ?.classList.contains('in'),
+    ).toBe(true)
+  })
+  Then(/^the tag "(Von|Bis)" is shown$/, (ctx, tag) => {
+    expect(all(ctx).some((e) => e.matches('.tag') && e.textContent === tag)).toBe(true)
   })
   Then(/^no chip is shown and settings\.dialogRepeats has no s1$/, (ctx) => {
     expect(chip(ctx)).toBeUndefined()

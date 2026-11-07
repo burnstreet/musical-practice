@@ -1,16 +1,21 @@
 import { css, html, LitElement, svg } from 'lit'
 import { keyed } from 'lit/directives/keyed.js'
+import type { RoleId } from '../../core/content'
 import { CUE_DEFAULTS, type Cue, groupTurns, hintText, repeatRange, type Turn } from '../../core/cue'
 import type { ScriptItem } from '../../core/types'
 import { getContext } from '../context'
 import { type Dialog, type DialogDeps, openDialog, unlockAudio } from '../dialog'
 import { icon, shapes } from '../icons'
+import type { DialogSettings } from '../settings'
 import { oneDecimalDe } from '../settings-sheet'
 import '../settings-sheet'
-import { lineCount, sceneNo } from './text'
+import { lineCount, runRoute, sceneNo } from './text'
 
 /** Line text with its inline directions `[x]` as italic direction spans, brackets removed. */
 const inline = (text: string) => text.split(/(\[[^\]]*\])/).map((p) => (p.startsWith('[') ? html`<span class="inl">${p.slice(1, -1)}</span>` : p))
+
+/** A line of one of my roles. */
+const isMine = (i: ScriptItem, roles: RoleId[]) => i.type === 'line' && roles.includes(i.role)
 
 /** A direction names one of my roles as a whole word (directions carry no role). */
 const forMe = (text: string, myNames: string[]) =>
@@ -64,7 +69,7 @@ export class GuRun extends LitElement {
     dialog: { state: true },
     revealed: { state: true },
     settingsOpen: { state: true },
-    sel: { state: true },
+    selected: { state: true },
   }
   static styles = css`
     :host { position: relative; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; height: 100vh; height: 100dvh; padding: 16px; overflow: hidden;
@@ -107,7 +112,8 @@ export class GuRun extends LitElement {
     .status { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
     .status .wave { color: var(--ink); }
     .hidden { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
-    .hidden i { height: 14px; border-radius: 7px; background: var(--ink); opacity: 0.18; }
+    .hidden i { height: 14px; border-radius: 7px; background: var(--ink); opacity: 0.18; width: 92%; }
+    .hidden i + i { width: 58%; }
     .acts { display: flex; gap: 8px; flex-wrap: wrap; }
     .acts button { flex: 1; height: 44px; border-radius: 22px; border: 2px solid var(--ink); background: transparent; color: var(--ink); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .level { display: flex; align-items: center; gap: 8px; font-size: 12px; }
@@ -141,11 +147,13 @@ export class GuRun extends LitElement {
     .flow.open::after { content: ''; flex: none; height: 150px; } /* the last rows can scroll above the sheet */
     .row { display: block; width: 100%; min-height: 44px; box-sizing: border-box; flex: none; text-align: left; background: transparent; border-left: 4px solid transparent; border-radius: 0 12px 12px 0; padding: 6px 10px; }
     .row.in { border-left-color: var(--accent); }
+    .current.in { border-left: 6px solid var(--accent); }
     .row[aria-pressed='true'] { background: var(--surface); }
     .row.before { opacity: 0.7; }
     .row .who, .row .said, .row .dir { display: block; }
     .row .said { color: var(--text); }
-    .bars i { display: block; width: 70%; height: 12px; margin: 5px 0 3px; border-radius: 6px; background: var(--text); opacity: 0.3; }
+    .row .hidden, .first .hidden { gap: 6px; padding: 5px 0 3px; }
+    .row .hidden i, .first .hidden i { height: 12px; border-radius: 6px; background: var(--text); opacity: 0.3; }
     .song-row { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted); }
     .here { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; padding: 6px 4px 2px; flex: none; }
     .here i { flex: 1; border-top: 1.5px dashed currentColor; }
@@ -160,7 +168,7 @@ export class GuRun extends LitElement {
     .first { display: flex; flex-wrap: wrap; padding: 0 4px; font-size: 14px; line-height: 1.35; }
     .first .who { flex-basis: 100%; }
     .first .said, .first .dir, .first .song-row { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .first .bars { flex: 1; }
+    .first .hidden { flex: 1; }
     .first .more { flex: none; white-space: pre; color: var(--muted); }
     .sheet-acts { display: flex; gap: 6px; }
     .sheet-acts button { flex: 1; height: 48px; border-radius: 24px; background: var(--line); color: var(--text); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
@@ -188,7 +196,7 @@ export class GuRun extends LitElement {
       nav [aria-current='true'] .n { background: var(--accent); color: var(--ink); }
       nav .t { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
       nav .m { font-size: 12px; flex: none; }
-      main { max-width: 760px; }
+      main { max-width: 760px; position: relative; } /* the sheet covers the flow column, not the scene list */
       .big { font-size: 24px; }
       .controls { justify-content: flex-start; gap: 10px; }
       .controls .weiter { flex: none; margin: 0; padding: 0 28px; }
@@ -203,7 +211,7 @@ export class GuRun extends LitElement {
   declare revealed: string | null
   declare settingsOpen: boolean
   /** Item tapped in the paused scene view: its turn has the sheet. */
-  declare sel: string | null
+  declare selected: string | null
   /** Controller seams; tests swap them. */
   deps?: DialogDeps
   private opening = 0
@@ -219,10 +227,10 @@ export class GuRun extends LitElement {
     this.dialog = null
     this.revealed = null
     this.settingsOpen = false
-    this.sel = null
+    this.selected = null
     // a tap outside the rows and the sheet closes the sheet
     this.addEventListener('click', (e) => {
-      if (this.sel && !e.composedPath().some((n) => n instanceof Element && n.hasAttribute('data-keep'))) this.sel = null
+      if (this.selected && !e.composedPath().some((n) => n instanceof Element && n.hasAttribute('data-keep'))) this.selected = null
     })
   }
 
@@ -263,10 +271,10 @@ export class GuRun extends LitElement {
     const n = ++this.opening
     this.dialog?.dispose()
     this.dialog = null
-    this.sel = null
+    this.selected = null
     // back from `Lied üben`: resume at the song item instead of paused
     const ctx = getContext()
-    const back = ctx.returnTo === `#/text/${this.sceneId}/${this.itemId}`
+    const back = ctx.returnTo === runRoute(this.sceneId, this.itemId)
     if (back) ctx.returnTo = null
     const d = await openDialog(ctx, { sceneId: this.sceneId, itemId: this.itemId || undefined, paused: !back }, () => this.changed(), this.deps)
     if (n !== this.opening) return d.dispose()
@@ -283,7 +291,7 @@ export class GuRun extends LitElement {
 
   private send(type: 'tap' | 'skip' | 'back' | 'prompt' | 'pause' | 'resume') {
     if (type === 'resume' || type === 'tap') unlockAudio()
-    this.sel = null
+    this.selected = null
     this.dialog?.send({ type })
   }
 
@@ -294,7 +302,7 @@ export class GuRun extends LitElement {
 
   /** Space bar: `Weiter` in my turn, pause/resume elsewhere. Escape closes the sheet. */
   private onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && !this.settingsOpen) this.sel = null
+    if (e.key === 'Escape' && !this.settingsOpen) this.selected = null
     if (e.key !== ' ' || e.repeat || !this.dialog || this.settingsOpen) return
     e.preventDefault() // no scrolling, no click on a focused button
     if (this.mine()) this.send('tap')
@@ -326,7 +334,7 @@ export class GuRun extends LitElement {
   private practiceSong(songId: string) {
     const ctx = getContext()
     const { sceneId, itemId } = this.dialog!.cue.position()
-    ctx.returnTo = `#/text/${sceneId}/${itemId}`
+    ctx.returnTo = runRoute(sceneId, itemId)
     ctx.route(`#/practice/${songId}`)
   }
 
@@ -349,17 +357,21 @@ export class GuRun extends LitElement {
     const turns = groupTurns(flow, s.roles)
     const turnAt = first ? turns.findIndex((t) => t.includes(first)) : turns.length
     const names = new Map(library.roles().map((r) => [r.id, r.name]))
-    const mine = (i: ScriptItem) => i.type === 'line' && s.roles.includes(i.role)
+    const mine = (i: ScriptItem) => isMine(i, s.roles)
     const myNames = s.roles.map((id) => names.get(id) ?? id)
     const no = sceneNo(scene, si)
-    // the cue keeps the repeat of the scene it started in; past that scene there is none
-    const range = d.options.repeat?.sceneId === cue.sceneId ? repeatRange(d.loaded.script, d.options) : null
-    const lo = range ? flow.findIndex((x) => x.id === range.from) : -1
-    const hi = range ? flow.findIndex((x) => x.id === range.to) : -1
+    const range = repeatRange(d.loaded.script, d.options)
+    const fromIdx = range ? flow.findIndex((x) => x.id === range.from) : -1
+    const toIdx = range ? flow.findIndex((x) => x.id === range.to) : -1
+    const inRange = (i: ScriptItem) => {
+      const k = flow.indexOf(i)
+      return !!range && fromIdx <= k && k <= toIdx
+    }
     const stored = s.dialogRepeats[cue.sceneId]
-    const ends: Ends = { from: stored?.from && range?.from, to: stored?.to && range?.to }
+    const v: View = { names, roles: s.roles, myNames, hint: s.dialog.hint, ends: { from: stored?.from && range?.from, to: stored?.to && range?.to } }
     const paused = cue.state === 'paused'
-    const sel = paused ? turns.find((t) => t.some((i) => i.id === this.sel)) : undefined
+    const selected = paused ? turns.find((t) => t.some((i) => i.id === this.selected)) : undefined
+    const endTag = (t: Turn, end: 'from' | 'to') => (t.some((i) => i.id === v.ends[end]) ? TAG[end] : '')
     return html`<header>
         <button class="round" aria-label="Zurück zur Auswahl" @click=${() => getContext().route('#/text')}>${BACK}</button>
         <div>
@@ -379,7 +391,7 @@ export class GuRun extends LitElement {
           ${scenes.map(
             (x, i) => html`<button aria-current=${x.id === scene.id} @click=${() => {
               unlockAudio()
-              getContext().route(`#/text/${x.id}`)
+              getContext().route(runRoute(x.id))
             }}>
               <span class="n">${sceneNo(x, i)}</span><span class="t">${x.title}</span><span class="m">${lineCount(x, s.roles) ? lineLabel(lineCount(x, s.roles)) : ''}</span>
             </button>`,
@@ -389,89 +401,68 @@ export class GuRun extends LitElement {
           ${
             paused
               ? html`<div class="paused-hint">${icon(shapes.pause, 14)}<span>Pausiert · Zeile antippen für Von, Bis oder Ab hier</span></div>
-                <div class="flow ${sel ? 'open' : ''}">${turns.map((t, ti) =>
-                  t.map((i) => {
-                    const k = flow.indexOf(i)
-                    return this.row(i, ti < turnAt, ti === turnAt && i === t[0], k >= lo && k <= hi, t === sel, ends, names, myNames)
-                  }),
+                <div class="flow ${selected ? 'open' : ''}">${turns.map((t, ti) =>
+                  t.map((i) => this.row(v, i, { before: ti < turnAt, here: ti === turnAt && i === t[0], inRange: inRange(i), selected: t === selected })),
                 )}</div>`
               : html`<div class="past">${past.map((i, k) => this.pastItem(i, mine(i) || (i.type === 'direction' && forMe(i.text, myNames)), names, 0.35 + (0.5 * (k + 1)) / past.length))}</div>
-                ${this.current(names, myNames)}
-                ${this.upNext(cue, range?.to, mine, names)}`
+                ${endTag(cue.turn, 'from')}${this.current(v, cue.turn.some(inRange))}${endTag(cue.turn, 'to')}
+                ${this.upNext(cue, range?.to, v)}`
           }
+          ${selected ? this.sheet(selected, turns.indexOf(selected) < turnAt, v) : ''}
         </main>
       </div>
       ${
         range
-          ? html`<div class="repeat">${REPEAT}<span>Wiederholung · ${lineLabel(flow.slice(lo, hi + 1).filter((i) => i.type === 'line').length)}</span>
+          ? html`<div class="repeat">${REPEAT}<span>Wiederholung · ${lineLabel(flow.slice(fromIdx, toIdx + 1).filter((i) => i.type === 'line').length)}</span>
             <button class="round" aria-label="Wiederholung aufheben" @click=${this.clearRepeat}>${CLOSE}</button></div>`
           : ''
       }
       ${this.controls()}
-      ${sel ? this.sheet(sel, turns.indexOf(sel) < turnAt, ends, names, myNames) : ''}
       ${this.settingsOpen ? html`<gu-text-settings @close=${this.closeSettings}></gu-text-settings>` : ''}`
   }
 
   /** Who and text of an item in the paused view: my lines before the current turn in full, from it on through the hint. */
-  private said(i: ScriptItem, before: boolean, names: Map<string, string>, myNames: string[]) {
-    if (i.type === 'direction') return html`<span class="dir ${forMe(i.text, myNames) ? 'me' : ''}">${i.text}</span>`
+  private said(v: View, i: ScriptItem, before: boolean) {
+    if (i.type === 'direction') return html`<span class="dir ${forMe(i.text, v.myNames) ? 'me' : ''}">${i.text}</span>`
     if (i.type === 'song') return html`<span class="song-row">${NOTE}${this.songTitle(i.songId)}</span>`
-    const name = names.get(i.role) ?? i.role
-    const s = getContext().settings.get()
-    if (!s.roles.includes(i.role)) return html`<span class="who">${name}</span><span class="said">${inline(i.text)}</span>`
-    const mode = before ? 'show' : s.dialog.hint
-    return html`<span class="who me">${name} · du</span>${
-      mode === 'hide'
-        ? html`<span class="said bars" role="img" aria-label="Zeile verdeckt"><i></i></span>`
-        : html`<span class="said">${inline(hintText(i.text, mode))}</span>`
-    }`
+    const name = v.names.get(i.role) ?? i.role
+    if (!v.roles.includes(i.role)) return html`<span class="who">${name}</span><span class="said">${inline(i.text)}</span>`
+    const mode = before ? 'show' : v.hint
+    return html`<span class="who me">${name} · du</span>${mode === 'hide' ? HIDDEN : html`<span class="said">${inline(hintText(i.text, mode))}</span>`}`
   }
 
   /** One item of the paused scene view, with the `here` marker and the `Von` / `Bis` tags. */
-  private row(i: ScriptItem, before: boolean, here: boolean, inRange: boolean, selected: boolean, ends: Ends, names: Map<string, string>, myNames: string[]) {
-    return html`${here ? html`<div class="here">${icon(shapes.go, 12)}<span>Hier geht es weiter</span><i></i></div>` : ''}
-      ${ends.from === i.id ? html`<span class="tag">Von</span>` : ''}
-      <button class="row ${inRange ? 'in' : ''} ${before && !selected ? 'before' : ''}" data-id=${i.id} data-keep aria-pressed=${selected} @click=${() => (this.sel = i.id)}>${this.said(i, before, names, myNames)}</button>
-      ${ends.to === i.id ? html`<span class="tag">Bis</span>` : ''}`
+  private row(v: View, i: ScriptItem, place: { before: boolean; here: boolean; inRange: boolean; selected: boolean }) {
+    return html`${place.here ? html`<div class="here">${icon(shapes.go, 12)}<span>Hier geht es weiter</span><i></i></div>` : ''}
+      ${v.ends.from === i.id ? TAG.from : ''}
+      <button class="row ${place.inRange ? 'in' : ''} ${place.before && !place.selected ? 'before' : ''}" data-id=${i.id} data-keep aria-pressed=${place.selected} @click=${() => (this.selected = i.id)}>${this.said(v, i, place.before)}</button>
+      ${v.ends.to === i.id ? TAG.to : ''}`
   }
 
   /** Sheet for the tapped turn (artboard T2): `Von`, `Bis`, `Ab hier`. */
-  private sheet(t: Turn, before: boolean, ends: Ends, names: Map<string, string>, myNames: string[]) {
-    const isFrom = ends.from === t[0].id
-    const isTo = ends.to === t.at(-1)!.id
+  private sheet(t: Turn, before: boolean, v: View) {
+    const isFrom = v.ends.from === t[0].id
+    const isTo = v.ends.to === t.at(-1)!.id
     const more = t.length - 1
     return html`<div class="sheet" role="dialog" aria-label="Zeile: Wiederholung oder Einstieg" data-keep>
       <i class="grip"></i>
-      <div class="first">${t[0].type === 'line' ? '' : html`<span class="who">${t[0].type === 'direction' ? 'Regie' : 'Lied'}</span>`}${this.said(t[0], before, names, myNames)}${more ? html`<span class="more"> (+${lineLabel(more)})</span>` : ''}</div>
+      <div class="first">${t[0].type === 'line' ? '' : html`<span class="who">${t[0].type === 'direction' ? 'Regie' : 'Lied'}</span>`}${this.said(v, t[0], before)}${more ? html`<span class="more"> (+${lineLabel(more)})</span>` : ''}</div>
       <div class="sheet-acts">
-        <button aria-pressed=${isFrom} aria-label="Wiederholung von hier" @click=${() => this.setEnd('from', t)}>${REPEAT}Von</button>
-        <button aria-pressed=${isTo} aria-label="Wiederholung bis hier" @click=${() => this.setEnd('to', t)}>${REPEAT}Bis</button>
+        <button aria-pressed=${isFrom} aria-label="Wiederholung von hier" @click=${() => this.setEnd('from', t[0].id)}>${REPEAT}Von</button>
+        <button aria-pressed=${isTo} aria-label="Wiederholung bis hier" @click=${() => this.setEnd('to', t.at(-1)!.id)}>${REPEAT}Bis</button>
         <button class="here-btn" @click=${() => this.jump(t[0].id)}>${icon(shapes.go, 14)}Ab hier</button>
       </div>
     </div>`
   }
 
-  /** `Von` / `Bis`: set that end to the turn, clear an opposite end on the wrong side, move a position outside the new range to its start. */
-  private setEnd(end: 'from' | 'to', t: Turn) {
-    const d = this.dialog!
-    const { settings } = getContext()
-    const { sceneId } = d.cue
-    const items = d.loaded.script.scenes.find((x) => x.id === sceneId)!.items
-    const at = (id?: string) => items.findIndex((x) => x.id === id)
-    const repeats = settings.get().dialogRepeats
-    const r = { ...repeats[sceneId] }
-    r[end] = end === 'from' ? t[0].id : t.at(-1)!.id
-    if (r.from && r.to && at(r.from) > at(r.to)) delete r[end === 'from' ? 'to' : 'from']
-    settings.set({ dialogRepeats: { ...repeats, [sceneId]: r } })
-    this.jump()
-    const range = repeatRange(d.loaded.script, d.options)!
-    const pos = at(d.cue.position().itemId)
-    if (pos < at(range.from) || pos > at(range.to)) d.restart(range.from)
+  private setEnd(end: 'from' | 'to', itemId: string) {
+    this.selected = null
+    this.dialog?.setRepeatEnd(end, itemId)
   }
 
-  /** `Ab hier` (or a moved range): the cue starts again at `itemId`, default where it stands. */
+  /** `Ab hier`: the cue starts again at `itemId`, default where it stands. */
   private jump(itemId?: string) {
-    this.sel = null
+    this.selected = null
     this.dialog?.restart(itemId)
   }
 
@@ -496,23 +487,24 @@ export class GuRun extends LitElement {
     return song ? `Lied ${song.number} · ${song.title}` : `Lied ${songId}`
   }
 
-  private current(names: Map<string, string>, myNames: string[]) {
+  /** The current card; `marked`: its turn is in the repeat (accent left border). */
+  private current(v: View, marked: boolean) {
     const d = this.dialog!
     const { cue } = d
     const first = cue.turn[0]
     if (!first) return ''
-    const s = getContext().settings.get()
+    const cls = marked ? 'current in' : 'current'
     if (first.type === 'direction')
-      return html`<div class="current direction ${forMe(first.text, myNames) ? 'me' : ''}"><span class="label">Regie</span><p>${first.text}</p>
+      return html`<div class="${cls} direction ${forMe(first.text, v.myNames) ? 'me' : ''}"><span class="label">Regie</span><p>${first.text}</p>
         <div class="run">${keyed(first.id + cue.state, html`<i style="animation-duration:${CUE_DEFAULTS.directionMs}ms"></i>`)}</div></div>`
     if (first.type === 'song') {
       const { library } = getContext()
       const song = library.songs().find((x) => x.id === first.songId)
       const singers = library
         .roles()
-        .filter((r) => s.roles.includes(r.id) && song?.roles.includes(r.id))
+        .filter((r) => v.roles.includes(r.id) && song?.roles.includes(r.id))
         .map((r) => r.name)
-      return html`<div class="current song">
+      return html`<div class="${cls} song">
         <div class="top"><span class="disc">${NOTE}</span><span><small>Jetzt kommt ein Lied${singers.length ? ` · ${singers.join(', ')} ${singers.length > 1 ? 'singen' : 'singt'} mit` : ''}</small><strong>${this.songTitle(first.songId)}</strong></span></div>
         <div class="acts">
           <button class="go" ?disabled=${!library.isReady(first.songId)} @click=${() => this.practiceSong(first.songId)}>${icon(shapes.go, 14)}Lied üben</button>
@@ -521,23 +513,23 @@ export class GuRun extends LitElement {
       </div>`
     }
     const role = first.role
-    if (!s.roles.includes(role))
-      return html`<div class="current play">
-        <div class="top"><span class="chip">${names.get(role) ?? role}</span>${cue.state === 'playing' ? html`<span role="img" aria-label="Wiedergabe läuft">${WAVE(44, 18)}</span>` : ''}</div>
+    if (!v.roles.includes(role))
+      return html`<div class="${cls} play">
+        <div class="top"><span class="chip">${v.names.get(role) ?? role}</span>${cue.state === 'playing' ? html`<span role="img" aria-label="Wiedergabe läuft">${WAVE(44, 18)}</span>` : ''}</div>
         <div class="big">${inline(first.text)}</div>
       </div>`
-    return this.myTurn()
+    return this.myTurn(v, cls)
   }
 
-  private myTurn() {
+  private myTurn(v: View, cls: string) {
     const d = this.dialog!
     const { cue } = d
     const s = getContext().settings.get()
     const lines = cue.turn.flatMap((i) => (i.type === 'line' ? [i.text] : []))
-    const mode = this.revealed === cue.turn[0].id ? 'show' : s.dialog.hint
+    const mode = this.revealed === cue.turn[0].id ? 'show' : v.hint
     const canReveal = lines.some((t) => hintText(t, mode) !== t)
     const live = cue.state === 'waiting' || cue.state === 'speaking'
-    return html`<div class="current turn">
+    return html`<div class="${cls} turn">
       <div class="top"><h2>Du bist dran</h2>
         ${
           live && !d.micFailed
@@ -545,11 +537,7 @@ export class GuRun extends LitElement {
             : ''
         }
       </div>
-      ${lines.map((t) =>
-        mode === 'hide'
-          ? html`<div class="hidden" role="img" aria-label="Zeile verdeckt"><i style="width:92%"></i><i style="width:58%"></i></div>`
-          : html`<div class="big">${inline(hintText(t, mode))}</div>`,
-      )}
+      ${lines.map((t) => (mode === 'hide' ? HIDDEN : html`<div class="big">${inline(hintText(t, mode))}</div>`))}
       <div class="acts">
         ${canReveal ? html`<button @click=${() => (this.revealed = cue.turn[0].id)}>${EYE}Aufdecken</button>` : ''}
         <button ?disabled=${!live} @click=${() => this.send('prompt')}>${SPEAKER}Vorsprechen</button>
@@ -564,11 +552,11 @@ export class GuRun extends LitElement {
   }
 
   /** While playing: `Gleich du` when the next turn is mine, `dann wieder von vorn` when it is the repeat's last turn. */
-  private upNext(cue: Cue, rangeTo: string | undefined, mine: (i: ScriptItem) => boolean, names: Map<string, string>) {
+  private upNext(cue: Cue, rangeTo: string | undefined, v: View) {
     const { next } = cue
-    if (cue.state !== 'playing' || !next[0] || !mine(next[0])) return ''
+    if (cue.state !== 'playing' || !next[0] || !isMine(next[0], v.roles)) return ''
     const wraps = next.at(-1)!.id === rangeTo
-    const who = [...new Set(next.map((i) => (i.type === 'line' ? (names.get(i.role) ?? i.role) : '')))].join(', ')
+    const who = [...new Set(next.map((i) => (i.type === 'line' ? (v.names.get(i.role) ?? i.role) : '')))].join(', ')
     return html`<div class="next">${MIC}<b>Gleich du · ${who}, ${lineLabel(next.length)}${wraps ? ' · dann wieder von vorn' : ''}</b><span>Mikro noch aus</span></div>`
   }
 
@@ -607,6 +595,21 @@ export class GuRun extends LitElement {
 export const lineLabel = (n: number) => (n === 1 ? '1 Zeile' : `${n} Zeilen`)
 
 /** Item ids of the repeat's ends the actor set; unset ends stay undefined. */
-type Ends = { from?: string; to?: string }
+type RepeatEnds = { from?: string; to?: string }
+
+/** Per-render data the rows, sheet and card share. */
+interface View {
+  names: Map<string, string>
+  roles: RoleId[]
+  myNames: string[]
+  hint: DialogSettings['hint']
+  ends: RepeatEnds
+}
+
+/** My line hidden as bars, in the card and in the paused view. */
+const HIDDEN = html`<span class="hidden" role="img" aria-label="Zeile verdeckt"><i></i><i></i></span>`
+
+/** Tags at the set ends of the repeat. */
+const TAG = { from: html`<span class="tag">Von</span>`, to: html`<span class="tag">Bis</span>` }
 
 customElements.define('gu-run', GuRun)

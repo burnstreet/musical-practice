@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { AppContext } from '../src/app/context'
 import { type DialogDeps, openDialog } from '../src/app/dialog'
 import { settings } from '../src/app/settings'
-import type { PitchFrame, ScriptItem } from '../src/core/types'
+import type { PitchFrame, Script, ScriptItem } from '../src/core/types'
 
 const line = (id: string, role: string): ScriptItem => ({ id, type: 'line', role, text: `Text ${id}`, audio: '0000000000000000' })
 const script = { scenes: [{ id: 's1', title: '', items: [line('m001', 'vater'), line('a001', 'lena'), line('m002', 'vater')] }] }
@@ -10,11 +10,11 @@ const flush = async () => {
   for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
 }
 
-function setup() {
+function setup(s: Script = script) {
   const t = { now: 0, played: [] as [string, number][], end: [] as (() => void)[], frame: null as ((f: PitchFrame) => void) | null, mic: false }
   const ctx = {
     settings,
-    library: { getScript: async () => ({ script, audio: async (id: string) => new Blob([id]) }) },
+    library: { getScript: async () => ({ script: s, audio: async (id: string) => new Blob([id]) }) },
     pitch: {
       start: async () => {
         t.mic = true
@@ -89,6 +89,31 @@ describe('dialog controller', () => {
     const { ctx, deps } = setup()
     const d = await openDialog(ctx, { sceneId: 's1', itemId: 'a001', paused: true }, () => {}, deps)
     expect(d.cue.next.map((i) => i.id)).toEqual(['m001'])
+  })
+
+  it('entering another scene: its stored repeat applies, the line plays once', async () => {
+    settings.set({ dialogRepeats: { s2: { from: 'm003', to: 'a002' } } })
+    const two = {
+      scenes: [
+        { id: 's1', title: '', items: [line('m001', 'vater')] },
+        { id: 's2', title: '', items: [line('m003', 'vater'), line('a002', 'lena'), line('m004', 'vater')] },
+      ],
+    }
+    const { t, ctx, deps } = setup(two)
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    t.end.shift()!()
+    await flush()
+    expect(d.cue.turn.map((i) => i.id)).toEqual(['m003'])
+    expect(d.options.repeat).toEqual({ sceneId: 's2', from: 'm003', to: 'a002' })
+    expect(d.cue.effects.filter((e) => e.type === 'play')).toEqual([{ type: 'play', itemIds: ['m003'] }])
+    expect(t.played).toEqual([
+      ['m001', 1.2],
+      ['m003', 1.2],
+    ])
+    t.end.shift()!()
+    await flush()
+    expect(d.cue.next.map((i) => i.id)).toEqual(['m003'])
   })
 
   it('plays other lines at the rate, opens the mic on my turn, moves on after speech and silence, stores the position', async () => {

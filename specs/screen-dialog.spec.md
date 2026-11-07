@@ -106,6 +106,8 @@ Artboards T1 (paused), T2 (item tapped), T3 (repeat set), T4 (running in the rep
 | repeat | `Wiederholung · {n} Zeile` / `Zeilen` (n = lines in the range) |
 | repeatClear | aria `Wiederholung aufheben` |
 | play | aria `Weiter abspielen` |
+| sheet | aria `Zeile: Wiederholung oder Einstieg` |
+| sheetKind | `Regie` / `Lied`, in the speaker slot of the sheet when the turn's first item is a direction / song |
 
 - In `paused` the flow shows the whole scene, directions as set, and scrolls; it opens with the current turn in view and `here` above it. Items before the current turn are dimmed.
 - My lines before the current turn show in full. From it on they go through `hintText` with the own-line mode, `hide` as bars like in the card.
@@ -115,12 +117,12 @@ Artboards T1 (paused), T2 (item tapped), T3 (repeat set), T4 (running in the rep
 - Tap another item: the sheet switches to it. Tap anywhere else: the sheet closes.
 - `from` / `to`: set that end to the turn's first / last item; an opposite end on the wrong side is cleared; a position outside the new range moves to its start. Sheet closes.
 - `fromHere`: position = the turn's first item, stored in `settings.dialogPositions`. The repeat stays. Sheet closes.
-- The screen draws the range from `repeatRange`: marked items, tags `Von` / `Bis` at a set end. Chip above the controls, in `paused` and while running: `repeat` and ✕ (`repeatClear`), which removes the scene's entry.
-- Stored in `settings.dialogRepeats[sceneId]` (shell).
+- The screen draws the range from `repeatRange`: marked items (accent left border; while running the card of a turn in the range), tags `Von` / `Bis` at a set end. Chip above the controls, in `paused` and while running: `repeat` and ✕ (`repeatClear`), which removes the scene's entry.
+- Stored in `settings.dialogRepeats[sceneId]` (shell). The repeat of the scene the cue is in applies, paused and running: when the cue enters another scene, the controller enters it again with that scene's repeat (effects of the step that left the scene, besides entering, kept). Chip and range show it.
 - Every change of range or position restarts the cue at the position with the current `repeat` option: paused stays paused; while running (✕ on the chip) the current turn starts again, still running.
-- Desktop: same, in the flow column. Escape closes the sheet.
+- Desktop: same, in the flow column; the sheet covers the flow column only, not the scene list, chip or controls. Escape closes the sheet.
 
-Paused-view scene of the scenarios below (every scenario of that feature starts with it): scene s1 = i1 (line of another role), i2 and i3 (my lines in a row), i4 (line of another role), i5 (my line "Wir gehen gleich nach Hause"); hint "start".
+Paused-view scene of the scenarios below (every scenario of that feature starts with it): scene s1 = i1 (line of another role), i2 and i3 (my lines in a row), i4 (line of another role), i5 (my line "Wir gehen gleich nach Hause"); scene s2 = j1 (line of another role), j2 (my line), j3 (line of another role); hint "start".
 
 ## Text settings
 
@@ -226,6 +228,26 @@ Feature: Run-through
     When I press the space bar
     Then the cue engine receives tap
 
+  Scenario: up next, then the repeat again
+    Given settings.roles [lena]
+    And scene s1 with m1 of vater, a1 of lena, m2 and m3 of vater
+    And the repeat in s1 is from m1 to a1
+    When the run-through plays m1
+    Then the up-next hint reads "Gleich du · Lena, 1 Zeile · dann wieder von vorn"
+
+  Scenario: no up-next hint when the next turn is not mine
+    Given settings.roles [lena]
+    And scene s1 with m1 of vater, a1 of lena, m2 and m3 of vater
+    When the run-through plays m2
+    Then no up-next hint is shown
+
+  Scenario: no wrap text when the repeat wraps into my turn
+    Given settings.roles [lena]
+    And scene s1 with m1 of vater, a1 of lena, m2 and m3 of vater
+    And the repeat in s1 is from a1 to m2
+    When the run-through plays m2
+    Then the up-next hint reads "Gleich du · Lena, 1 Zeile"
+
 Feature: Text settings
   Scenario: defaults
     Given empty settings
@@ -258,7 +280,8 @@ Feature: Paused scene view and repeat
   Scenario: setting a range moves the position into it
     Given the run-through paused at i1
     When I set "Von" at i4 and "Bis" at i5
-    Then "Hier geht es weiter" stands above i4 and the chip reads "Wiederholung · 2 Zeilen"
+    Then "Hier geht es weiter" stands above i4
+    And the chip reads "Wiederholung · 2 Zeilen"
 
   Scenario: Von after Bis clears Bis
     Given repeat in s1 from i1 to i3
@@ -268,7 +291,8 @@ Feature: Paused scene view and repeat
   Scenario: Ab hier keeps the range
     Given repeat in s1 from i4 to i5, paused at i4
     When I tap i1 and press "Ab hier"
-    Then "Hier geht es weiter" stands above i1 and the chip is visible
+    Then "Hier geht es weiter" stands above i1
+    And the chip is visible
 
   Scenario: chip clears the range
     Given repeat in s1 from i4 to i5
@@ -284,6 +308,21 @@ Feature: Paused scene view and repeat
     Given the run-through paused at s1
     When I press "Weiter abspielen"
     Then the cue engine receives resume
+
+  Scenario: range marks while running
+    Given repeat in s1 from i4 to i5, paused at i4
+    When I press "Weiter abspielen"
+    Then the card is marked in the range
+    And the tag "Von" is shown
+
+  Scenario: the repeat of the scene the cue is in
+    Given repeat in s2 from j1 to j2 stored
+    When the run-through runs at i5
+    And I press "Weiter"
+    Then the chip reads "Wiederholung · 2 Zeilen"
+    And the up-next hint reads "Gleich du · Lena, 1 Zeile · dann wieder von vorn"
+    When I press "Pause"
+    Then the chip reads "Wiederholung · 2 Zeilen"
 ```
 
 ## Admin script view

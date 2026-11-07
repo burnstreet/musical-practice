@@ -31,7 +31,8 @@ export interface Cue {
   state: CueState
   sceneId: string
   turn: Turn
-  next: Turn // turn that tap or audio end enters, repeat applied; [] after the last scene
+  /** Turn a tap or audio end enters, repeat applied; [] after the last scene. */
+  next: Turn
   effects: CueEffect[]
   position(): { sceneId: string; itemId: string }
 }
@@ -67,9 +68,9 @@ export function groupTurns(items: ScriptItem[], roles: RoleId[]): Turn[] {
   return out
 }
 
-type Setup = Pick<CueRun, 'script' | 'opts'>
+type ScriptAndOptions = Pick<CueRun, 'script' | 'opts'>
 
-const turnsOf = ({ script, opts }: Setup, si: number): Turn[] =>
+const turnsOf = ({ script, opts }: ScriptAndOptions, si: number): Turn[] =>
   groupTurns(
     script.scenes[si].items.filter((i) => opts.showDirections || i.type !== 'direction'),
     opts.roles,
@@ -80,7 +81,7 @@ const ids = (t: Turn) => t.map((i) => i.id)
 const mic = (on: boolean): CueEffect => ({ type: 'mic', on })
 
 /** Position past the end of a scene continues with the next scene; null after the last one. */
-function resolve(x: Setup, si: number, ti: number): TurnPos | null {
+function resolve(x: ScriptAndOptions, si: number, ti: number): TurnPos | null {
   let turns = turnsOf(x, si)
   while (ti >= turns.length) {
     si++
@@ -92,7 +93,7 @@ function resolve(x: Setup, si: number, ti: number): TurnPos | null {
 }
 
 /** The repeat as turn indexes `first`..`last` in scene `si`; null without one. */
-function rangeOf(x: Setup): { si: number; first: number; last: number } | null {
+function rangeOf(x: ScriptAndOptions): { si: number; first: number; last: number } | null {
   const r = x.opts.repeat
   const si = x.script.scenes.findIndex((s) => s.id === r?.sceneId)
   if (!r || si < 0) return null
@@ -101,12 +102,12 @@ function rangeOf(x: Setup): { si: number; first: number; last: number } | null {
     const k = items.findIndex((i) => i.id === id)
     return k < 0 ? end : k
   }
-  const lo = indexOr(r.from, 0)
-  const hi = indexOr(r.to, items.length - 1)
+  const fromIdx = indexOr(r.from, 0)
+  const toIdx = indexOr(r.to, items.length - 1)
   const inRange = turnsOf(x, si).map((t) =>
     t.some((i) => {
       const k = items.indexOf(i)
-      return lo <= k && k <= hi
+      return fromIdx <= k && k <= toIdx
     }),
   )
   const first = inRange.indexOf(true)
@@ -150,7 +151,14 @@ function enter(x: CueRun, to: TurnPos | null, now: number, effects: CueEffect[] 
 
 const stopIf = (c: Cue): CueEffect[] => (c.state === 'playing' || c.state === 'prompting' ? [{ type: 'stop' }] : [])
 
-export function cueStart(script: Script, opts: CueOptions, at: { sceneId: string; itemId?: string; paused?: boolean }, now: number): Cue {
+/** Where a run-through opens; `paused`: no effects until resume. */
+export interface CueAt {
+  sceneId: string
+  itemId?: string
+  paused?: boolean
+}
+
+export function cueStart(script: Script, opts: CueOptions, at: CueAt, now: number): Cue {
   const x: CueRun = {
     script,
     opts,

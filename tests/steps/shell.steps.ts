@@ -1,5 +1,5 @@
 import { expect } from 'vitest'
-import type { ShellDeps } from '../../src/app/context'
+import { getContext, type Route, type ShellDeps } from '../../src/app/context'
 import type { GuApp } from '../../src/app/shell'
 import { buildLabel } from '../../src/build'
 import type { VaultState } from '../../src/core/vault'
@@ -280,5 +280,12 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the route is "([^"]+)"$/, (ctx, hash) => {
     expect(location.hash).toBe(hash)
     expect(ctx.el.hash).toBe(hash)
+  })
+  Given(/^returnTo "([^"]+)"$/, async (ctx, to) => {
+    await app(ctx)
+    getContext().returnTo = to as Route
+  })
+  Then(/^returnTo is (?:"([^"]+)"|null)$/, (_ctx, to) => {
+    expect(getContext().returnTo).toBe(to ?? null)
   })
 })
