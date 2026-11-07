@@ -17,14 +17,18 @@ const chevron = (open: boolean) =>
 export const topHeader = (onSettings: () => void) =>
   html`<header class="top">
     <div><div class="kicker">${production.kicker}</div><div class="build">${buildLabel()}</div></div>
-    <button class="gear" aria-label="Einstellungen" @click=${onSettings}>${SLIDERS}</button>
+    <div class="end"><button class="settings" aria-label="Einstellungen" @click=${onSettings}>${SLIDERS}<span>Einst<span class="rest">ellungen</span></span></button></div>
   </header>`
 
+// `.end` gets the room the one-line title leaves: its min-width is the short button's width, the container
+// breakpoint the full one's.
 export const topStyles = css`
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .top { display: flex; align-items: center; gap: 12px; }
   .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
   .build { font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .gear { width: 44px; height: 44px; border-radius: 22px; border: 0; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; flex: none; cursor: pointer; }
+  .end { flex: 1; font-size: 14px; min-width: 5.9em; container-type: inline-size; display: flex; justify-content: flex-end; }
+  .settings { height: 44px; padding: 0 14px 0 12px; gap: 6px; border-radius: 22px; border: 0; background: var(--surface); color: var(--text); font: inherit; font-weight: 500; display: flex; align-items: center; flex: none; cursor: pointer; }
+  @container (width < 9.9em) { .rest { display: none; } }
 `
 
 /** Shared role selection for songs and text (artboard D1). Fires `change` after saving settings.roles. */
