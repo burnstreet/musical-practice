@@ -1,7 +1,7 @@
 import { css, html, LitElement, svg } from 'lit'
 import { keyed } from 'lit/directives/keyed.js'
-import { CUE_DEFAULTS, groupTurns, hintText } from '../../core/cue'
-import type { ScriptItem } from '../../core/types'
+import { CUE_DEFAULTS, type Cue, cueStep, groupTurns, hintText } from '../../core/cue'
+import type { Scene, ScriptItem } from '../../core/types'
 import { getContext } from '../context'
 import { type Dialog, type DialogDeps, openDialog, unlockAudio } from '../dialog'
 import { icon, shapes } from '../icons'
@@ -282,7 +282,6 @@ export class GuRun extends LitElement {
     const flow = scene.items.filter((i) => s.dialog.showDirections || i.type !== 'direction')
     const first = cue.turn[0]
     const at = first ? flow.indexOf(first) : flow.length
-    const last = first ? flow.indexOf(cue.turn.at(-1)!) : flow.length
     const past = flow.slice(Math.max(0, at - PAST), Math.max(0, at))
     const turns = groupTurns(flow, s.roles)
     const turnAt = first ? turns.findIndex((t) => t.includes(first)) : turns.length
@@ -318,7 +317,7 @@ export class GuRun extends LitElement {
         <main>
           <div class="past">${past.map((i, k) => this.pastItem(i, mine(i) || (i.type === 'direction' && forMe(i.text, myNames)), names, 0.35 + (0.5 * (k + 1)) / past.length))}</div>
           ${this.current(names, myNames)}
-          ${cue.state === 'playing' ? this.upNext(flow.slice(last + 1), mine, names) : ''}
+          ${this.upNext(cue, scenes, mine, names)}
         </main>
       </div>
       ${this.controls()}
@@ -407,13 +406,17 @@ export class GuRun extends LitElement {
     </div>`
   }
 
-  /** `Gleich du` when the turn after this one is mine. */
-  private upNext(rest: ScriptItem[], mine: (i: ScriptItem) => boolean, names: Map<string, string>) {
-    const end = rest.findIndex((i) => !mine(i))
-    const next = rest.slice(0, end < 0 ? rest.length : end)
-    if (!next.length) return ''
+  /** While playing: `Gleich du` when the next turn is mine, `dann wieder von vorn` when the repeat starts over after it. */
+  private upNext(cue: Cue, scenes: Scene[], mine: (i: ScriptItem) => boolean, names: Map<string, string>) {
+    const { next } = cue
+    if (cue.state !== 'playing' || !next[0] || !mine(next[0])) return ''
+    // one turn further: landing at or before my turn means the repeat wraps there
+    const after = cueStep(cue, { type: 'audioEnded' }, 0)
+    const items = scenes.find((x) => x.id === after.sceneId)?.items ?? []
+    const wrapTo = items.indexOf(after.next[0])
+    const wraps = wrapTo >= 0 && wrapTo <= items.indexOf(next[0])
     const who = [...new Set(next.map((i) => (i.type === 'line' ? (names.get(i.role) ?? i.role) : '')))].join(', ')
-    return html`<div class="next">${MIC}<b>Gleich du · ${who}, ${lineLabel(next.length)}</b><span>Mikro noch aus</span></div>`
+    return html`<div class="next">${MIC}<b>Gleich du · ${who}, ${lineLabel(next.length)}${wraps ? ' · dann wieder von vorn' : ''}</b><span>Mikro noch aus</span></div>`
   }
 
   private controls() {

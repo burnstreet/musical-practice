@@ -3,6 +3,7 @@ name: Screen Songs
 description: Role and song selection. Artboards Songs.dc.html and SongsDesktop.dc.html, top from design/dialog Main. Download progress, role bar, song rows with markers and badges, voicetrack mode, start.
 targets:
   - ../src/app/screens/songs.ts
+  - ../src/app/screens/roles.ts
 ---
 
 # Screen: Rolle und Lied wählen
@@ -23,9 +24,10 @@ Strings:
 | modeOthers | `Voicetrack nur für andere` / `Meine Rolle ist stumm, die anderen Stimmen sind zu hören.` |
 | modeBacking | `Nur Playback` / `Nur die Begleitung, keine Stimmen.` |
 | start | `Üben starten` |
-| settings | aria `Einstellungen` |
+| settings | `Einstellungen`, short `Einst`; aria `Einstellungen` |
 
-- Top (design/dialog D1): kicker with the build label small below (shell), settings button, then the shared, collapsible role bar `<gu-roles>` (screen-dialog) and the `Lieder` | `Text` switch. The bar offers roles that sing or speak, in library order, multi-select, `aria-pressed`, saved to `settings.roles`.
+- Top (design/dialog D1): kicker with the build label small below (shell), settings button (icon and `settings` text), then the shared, collapsible role bar `<gu-roles>` (screen-dialog) and the `Lieder` | `Text` switch. The bar offers roles that sing or speak, in library order, multi-select, `aria-pressed`, saved to `settings.roles`.
+- The kicker and build label keep one line each. When the full `settings` text would leave them too little room, the button shows the short text; only when even that does not fit do they wrap. Done in CSS (container query), not by measuring. No test covers it (jsdom has no layout); check by hand at 360 px with the production's kicker.
 - Progress bar at top while `sync` runs. Hidden when done without error.
 - Song rows: number, title, roles of the song as names joined by ` · `. Accent dot when the song has a selected role. Badge `{n} %` from `history.badge` for the current selection, hidden when null. Row not ready: muted, `loading` text, not expandable.
 - Tapping a ready row expands it: three mode options (radio, default `settings.mode`), then `start`. One row expanded at a time.
@@ -34,6 +36,10 @@ Strings:
 
 ```gherkin
 Feature: Songs screen
+  Scenario: settings button with text
+    When the screen renders
+    Then the settings button reads "Einstellungen" with aria-label "Einstellungen"
+
   Scenario: roles that neither sing nor speak are hidden
     Given roles clara (sings) and esel (not sings)
     When the screen renders
