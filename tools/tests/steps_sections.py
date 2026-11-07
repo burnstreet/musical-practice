@@ -128,7 +128,7 @@ def _(ctx):
 def repeated_notes():
     """Six phrases a b x a b y, one note each, one bar (4 s at 60 bpm) per phrase."""
     return [
-        {"start": 1.0 + 4 * i, "end": 4.0 + 4 * i, "midi": 60, "lyric": t, "role": "maria", "phrase": i, "bar": i, "beat": 0.0, "dur": 3.0}
+        {"start": 1.0 + 4 * i, "end": 4.0 + 4 * i, "midi": 60, "lyric": t, "role": "clara", "phrase": i, "bar": i, "beat": 0.0, "dur": 3.0}
         for i, t in enumerate("abxaby")
     ]
 

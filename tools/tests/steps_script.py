@@ -18,18 +18,18 @@ def one_scene(ctx, items):
     ctx["scenes"] = [{"id": "s1", "title": "", "items": items}]
 
 
-@given(parsers.parse('a config with speaking role erzaehler1 and song "{song}"'))
+@given(parsers.parse('a config with speaking role erzaehler and song "{song}"'))
 def _(ctx, song):
-    ctx["config"] = {"roles": [{"id": "erzaehler1", "name": "E1", "speaks": True}], "songs": [{"id": song}]}
+    ctx["config"] = {"roles": [{"id": "erzaehler", "name": "E1", "speaks": True}], "songs": [{"id": song}]}
 
 
-@given('a script with scene s1 holding a direction, a line of erzaehler1 and a song item "01"')
+@given('a script with scene s1 holding a direction, a line of erzaehler and a song item "01"')
 def _(ctx):
     one_scene(
         ctx,
         [
             {"id": "k3f9", "type": "direction", "text": "Sie sitzt."},
-            {"id": "p0x2", "type": "line", "role": "erzaehler1", "text": "Es schneit."},
+            {"id": "p0x2", "type": "line", "role": "erzaehler", "text": "Es schneit."},
             {"id": "z8m1", "type": "song", "songId": "01"},
         ],
     )

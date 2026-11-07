@@ -73,10 +73,10 @@ Feature: Public manifest
 
 ```json
 {
-  "roles": [ { "id": "maria", "name": "Maria", "sings": true }, { "id": "esel", "name": "Esel", "sings": false } ],
+  "roles": [ { "id": "clara", "name": "Clara", "sings": true }, { "id": "esel", "name": "Esel", "sings": false } ],
   "songs": [ {
     "id": "08", "number": 8, "title": "…", "durationSec": 135.2,
-    "roles": ["maria", "josef", "chor", "wirt"],
+    "roles": ["clara", "tom", "chor", "kioskfrau"],
     "files": { "voices": "<id>", "backing": "<id>", "notes": "<id>" }
   } ]
 }
@@ -90,12 +90,12 @@ Feature: Public manifest
 ```gherkin
 Feature: Library
   Scenario: any role id from the library is accepted
-    Given a library JSON with roles [onkel] and a song with roles [onkel]
+    Given a library JSON with roles [schaffner] and a song with roles [schaffner]
     When I parse it as a library
-    Then the library has role onkel
+    Then the library has role schaffner
 
   Scenario: song with unknown role rejected
-    Given a library JSON with roles [maria] and a song with roles [maria, ghost]
+    Given a library JSON with roles [clara] and a song with roles [clara, ghost]
     When I parse it as a library
     Then parsing fails with ContentError "roles"
 
@@ -111,7 +111,7 @@ Feature: Library
 {
   "id": "08", "bpm": 93, "key": "F", "timeSig": [4, 4],
   "bars": [0.0, 2.58, 5.16],
-  "notes": [ { "start": 1.21, "end": 1.62, "midi": 67, "syllable": "Sin", "role": "maria", "phrase": 0, "bar": 0, "beat": 1.5, "dur": 0.5 } ],
+  "notes": [ { "start": 1.21, "end": 1.62, "midi": 67, "syllable": "Sin", "role": "clara", "phrase": 0, "bar": 0, "beat": 1.5, "dur": 0.5 } ],
   "phrases": [ { "index": 0, "label": "Phrase 1", "start": 1.21, "end": 7.9 } ],
   "sections": [ { "name": "Strophe 1", "start": 0.0, "end": 20.64 }, { "name": "Refrain", "start": 20.64, "end": 41.28 } ]
 }
@@ -191,13 +191,13 @@ Feature: Song file
 ```gherkin
 Feature: Role spans
   Scenario: close notes merge, far notes split
-    Given notes for role maria at [1.0,1.5], [1.7,2.0], [3.0,3.4] and a note for josef at [2.1,2.9]
-    When I compute role spans for [maria]
+    Given notes for role clara at [1.0,1.5], [1.7,2.0], [3.0,3.4] and a note for tom at [2.1,2.9]
+    When I compute role spans for [clara]
     Then I get spans [1.0,2.0] and [3.0,3.4]
 
   Scenario: two selected roles merge into one timeline
-    Given notes for role maria at [1.0,1.5] and for josef at [1.6,2.0]
-    When I compute role spans for [maria, josef]
+    Given notes for role clara at [1.0,1.5] and for tom at [1.6,2.0]
+    When I compute role spans for [clara, tom]
     Then I get spans [1.0,2.0]
 ```
 
@@ -213,19 +213,19 @@ Feature: Role spans
 ```gherkin
 Feature: Visible notes
   Scenario: duet in unison shows once
-    Given notes maria 67 at [1.0,2.0], josef 67 at [1.0,2.0], maria 69 at [2.0,3.0]
-    When I take the visible notes for [maria, josef]
-    Then I get maria 67 at [1.0,2.0] and maria 69 at [2.0,3.0]
+    Given notes clara 67 at [1.0,2.0], tom 67 at [1.0,2.0], clara 69 at [2.0,3.0]
+    When I take the visible notes for [clara, tom]
+    Then I get clara 67 at [1.0,2.0] and clara 69 at [2.0,3.0]
 
   Scenario: others hidden where I sing
-    Given notes maria 67 at [1.0,2.0], chor 60 at [1.5,2.5], chor 62 at [2.0,3.0], josef 64 at [3.0,4.0]
-    When I take the visible notes for [maria]
-    Then I get maria 67 at [1.0,2.0], chor 62 at [2.0,3.0] and josef 64 at [3.0,4.0]
+    Given notes clara 67 at [1.0,2.0], chor 60 at [1.5,2.5], chor 62 at [2.0,3.0], tom 64 at [3.0,4.0]
+    When I take the visible notes for [clara]
+    Then I get clara 67 at [1.0,2.0], chor 62 at [2.0,3.0] and tom 64 at [3.0,4.0]
 
   Scenario: no part keeps everything
-    Given notes maria 67 at [1.0,2.0], josef 67 at [1.0,2.0]
+    Given notes clara 67 at [1.0,2.0], tom 67 at [1.0,2.0]
     When I take the visible notes for [esel]
-    Then I get maria 67 at [1.0,2.0] and josef 67 at [1.0,2.0]
+    Then I get clara 67 at [1.0,2.0] and tom 67 at [1.0,2.0]
 ```
 
 ## Audio stems

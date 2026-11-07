@@ -42,43 +42,43 @@ Fixture: a DOCX built in the test with python-docx, invented text only.
 ```gherkin
 Feature: Script parsing
   Scenario: scenes, lines, directions, songs
-    Given a config with speaking roles erzaehler1 "Erzähler 1" and anna "Anna" and song "01"
-    And a DOCX with paragraphs "Titel", "Anna Darstellerin", "Szene 1 - Im Zimmer", "Stuhl, Schal"
-    And green paragraphs "Lied 1: Schnee", "1+4 Anna & 2+3 Chor"
+    Given a config with speaking roles erzaehler "Erzähler" and lena "Lena" and song "01"
+    And a DOCX with paragraphs "Titel", "Lena Darstellerin", "Szene 1 - Im Zimmer", "Stuhl, Schal"
+    And green paragraphs "Lied 1: Schnee", "1+4 Lena & 2+3 Chor"
     And a blue paragraph "Sie sitzt am Fenster."
     And a green paragraph "Musik leiser"
-    And paragraphs "Erzähler 1: Es schneit.", "Es schneit sehr.", "Anna:", "Wir gehen gleich"
+    And paragraphs "Erzähler: Es schneit.", "Es schneit sehr.", "Lena:", "Wir gehen gleich"
     When I parse it
     Then scene s1 has title "Im Zimmer"
-    And its items are song "01", direction "Sie sitzt am Fenster.", direction "Musik leiser", line erzaehler1 "Es schneit.", line erzaehler1 "Es schneit sehr.", line anna "Wir gehen gleich"
-    And the report lists "Stuhl, Schal" and "1+4 Anna & 2+3 Chor" as dropped
+    And its items are song "01", direction "Sie sitzt am Fenster.", direction "Musik leiser", line erzaehler "Es schneit.", line erzaehler "Es schneit sehr.", line lena "Wir gehen gleich"
+    And the report lists "Stuhl, Schal" and "1+4 Lena & 2+3 Chor" as dropped
 
   Scenario: inline directions stay in the line
-    Given a config with speaking roles anna "Anna" and mutter "Mutter"
-    And a DOCX with "Szene 1" and a paragraph of runs "Anna: Da hinten. ", blue "zeigt nach rechts", " Komm."
-    And a paragraph of runs "Mutter", blue "gähnt", "Na gut."
-    And a paragraph of runs "Mutter: Oh. ", green "Donnergrollen"
+    Given a config with speaking roles lena "Lena" and vater "Vater"
+    And a DOCX with "Szene 1" and a paragraph of runs "Lena: Da hinten. ", blue "zeigt nach rechts", " Komm."
+    And a paragraph of runs "Vater", blue "gähnt", "Na gut."
+    And a paragraph of runs "Vater: Oh. ", green "Donnergrollen"
     When I parse it
-    Then scene s1 has line anna "Da hinten. [zeigt nach rechts] Komm.", line mutter "[gähnt] Na gut." and line mutter "Oh. [Donnergrollen]"
+    Then scene s1 has line lena "Da hinten. [zeigt nach rechts] Komm.", line vater "[gähnt] Na gut." and line vater "Oh. [Donnergrollen]"
 
   Scenario: speaker before a tab or a full stop
-    Given a config with speaking roles benjamin "Benjamin" and mutter "Mutter"
-    And a DOCX with "Szene 1", "Benjamin\tWer kommt mit?" and a paragraph of runs "Mutter", ".", blue "Verwundert", "Echt?"
+    Given a config with speaking roles max "Max" and vater "Vater"
+    And a DOCX with "Szene 1", "Max\tWer kommt mit?" and a paragraph of runs "Vater", ".", blue "Verwundert", "Echt?"
     When I parse it
-    Then scene s1 has line benjamin "Wer kommt mit?" and line mutter "[Verwundert] Echt?"
+    Then scene s1 has line max "Wer kommt mit?" and line vater "[Verwundert] Echt?"
 
   Scenario: unknown speaker is a warning, not a role
-    Given a config with speaking role anna "Anna"
-    And a DOCX with "Szene 1", "Anna: Hallo." and "Sie sagte: Komm."
+    Given a config with speaking role lena "Lena"
+    And a DOCX with "Szene 1", "Lena: Hallo." and "Sie sagte: Komm."
     When I parse it
-    Then scene s1 has line anna "Hallo." and line anna "Sie sagte: Komm."
+    Then scene s1 has line lena "Hallo." and line lena "Sie sagte: Komm."
     And the report warns maybe speaker "Sie sagte"
 
   Scenario: alias matches
-    Given a config with speaking role onkel "Onkel" with alias "Hirte Onkel"
-    And a DOCX with "Szene 1" and "Hirte Onkel: Ruhe!"
+    Given a config with speaking role schaffner "Schaffner" with alias "Reisender Schaffner"
+    And a DOCX with "Szene 1" and "Reisender Schaffner: Ruhe!"
     When I parse it
-    Then scene s1 has line onkel "Ruhe!"
+    Then scene s1 has line schaffner "Ruhe!"
 
   Scenario: existing script kept
     Given web/data/script.json exists

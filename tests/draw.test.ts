@@ -338,9 +338,9 @@ describe('beams', () => {
     expect(beamGroups([n(0, 1), n(1, 1)])).toEqual([])
   })
   it('beams each role on its own', () => {
-    const g = beamGroups([n(0, 0.5, 'anna'), n(0, 0.5, 'chor'), n(0.5, 0.5, 'anna'), n(0.5, 0.5, 'chor')])
+    const g = beamGroups([n(0, 0.5, 'lena'), n(0, 0.5, 'chor'), n(0.5, 0.5, 'lena'), n(0.5, 0.5, 'chor')])
     expect(g.map((x) => x.map((y) => y.role))).toEqual([
-      ['anna', 'anna'],
+      ['lena', 'lena'],
       ['chor', 'chor'],
     ])
   })
@@ -429,10 +429,10 @@ describe('staff pages', () => {
 
 describe('note colour', () => {
   it('takes the role colour when given, else accent for mine and other for the rest', () => {
-    expect(noteColour('anna', false, { anna: '#123456' })).toBe('#123456')
-    expect(noteColour('anna', true, { anna: '#123456' })).toBe('#123456')
-    expect(noteColour('anna', true, { mutter: '#123456' })).toBe(COLORS.accent)
-    expect(noteColour('anna', false)).toBe(COLORS.other)
+    expect(noteColour('lena', false, { lena: '#123456' })).toBe('#123456')
+    expect(noteColour('lena', true, { lena: '#123456' })).toBe('#123456')
+    expect(noteColour('lena', true, { vater: '#123456' })).toBe(COLORS.accent)
+    expect(noteColour('lena', false)).toBe(COLORS.other)
   })
 })
 
@@ -498,29 +498,29 @@ const recorder = () => {
 describe('piano roll', () => {
   it('draws no bar for a spoken note and sizes the rows by the sung notes, but shows its syllable', () => {
     const n = (start: number, midi: number, syllable: string, spoken?: boolean) =>
-      ({ start, end: start + 1, midi, syllable, role: 'maria', phrase: 0, bar: 0, beat: start, dur: 1, spoken }) as Note
+      ({ start, end: start + 1, midi, syllable, role: 'clara', phrase: 0, bar: 0, beat: start, dur: 1, spoken }) as Note
     const song = { notes: [n(1, 60, 'la'), n(2, 71, 'rap', true)], bars: [0], timeSig: [4, 4] } as unknown as Song
     const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 }) // before both: no elapsed fill
+    drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 0.5, frames: [], tolerance: 50 }) // before both: no elapsed fill
     expect(calls.filter(([k]) => k === 'roundRect')).toHaveLength(1)
     const texts = calls.filter(([k]) => k === 'fillText').map(([, a]) => a[0])
     expect(texts).toContain('rap')
     expect(texts.length - 2).toBe(10) // row labels: 60 ± 2 padded to 10 rows; with the spoken 71 it would be 16
   })
   const mineAt = (start: number, midi: number, phrase: number) =>
-    ({ start, end: start + 1, midi, syllable: '', role: 'maria', phrase, bar: 0, beat: start, dur: 1 }) as Note
+    ({ start, end: start + 1, midi, syllable: '', role: 'clara', phrase, bar: 0, beat: start, dur: 1 }) as Note
   const labels = (calls: [string, unknown[]][]) => calls.filter(([k]) => k === 'fillText').length
   it('spans every note of my phrases in view, also those still outside the window', () => {
     const song = { notes: [mineAt(1, 60, 0), mineAt(20, 72, 0), mineAt(30, 84, 1)], bars: [0], timeSig: [4, 4] } as unknown as Song
     const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 0.5, frames: [], tolerance: 50 })
+    drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 0.5, frames: [], tolerance: 50 })
     expect(labels(calls)).toBe(10) // 60…72 ± 2 = 17 rows, over 12: only the 10 without sharp; phrase 1 (84) not in view
   })
   it('draws the sung line in the octave given for the song, not folded per note', () => {
     const song = { notes: [mineAt(1, 67, 0)], bars: [0], timeSig: [4, 4] } as unknown as Song
     const frames = [{ t: 1.5, at: 1.5, midi: 49, clarity: 1, rms: 0.1 }] // 18 below: folded per note it would be 73
     const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 1.5, frames, tolerance: 50, octave: 12 })
+    drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 1.5, frames, tolerance: 50, octave: 12 })
     const dot = calls.find(([k]) => k === 'arc')![1]
     expect(dot[1]).toBeCloseTo((71 - 61 + 0.5) * (178 / 13)) // 61 is the 3rd row from the bottom of 59…71 (widened by the sung 61)
   })
@@ -529,7 +529,7 @@ describe('piano roll', () => {
     const frames = [{ t: 1.5, at: 1.5, midi: 61, clarity: 1, rms: 0.1 }] // under 62…71
     const rows = (t: number) => {
       const { ctx, calls } = recorder()
-      drawRoll(ctx, { song, roles: ['maria'], names: {}, t, frames, tolerance: 50, octave: 0 })
+      drawRoll(ctx, { song, roles: ['clara'], names: {}, t, frames, tolerance: 50, octave: 0 })
       return labels(calls)
     }
     expect(rows(2)).toBe(8) // 59…71: 13 rows, labelled without sharps
@@ -544,7 +544,7 @@ describe('piano roll', () => {
     const song = { notes: [mineAt(1, 67, 0)], bars: [0, 2, 4, 6], timeSig: [4, 4] } as unknown as Song
     const take = (k: number) => ({ from: 0, to: 2, t: [1, 1.5], midi: [67 + k / 10, 67 + k / 10] })
     const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 2, frames: [], takes: [0, 1, 2, 3, 4].map(take), tolerance: 50, octave: 0 })
+    drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 2, frames: [], takes: [0, 1, 2, 3, 4].map(take), tolerance: 50, octave: 0 })
     const strokes = calls.filter(([k]) => k === 'stroke').length
     expect(strokes).toBe(1 + 1 + 3 + 2 + 1) // rows, bar lines, levels 3…1, outline and white of level 0, playhead
   })
@@ -556,7 +556,7 @@ describe('piano roll', () => {
     const rows = (ms: number, frames: typeof out) => {
       now.mockReturnValue(ms)
       calls.length = 0
-      drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3.4, frames, tolerance: 50, octave: 0 })
+      drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 3.4, frames, tolerance: 50, octave: 0 })
       return labels(calls)
     }
     expect(rows(0, [])).toBe(10)
@@ -568,7 +568,7 @@ describe('piano roll', () => {
     // 400 px: 5.56 s window, t = 3 shows 1.33…6.89 s, so the bars at 2, 4 and 6 s
     const song = { notes: [], bars: [0, 2, 4, 6, 8, 10], timeSig: [4, 4] } as unknown as Song
     const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3, frames: [], tolerance: 50 })
+    drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 3, frames: [], tolerance: 50 })
     const verticals = calls.flatMap(([k, a], i) =>
       k === 'moveTo' && calls[i + 1][0] === 'lineTo' && calls[i + 1][1][0] === a[0] ? [Math.round(a[0] as number)] : [],
     )
@@ -577,7 +577,7 @@ describe('piano roll', () => {
   it('browsing: the view time stands at 30 %, the playhead moves with the notes, rollTimeAt maps back', () => {
     const song = { notes: [], bars: [0], timeSig: [4, 4] } as unknown as Song
     const { ctx, calls } = recorder()
-    drawRoll(ctx, { song, roles: ['maria'], names: {}, t: 3, view: 5, frames: [], tolerance: 50 })
+    drawRoll(ctx, { song, roles: ['clara'], names: {}, t: 3, view: 5, frames: [], tolerance: 50 })
     const px = 400 / rollWindow(400) // 72 px per second
     const head = calls.findLast(([k]) => k === 'moveTo')![1][0] as number
     expect(head).toBeCloseTo(120 - 2 * px) // 2 s left of the spot

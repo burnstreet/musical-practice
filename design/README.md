@@ -1,6 +1,6 @@
 # Design
 
-Snapshot of the Claude Design canvas "Gesangs-Übetool Weihnachtsmusical 2026":
+Snapshot of the Claude Design canvas "Gesangs-Übetool":
 https://claude.ai/artifact/WVyVL88zMdxYrpHFmDaVhh
 
 Canvas is the editable original. This folder is the committed copy. After canvas edits, re-export here and commit.
@@ -19,7 +19,7 @@ Canvas is the editable original. This folder is the committed copy. After canvas
 
 Files are self-contained HTML artboards (`<x-dc>` markup, inline styles). Open in a browser for a rough look; the `support.js` script is canvas-only and missing here, so `{{accent}}` holes render literally in Main and MainDesktop.
 
-Placeholder lyrics in the artboards are from the public-domain folk song "Der Mond ist aufgegangen", not from the musical. Song titles are `[Liedtitel eintragen]` placeholders.
+No production content in any board here. Lyrics are from the public-domain folk song "Der Mond ist aufgegangen". Role names (Lena, Clara, Tom, Vater, Frau Berger, Erzählerin …), dialog lines and settings are invented. Production, song and scene titles are `[Produktionstitel]` / `[Liedtitel]` / `[Szenentitel]` placeholders. The canvases may still hold production names; replace them again on every re-export.
 
 ## Auswertung (results redesign)
 
@@ -42,7 +42,7 @@ https://claude.ai/artifact/7CZmN8NxVA5vztViGPY1j4. Added next to the boards abov
 ## Dialog trainer (`dialog/`)
 
 Snapshot of the Claude Design canvas "Dialog-Trainer – Entwürfe" (spec `specs/screen-dialog.spec.md`):
-https://claude.ai/artifact/JepLkpUgQLtk1PHKB1UrxH. Lines, scene and song titles in the boards are invented placeholders.
+https://claude.ai/artifact/JepLkpUgQLtk1PHKB1UrxH.
 
 | file | screen | size |
 |---|---|---|

@@ -24,7 +24,7 @@ Config `sources/config.json` (in the private production repo):
 
 ```json
 {
-  "roles": [ { "id": "maria", "name": "Maria", "sings": true } ],
+  "roles": [ { "id": "clara", "name": "Clara", "sings": true } ],
   "songs": [ { "id": "08", "number": 8, "title": "…", "backing": "playback", "bpm": 93, "key": "F", "playbackOffsetSec": 0.0 } ]
 }
 ```
@@ -268,7 +268,7 @@ Feature: Script packing
     When I run pack
     Then the decrypted library has script with 2 audio ids
     And the decrypted script file has no say and each line's audio id decrypts to its MP3
-    And the library role maria has only id, name, sings and speaks true
+    And the library role clara has only id, name, sings and speaks true
 
   Scenario: line without audio blocks the script
     Given one complete song and a script whose line "aaaa" has no audio

@@ -21,7 +21,7 @@ button{font-family:inherit;cursor:pointer}
 <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
 <div style="display:flex;align-items:center;gap:16px">
 <div style="width:120px;height:48px;border-radius:12px;background:#FFFFFF;border:2px dashed #A9D3F7;box-sizing:border-box;display:flex;align-items:center;justify-content:center;color:#1F5FAB;font-size:11px;font-weight:700;text-align:center;line-height:1.2">[Logo]</div>
-<div><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#C8E05A">Weihnachtsmusical 2026</div><div style="font-family:'Fraunces',serif;font-size:22px;font-weight:600">Gemeinsam üben</div></div>
+<div><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#C8E05A">[Produktionstitel]</div><div style="font-family:'Fraunces',serif;font-size:22px;font-weight:600">Gemeinsam üben</div></div>
 </div>
 <div style="font-size:14px;color:#CFE0F5">10 Lieder · Passwort gespeichert</div>
 </header>
@@ -77,15 +77,15 @@ button{font-family:inherit;cursor:pointer}
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
 class Component extends DCLogic {
 renderVals() {
-const mine = ['Maria', 'Chor'];
-const names = ['Erzähler', 'Maria', 'Josef', 'Engel', 'Hirten', 'Könige', 'Chor'];
+const mine = ['Clara', 'Chor'];
+const names = ['Erzähler', 'Clara', 'Tom', 'Frau Berger', 'Reisende', 'Musikanten', 'Chor'];
 const roles = names.map((name) => {
 const on = mine.includes(name);
 return { name, on, border: on ? '#C8E05A' : '#A9D3F7', bg: on ? '#C8E05A' : 'transparent', color: on ? '#0F2F57' : '#FFFFFF', weight: on ? '700' : '500' };
 });
 const list = [
-['Chor, Erzähler'], ['Maria, Josef'], ['Chor, Engel, Hirten'], ['Josef, Hirten'], ['Chor'],
-['Könige, Erzähler'], ['Maria, Engel, Chor'], ['Hirten, Engel'], ['Maria, Josef, Erzähler'], ['Alle']
+['Chor, Erzähler'], ['Clara, Tom'], ['Chor, Frau Berger, Reisende'], ['Tom, Reisende'], ['Chor'],
+['Musikanten, Erzähler'], ['Clara, Frau Berger, Chor'], ['Reisende, Frau Berger'], ['Clara, Tom, Erzähler'], ['Alle']
 ];
 const songs = list.map(([r], i) => {
 const selected = i === 2;

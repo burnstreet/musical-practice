@@ -65,7 +65,7 @@ Feature: Days
     And I record a pass with 10 notes, 4 hits, meanCents 20, 2 of 3 entries clean
     Then days for [chor] is empty
     When wipe runs
-    Then days for [maria] is empty
+    Then days for [clara] is empty
 ```
 
 - `dayBars`: span `week` = 7 days, `month` = 28 days, both ending today, one bar per day. Span `all` = one bar per week, from the week of the oldest day to the week of today. Bar sums its days, then divides: `hitPct` = round(100 · hits / notes), `cents` = centsSum / centsPasses, `cleanPct` = round(100 · cleanEntries / entries), each section round(100 · hits / notes). Day without practice: all null, no sections.
@@ -101,9 +101,9 @@ Sessions:
 ```gherkin
 Feature: History
   Scenario: record and badge
-    Given passes with hitPct 40 and 70 for song "08" roles [maria, chor]
+    Given passes with hitPct 40 and 70 for song "08" roles [clara, chor]
     When I record them
-    Then badge("08", [chor, maria]) is 70 and list has one entry with bestHitPct 70 and passes 2
+    Then badge("08", [chor, clara]) is 70 and list has one entry with bestHitPct 70 and passes 2
 
   Scenario: cap at 20
     Given 21 recorded sessions for the same key
@@ -114,7 +114,7 @@ Feature: History
     Then list is unchanged and badge stays null
 
   Scenario: different roles, different history
-    Given a session recorded for [maria]
+    Given a session recorded for [clara]
     Then badge("08", [chor]) is null
 
   Scenario: wipe

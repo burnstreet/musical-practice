@@ -11,22 +11,22 @@ const sample: Script = {
       title: '',
       items: [
         { id: 'd1', type: 'direction', text: 'Sie sitzt.' },
-        line('l1', 'mutter'),
-        line('l2', 'mutter'),
-        line('l3', 'anna'),
-        line('l4', 'anna'),
-        line('l5', 'mutter'),
+        line('l1', 'vater'),
+        line('l2', 'vater'),
+        line('l3', 'lena'),
+        line('l4', 'lena'),
+        line('l5', 'vater'),
         { id: 'g1', type: 'song', songId: '01' },
       ],
     },
-    { id: 's2', title: '', items: [line('m1', 'mutter')] },
+    { id: 's2', title: '', items: [line('m1', 'vater')] },
   ],
 }
 const list = (s: string) => s.split(',').map((x) => x.trim())
 
 const env = (ctx: any) => {
   ctx.script = sample
-  ctx.opts ??= { roles: ['anna'], directionMs: 2500, hardTimeoutMs: 20000, showDirections: true, loopScene: false } satisfies CueOptions
+  ctx.opts ??= { roles: ['lena'], directionMs: 2500, hardTimeoutMs: 20000, showDirections: true, loopScene: false } satisfies CueOptions
   return ctx.opts
 }
 const start = (ctx: any, itemId?: string, now = 0) => {

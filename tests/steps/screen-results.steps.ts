@@ -29,7 +29,7 @@ const pass = (o: any = {}) => ({
 })
 /** A scored note in phrase `phrase` at `start`, with an entry when given. */
 const scored = (phrase: number, start: number, syllable: string, entry: any = null) => ({
-  note: { start, end: start + 1, midi: 67, syllable, role: 'maria', phrase, bar: phrase * 2, beat: 0, dur: 1 },
+  note: { start, end: start + 1, midi: 67, syllable, role: 'clara', phrase, bar: phrase * 2, beat: 0, dur: 1 },
   sung: true,
   cents: 0,
   hit: true,
@@ -255,7 +255,7 @@ export default steps(({ Given, When, Then }) => {
       live,
       route: () => {},
       openSettings: () => {},
-      library: { roles: () => [{ id: 'maria', name: 'Maria', sings: true }], getSong: async () => live.song },
+      library: { roles: () => [{ id: 'clara', name: 'Clara', sings: true }], getSong: async () => live.song },
       engine: { ...engine, load: async () => {}, setMode: () => {}, on: () => {}, tempo: () => engine.tempo, loop: () => engine.loop },
       pitch: { start: async () => 'ok', on: () => () => {}, stop: () => {}, delay: () => 0 },
     } as any)

@@ -40,10 +40,10 @@ All pure: take a script, return a new script or throw `ScriptOpError` with a Ger
 ```gherkin
 Feature: Script ops
   Scenario: split a line
-    Given a line "aaaa" of anna with text "Hallo du. Komm her." and say "Hallo duh. Komm her."
+    Given a line "aaaa" of lena with text "Hallo du. Komm her." and say "Hallo duh. Komm her."
     When I split it at offset 9
     Then "aaaa" has text "Hallo du." and no say
-    And the next item is a line of anna with text "Komm her." and a new id
+    And the next item is a line of lena with text "Komm her." and a new id
 
   Scenario: split at the edge refused
     Given a line "aaaa" with text "Hallo"
@@ -51,17 +51,17 @@ Feature: Script ops
     Then it fails and the script is unchanged
 
   Scenario: merge two lines of one role
-    Given lines "aaaa" and "bbbb" of anna with texts "Eins." and "Zwei."
+    Given lines "aaaa" and "bbbb" of lena with texts "Eins." and "Zwei."
     When I merge "aaaa"
     Then "aaaa" has text "Eins. Zwei." and "bbbb" is gone
 
   Scenario: merge across roles refused
-    Given line "aaaa" of anna followed by line "bbbb" of mutter
+    Given line "aaaa" of lena followed by line "bbbb" of vater
     When I merge "aaaa"
     Then it fails with a message
 
   Scenario: line becomes direction
-    Given a line "aaaa" of anna with say "x"
+    Given a line "aaaa" of lena with say "x"
     When I set its type to direction
     Then "aaaa" is a direction without role and say
 
@@ -69,8 +69,8 @@ Feature: Script ops
     Given a direction "dddd"
     When I set its type to line without role
     Then it fails
-    When I set its type to line with role anna
-    Then "dddd" is a line of anna
+    When I set its type to line with role lena
+    Then "dddd" is a line of lena
 
   Scenario: empty say removes it
     Given a line "aaaa" with say "x"

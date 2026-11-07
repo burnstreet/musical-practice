@@ -48,14 +48,14 @@ button{font-family:inherit;cursor:pointer}
 
 <div style="border:1px solid #3F78BF;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px">
 <span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#CFE0F5">Regie</span>
-<span style="font-size:16px;font-style:italic;line-height:1.4">Der Chor stellt sich auf, Anna schaut zu.</span>
+<span style="font-size:16px;font-style:italic;line-height:1.4">Der Chor stellt sich auf, Lena schaut zu.</span>
 <div role="img" aria-label="läuft gleich weiter" style="height:3px;border-radius:2px;background:#3F78BF"><div style="width:70%;height:100%;border-radius:2px;background:#CFE0F5"></div></div>
 </div>
 
 <div style="background:#FFFFFF;color:#0F2F57;border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:12px">
 <div style="display:flex;align-items:center;gap:12px">
 <span style="width:44px;height:44px;border-radius:22px;background:#1F5FAB;display:flex;align-items:center;justify-content:center;flex:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span>
-<span style="flex:1;min-width:0"><span style="display:block;font-size:12px;font-weight:700;color:#1F5FAB">Jetzt kommt ein Lied · Anna singt mit</span><span style="display:block;font-family:'Fraunces',serif;font-size:20px;font-weight:600;margin-top:2px">Lied 4 · [Liedtitel]</span></span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:12px;font-weight:700;color:#1F5FAB">Jetzt kommt ein Lied · Lena singt mit</span><span style="display:block;font-family:'Fraunces',serif;font-size:20px;font-weight:600;margin-top:2px">Lied 4 · [Liedtitel]</span></span>
 </div>
 <div style="display:flex;gap:8px">
 <a href="Main.dc.html" style="flex:1;height:48px;border-radius:24px;background:#C8E05A;color:#0F2F57;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="#0F2F57" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>Lied üben</a>
@@ -83,16 +83,16 @@ button{font-family:inherit;cursor:pointer}
 class Component extends DCLogic {
 renderVals() {
 const items = [
-  ['Mutter', 'Na gut, aber nur eine kleine. Und dann gehen wir noch zum Glühweinstand.'],
-  ['Anna', 'Kinderpunsch für mich!'],
-  ['Benjamin', 'Hallo Anna! Kennst du schon Jo vom Krippenspiel? Der wohnt jetzt auch hier.'],
-  ['Anna', 'Nein, aber das kannst du mir gleich erzählen.'],
-  ['Erzähler 2', 'Und während sie noch überlegten, begann auf dem Platz die Musik.'],
+  ['Vater', 'Na gut, aber nur eine. Und dann holen wir uns noch einen Kakao.'],
+  ['Lena', 'Mit Sahne für mich!'],
+  ['Max', 'Hallo Lena! Kennst du schon Jo aus meiner Klasse? Der wohnt jetzt auch hier.'],
+  ['Lena', 'Nein, aber das kannst du mir gleich erzählen.'],
+  ['Erzählerin', 'Und während sie noch überlegten, begann in der Halle die Musik.'],
 ];
 const n = items.length;
 const past = items.map(([role, text], i) => ({
-  role: role === 'Anna' ? 'Anna · du' : role, text,
-  who: role === 'Anna' ? '#C8E05A' : '#A9D3F7',
+  role: role === 'Lena' ? 'Lena · du' : role, text,
+  who: role === 'Lena' ? '#C8E05A' : '#A9D3F7',
   fade: String(0.35 + 0.5 * (i + 1) / n),
 }));
 return { past };

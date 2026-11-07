@@ -10,7 +10,7 @@ test('unlock, pick role and song, sing with the microphone, see the reaction, pa
   await page.getByRole('button', { name: 'Entsperren' }).click()
 
   await expect(page).toHaveURL(/#\/songs$/)
-  await page.getByRole('button', { name: 'Maria', exact: true }).click()
+  await page.getByRole('button', { name: 'Clara', exact: true }).click()
   await page.locator('button.row[data-song="90"]').click({ timeout: 30_000 }) // waits for the download
   await page.getByRole('button', { name: 'Üben starten' }).click()
   await expect(page).toHaveURL(/#\/practice\/90$/)

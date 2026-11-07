@@ -27,7 +27,7 @@ export default steps(({ Given, When, Then }) => {
     ctx.s = script(line(id, role, text, say))
   })
   Given(/^a line "(\w+)" with text "([^"]+)"$/, (ctx, id, text) => {
-    ctx.s = script(line(id, 'anna', text))
+    ctx.s = script(line(id, 'lena', text))
   })
   Given(/^lines "(\w+)" and "(\w+)" of (\w+) with texts "([^"]+)" and "([^"]+)"$/, (ctx, a, b, role, ta, tb) => {
     ctx.s = script(line(a, role, ta), line(b, role, tb))
@@ -39,7 +39,7 @@ export default steps(({ Given, When, Then }) => {
     ctx.s = script(line(id, role, 'Text.', say))
   })
   Given(/^a line "(\w+)" with say "([^"]*)"$/, (ctx, id, say) => {
-    ctx.s = script(line(id, 'anna', 'Text.', say))
+    ctx.s = script(line(id, 'lena', 'Text.', say))
   })
   Given(/^a direction "(\w+)"$/, (ctx, id) => {
     ctx.s = script({ id, type: 'direction', text: 'Sie geht.' })
