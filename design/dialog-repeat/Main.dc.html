@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Text pausiert: Szene lesen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+</style>
+</helmet>
+<div onClick="{{close}}" style="position:relative;width:390px;height:844px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:16px;display:flex;flex-direction:column;gap:10px;overflow:hidden">
+
+<div style="display:flex;align-items:center;gap:10px;flex:none">
+<a href="#" aria-label="Zurück zur Auswahl" style="width:44px;height:44px;border-radius:22px;background:#17498C;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+</a>
+<div style="flex:1;min-width:0">
+<div style="font-family:'Fraunces',serif;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Szene 4 · [Szenentitel]</div>
+<div role="img" aria-label="Fortschritt in der Szene" style="height:3px;border-radius:2px;background:#3F78BF;margin-top:6px"><div style="width:{{progress}};height:100%;border-radius:2px;background:#FFFFFF"></div></div>
+</div>
+<a href="#" aria-label="Einstellungen" style="width:44px;height:44px;border-radius:22px;background:#17498C;display:flex;align-items:center;justify-content:center;flex:none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg>
+</a>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#CFE0F5;padding:0 4px;flex:none">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="#CFE0F5" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5"></rect><rect x="14" y="5" width="4" height="14" rx="1.5"></rect></svg>
+<span>Pausiert · Zeile antippen für Von, Bis oder Ab hier</span>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 2px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<sc-if value="{{r.isAt}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#FFFFFF;padding:6px 4px 2px">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true"><path d="M6 4v16l14-8z"></path></svg>
+<span style="flex:none">Hier geht es weiter</span>
+<span style="flex:1;border-top:1.5px dashed #FFFFFF"></span>
+</div>
+</sc-if>
+<sc-if value="{{r.isVon}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+<span style="height:20px;padding:0 8px;border-radius:6px;background:{{accent}};color:#0F2F57;font-size:11px;font-weight:700;display:flex;align-items:center">Von</span>
+</div>
+</sc-if>
+<button data-keep="1" onClick="{{r.pick}}" aria-pressed="{{r.selected}}" style="{{r.style}}">
+<sc-if value="{{r.isLine}}" hint-placeholder-val="{{true}}">
+<div style="font-size:12px;font-weight:700;color:{{r.whoColor}}">{{r.who}}</div>
+<div style="font-size:16px;line-height:1.4;margin-top:1px">{{r.text}}</div>
+</sc-if>
+<sc-if value="{{r.isDir}}" hint-placeholder-val="{{false}}">
+<div style="font-size:14px;font-style:italic;line-height:1.4;color:{{r.dirColor}}">{{r.text}}</div>
+</sc-if>
+<sc-if value="{{r.isSong}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#CFE0F5">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CFE0F5" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 18V5l11-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="17" cy="16" r="3"></circle></svg>{{r.text}}
+</div>
+</sc-if>
+</button>
+<sc-if value="{{r.isBis}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;align-items:center;gap:6px;padding-bottom:4px">
+<span style="height:20px;padding:0 8px;border-radius:6px;background:{{accent}};color:#0F2F57;font-size:11px;font-weight:700;display:flex;align-items:center">Bis</span>
+</div>
+</sc-if>
+</sc-for>
+<div style="height:{{tailPad}};flex:none"></div>
+</div>
+
+<sc-if value="{{hasRange}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;align-items:center;gap:8px;height:44px;border:2px solid {{accent}};border-radius:22px;padding:0 4px 0 14px;box-sizing:border-box;flex:none">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a3 3 0 013-3h15"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a3 3 0 01-3 3H3"></path></svg>
+<span style="flex:1;font-size:14px;font-weight:700;color:{{accent}}">{{rangeLabel}}</span>
+<button onClick="{{clear}}" aria-label="Wiederholung aufheben" style="width:36px;height:36px;border-radius:18px;background:#17498C;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+</button>
+</div>
+</sc-if>
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex:none">
+<button aria-label="Zurück zum vorigen Eintrag" style="width:52px;height:52px;border-radius:26px;background:#17498C;border:0;display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v14L9 12z"></path><path d="M5 5v14" stroke-linecap="round"></path></svg>
+</button>
+<a href="Play.dc.html" aria-label="Weiter abspielen" style="width:64px;height:64px;border-radius:32px;background:{{accent}};display:flex;align-items:center;justify-content:center">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="#0F2F57" aria-hidden="true"><path d="M7 4v16l13-8z"></path></svg>
+</a>
+<button aria-label="Sprechtempo der anderen 1,0-fach" style="width:52px;height:52px;border-radius:26px;background:#17498C;border:0;color:#FFFFFF;font-size:13px;font-weight:700">1,0×</button>
+</div>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+<div data-keep="1" role="dialog" aria-label="Zeile: Wiederholung oder Einstieg" style="position:absolute;left:0;right:0;bottom:0;background:#17498C;border-radius:22px 22px 0 0;padding:10px 16px 22px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 28px rgba(8,30,60,0.5);animation:sheetUp 220ms ease-out">
+<div style="width:40px;height:4px;border-radius:2px;background:#3F78BF;align-self:center"></div>
+<div style="padding:0 4px">
+<div style="font-size:12px;font-weight:700;color:{{selColor}}">{{selWho}}</div>
+<div style="font-size:14px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{selText}}</div>
+</div>
+<div style="display:flex;gap:6px">
+<button onClick="{{setVon}}" aria-pressed="{{selIsVon}}" aria-label="Wiederholung von hier" style="{{vonStyle}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{vonInk}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a3 3 0 013-3h15"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a3 3 0 01-3 3H3"></path></svg>Von</button>
+<button onClick="{{setBis}}" aria-pressed="{{selIsBis}}" aria-label="Wiederholung bis hier" style="{{bisStyle}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{bisInk}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a3 3 0 013-3h15"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a3 3 0 01-3 3H3"></path></svg>Bis</button>
+<button onClick="{{fromHere}}" style="flex:1.2;height:48px;border-radius:24px;background:#FFFFFF;border:0;color:#0F2F57;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="#0F2F57" aria-hidden="true"><path d="M6 4v16l14-8z"></path></svg>Ab hier</button>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#C8E05A","options":["#C8E05A","#8FD16A","#FFD166","#FFFFFF"]},"initAt":{"editor":null},"initVon":{"editor":null},"initBis":{"editor":null},"initSel":{"editor":null},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+items() {
+  return [
+    { t: 'dir', text: 'Bahnhof. Lena kommt von links, außer Atem.' },
+    { t: 'line', role: 'Erzählerin', text: 'Auf dem Bahnsteig war es kalt, und die Anzeigetafel blinkte unruhig.' },
+    { t: 'line', role: 'Erzählerin', text: 'Lena sah sich suchend nach ihrem Vater um.' },
+    { t: 'line', role: 'Vater', text: 'Lena! Da bist du ja endlich. Ich warte schon eine halbe Ewigkeit.' },
+    { t: 'line', role: 'Lena', text: 'Ich hab den Bus verpasst. Tut mir leid!' },
+    { t: 'line', role: 'Lena', text: 'Der nächste kam erst nach zwanzig Minuten.' },
+    { t: 'line', role: 'Vater', text: 'Und dann bist du den ganzen Weg gerannt?' },
+    { t: 'line', role: 'Lena', text: 'Nur das letzte Stück.' },
+    { t: 'dir', text: 'Vater setzt sich auf die Bank.' },
+    { t: 'line', role: 'Vater', text: 'Macht nichts. Komm, wir kaufen noch schnell ein Geschenk für Tante Ilse.' },
+    { t: 'line', role: 'Vater', text: 'Sie wünscht sich doch jedes Jahr etwas, das klingelt.' },
+    { t: 'line', role: 'Lena', text: 'Tante Ilse mag doch Spieluhren.' },
+    { t: 'line', role: 'Vater', text: 'Spieluhren? Davon hat sie schon drei.' },
+    { t: 'line', role: 'Lena', text: 'Dann eben vier. Eine mit einer Eisenbahn drin.' },
+    { t: 'line', role: 'Erzählerin', text: 'Und so liefen die beiden los, quer durch die Halle.' },
+    { t: 'song', text: 'Lied 5 · [Liedtitel]' },
+  ];
+}
+v(k, d) {
+  const s = this.state || {};
+  return Object.prototype.hasOwnProperty.call(s, k) ? s[k] : d;
+}
+renderVals() {
+  const p = this.props;
+  const accent = p.accent ?? '#C8E05A';
+  const items = this.items();
+  const last = items.length - 1;
+  const at = this.v('at', p.initAt ?? 6);
+  const von = this.v('von', p.initVon ?? null);
+  const bis = this.v('bis', p.initBis ?? null);
+  const sel = this.v('sel', p.initSel ?? null);
+  const hasRange = von !== null || bis !== null;
+  const lo = von ?? 0;
+  const hi = bis ?? last;
+  const me = (it) => it.t === 'line' && it.role === 'Lena';
+  const hint = (text) => {
+    const w = text.split(' ');
+    return w.length <= 3 ? text : w.slice(0, 3).join(' ') + ' …';
+  };
+  const shown = (it, i) => (me(it) && i >= at ? hint(it.text) : it.text);
+  const range = (a, b) => {
+    const l = a ?? 0;
+    const h = b ?? last;
+    return { at: at < l || at > h ? l : at };
+  };
+  const tStart = (i) => { let j = i; while (j > 0 && me(items[i]) && me(items[j - 1])) j--; return j; };
+  const tEnd = (i) => { let j = i; while (j < last && me(items[i]) && me(items[j + 1])) j++; return j; };
+  const sLo = sel === null ? -1 : tStart(sel);
+  const sHi = sel === null ? -1 : tEnd(sel);
+  const rows = items.map((it, i) => {
+    const inRange = hasRange && i >= lo && i <= hi;
+    const selected = i >= sLo && i <= sHi;
+    const op = selected || i >= at ? '1' : '0.7';
+    return {
+      isLine: it.t === 'line',
+      isDir: it.t === 'dir',
+      isSong: it.t === 'song',
+      isAt: i === at,
+      isVon: von === i,
+      isBis: bis === i,
+      selected: selected ? 'true' : 'false',
+      who: me(it) ? 'Lena · du' : it.role,
+      whoColor: me(it) ? accent : '#A9D3F7',
+      dirColor: '#CFE0F5',
+      text: shown(it, i),
+      style: 'display:block;width:100%;box-sizing:border-box;text-align:left;border:0;border-left:4px solid ' + (inRange ? accent : 'transparent') + ';background:' + (selected ? '#17498C' : 'transparent') + ';color:#FFFFFF;padding:6px 10px;border-radius:0 12px 12px 0;opacity:' + op,
+      pick: () => this.setState({ sel: i }),
+    };
+  });
+  const s = sel === null ? null : items[sLo];
+  const pill = (on) => 'flex:1;height:48px;border-radius:24px;border:0;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;' + (on ? 'background:' + accent + ';color:#0F2F57' : 'background:#3F78BF;color:#FFFFFF');
+  const lines = items.filter((it, i) => hasRange && i >= lo && i <= hi && it.t === 'line').length;
+  const more = sHi - sLo;
+  return {
+    accent,
+    rows,
+    progress: Math.round((100 * (at + 1)) / items.length) + '%',
+    hasSel: sel !== null,
+    hasRange,
+    tailPad: sel !== null ? '120px' : '0px',
+    rangeLabel: 'Wiederholung · ' + lines + (lines === 1 ? ' Zeile' : ' Zeilen'),
+    selWho: s ? (s.t === 'line' ? (me(s) ? 'Lena · du' : s.role) : s.t === 'dir' ? 'Regie' : 'Lied') : '',
+    selColor: s && me(s) ? accent : '#A9D3F7',
+    selText: s ? shown(s, sLo) + (more > 0 ? ' (+' + more + (more === 1 ? ' Zeile)' : ' Zeilen)') : '') : '',
+    selIsVon: sel !== null && sLo === von ? 'true' : 'false',
+    selIsBis: sel !== null && sHi === bis ? 'true' : 'false',
+    vonStyle: pill(sel !== null && sLo === von),
+    bisStyle: pill(sel !== null && sHi === bis),
+    vonInk: sel !== null && sLo === von ? '#0F2F57' : '#FFFFFF',
+    bisInk: sel !== null && sHi === bis ? '#0F2F57' : '#FFFFFF',
+    close: (e) => {
+      const t = e && e.target;
+      if (sel === null || (t && t.closest && t.closest('[data-keep]'))) return;
+      this.setState({ sel: null });
+    },
+    clear: () => this.setState({ von: null, bis: null }),
+    setVon: () => {
+      const b = bis !== null && sLo > bis ? null : bis;
+      this.setState({ von: sLo, bis: b, sel: null, at: range(sLo, b).at });
+    },
+    setBis: () => {
+      const a = von !== null && sHi < von ? null : von;
+      this.setState({ von: a, bis: sHi, sel: null, at: range(a, sHi).at });
+    },
+    fromHere: () => this.setState({ at: sLo, sel: null }),
+  };
+}
+}
+</script>
+</body>
+</html>
