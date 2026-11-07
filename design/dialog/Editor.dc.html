@@ -33,7 +33,7 @@ button{cursor:pointer}
 
 <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;background:#17498C;border-radius:18px;padding:12px 16px">
 <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#CFE0F5">Rolle
-<select style="height:40px;min-width:180px;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:14px;padding:0 10px"><option>Alle Rollen</option><option>Anna</option><option>Mutter</option></select></label>
+<select style="height:40px;min-width:180px;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:14px;padding:0 10px"><option>Alle Rollen</option><option>Lena</option><option>Vater</option></select></label>
 <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#CFE0F5">Szene
 <select style="height:40px;min-width:180px;border-radius:10px;border:0;background:#1F5FAB;color:#FFFFFF;font-size:14px;padding:0 10px"><option>Szene 4 · [Szenentitel]</option></select></label>
 <label style="display:flex;align-items:center;gap:8px;height:40px;font-size:14px"><input type="checkbox" style="width:20px;height:20px;accent-color:#C8E05A">nur ohne Ton</label>
@@ -98,7 +98,7 @@ button{cursor:pointer}
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1040}}'>
 class Component extends DCLogic {
 renderVals() {
-const colors = { Anna: '#C8E05A', Mutter: '#FFD166', 'Erzähler 2': '#F4B6C2', Benjamin: '#A9D3F7' };
+const colors = { Lena: '#C8E05A', Vater: '#FFD166', Erzählerin: '#F4B6C2', Max: '#A9D3F7' };
 const line = (id, role, text, say, state) => ({
   id, role, text, say, isLine: true, isDirection: false, isSong: false, color: colors[role],
   bg: state === 'selected' ? '#17498C' : '#17498C', border: state === 'selected' ? '#FFFFFF' : 'transparent',
@@ -107,12 +107,12 @@ const line = (id, role, text, say, state) => ({
   statusColor: state === 'missing' ? '#FFD166' : '#CFE0F5',
 });
 const rows = [
-  line('p0x2', 'Erzähler 2', 'Auf dem Platz roch es nach gebrannten Mandeln, und überall leuchteten Lichterketten.', '', 'ok'),
-  { id: 'd7a1', text: 'Mutter setzt sich auf die Bank.', isLine: false, isDirection: true, isSong: false },
-  line('k3f9', 'Anna', 'Ich hab den Bus verpasst. Tut mir leid!', '', 'selected'),
-  line('m2q8', 'Mutter', 'Macht nichts. Komm, wir suchen zusammen noch ein Geschenk für Oma.', '', 'missing'),
-  line('z5c0', 'Benjamin', 'Hallo Anna! Kennst du schon Jo vom Krippenspiel?', 'Hallo Anna! Kennst du schon Joh vom Krippenspiel?', 'loading'),
-  line('r8t4', 'Anna', 'Oma mag doch Schneekugeln. Da drüben am Stand gibt es welche!', '', 'ok'),
+  line('p0x2', 'Erzählerin', 'Auf dem Bahnsteig war es kalt, und die Anzeigetafel blinkte unruhig.', '', 'ok'),
+  { id: 'd7a1', text: 'Vater setzt sich auf die Bank.', isLine: false, isDirection: true, isSong: false },
+  line('k3f9', 'Lena', 'Ich hab den Bus verpasst. Tut mir leid!', '', 'selected'),
+  line('m2q8', 'Vater', 'Macht nichts. Komm, wir kaufen noch schnell ein Geschenk für Tante Ilse.', '', 'missing'),
+  line('z5c0', 'Max', 'Hallo Lena! Kennst du schon Jo aus meiner Klasse?', 'Hallo Lena! Kennst du schon Joh aus meiner Klasse?', 'loading'),
+  line('r8t4', 'Lena', 'Tante Ilse mag doch Spieluhren. Da drüben am Kiosk gibt es welche!', '', 'ok'),
   { id: 'g1s4', text: 'Lied 4 · [Liedtitel]', isLine: false, isDirection: false, isSong: true },
 ];
 return { rows };

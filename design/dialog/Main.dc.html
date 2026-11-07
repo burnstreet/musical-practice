@@ -19,7 +19,7 @@ button{font-family:inherit;cursor:pointer}
 <div style="width:390px;height:1000px;box-sizing:border-box;background:#1F5FAB;color:#FFFFFF;font-family:'DM Sans',system-ui,sans-serif;padding:24px 20px 28px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
 
 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-<div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#C8E05A">Weihnachtsmusical 2026</div>
+<div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#C8E05A">[Produktionstitel]</div>
 <a href="Settings.dc.html" aria-label="Einstellungen" style="width:44px;height:44px;border-radius:22px;background:#17498C;display:flex;align-items:center;justify-content:center;flex:none">
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
 </a>
@@ -79,8 +79,8 @@ super(props);
 this.state = { open: false, picked: null };
 }
 renderVals() {
-const names = ['Anna', 'Mutter', 'Maria', 'Josef', 'Engel', 'Benjamin', 'Onkel', 'Wirt', 'Römer', 'Weihnachtsmann', 'Erzähler 1', 'Erzähler 2', 'Chor'];
-const picked = this.state.picked ?? ((this.props.start ?? 'Rolle gewählt') === 'erster Start' ? [] : ['Anna']);
+const names = ['Lena', 'Vater', 'Clara', 'Tom', 'Frau Berger', 'Max', 'Schaffner', 'Kioskfrau', 'Polizist', 'Straßenmusiker', 'Erzähler', 'Erzählerin', 'Chor'];
+const picked = this.state.picked ?? ((this.props.start ?? 'Rolle gewählt') === 'erster Start' ? [] : ['Lena']);
 const roles = names.map((name) => ({
   name, on: picked.includes(name), off: !picked.includes(name),
   flip: () => this.setState({ picked: picked.includes(name) ? picked.filter((p) => p !== name) : [...picked, name] }),
