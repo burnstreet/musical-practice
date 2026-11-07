@@ -55,6 +55,7 @@ const settle = async (el: any) => {
 
 async function mount(ctx: any) {
   if (ctx.el) return ctx.el
+  fake(ctx)
   ctx.el = document.createElement('gu-songs')
   document.body.append(ctx.el)
   await settle(ctx.el)
@@ -98,7 +99,6 @@ export default steps(({ Given, When, Then }) => {
     await mount(ctx)
   })
   Given(/^sync at (\d+) of (\d+) MB$/, async (ctx, done, total) => {
-    fake(ctx)
     await mount(ctx)
     ctx.emit({ doneBytes: Number(done) * MB, totalBytes: Number(total) * MB, readySongs: [], done: false })
     await settle(ctx.el)
@@ -153,6 +153,11 @@ export default steps(({ Given, When, Then }) => {
   })
   Then(/^the progress bar is hidden$/, (ctx) => {
     expect(q(ctx, '.progress')).toBeNull()
+  })
+  Then(/^the settings button reads "([^"]+)" with aria-label "([^"]+)"$/, (ctx, t, aria) => {
+    const b = q(ctx, 'header button')!
+    expect(b.textContent!.trim()).toBe(t)
+    expect(b.getAttribute('aria-label')).toBe(aria)
   })
   Then(/^settings\.mode is "(\w+)" and the route is "([^"]+)"$/, (ctx, mode, route) => {
     expect(settings.get().mode).toBe(mode)
