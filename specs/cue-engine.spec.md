@@ -99,7 +99,6 @@ Feature: Cue engine
     When I tap
     Then the state is playing in scene s2
 
-  @todo
   Scenario: paused start
     When I start at s1 l3 paused
     Then the state is paused with turn [l3, l4] and no effects
@@ -140,14 +139,12 @@ Feature: Cue engine
     When I go back
     Then the state is playing with play [l2]
 
-  @todo
   Scenario: repeat wraps after the last turn
     Given repeat in s1 from l2 to l3 and I am waiting at l3
     Then the next turn is [l2]
     When speech starts and speech ends
     Then the state is playing with play [l2]
 
-  @todo
   Scenario: repeat ends snap to the actor's whole turn
     Given repeat in s1 from l4 to l5
     Then the repeat range is l3 to l5
@@ -155,13 +152,11 @@ Feature: Cue engine
     When audio ends
     Then the state is waiting with turn [l3, l4]
 
-  @todo
   Scenario: repeat without an end runs to the scene end
     Given repeat in s1 from l5 and I am at the song g1
     When I tap
     Then the state is playing with play [l5]
 
-  @todo
   Scenario: start before the range plays into it, then repeats
     Given repeat in s1 from l3 to l4 and I am playing l2
     When audio ends
@@ -169,25 +164,21 @@ Feature: Cue engine
     When speech starts and speech ends
     Then the state is waiting with turn [l3, l4]
 
-  @todo
   Scenario: skip past the last turn wraps
     Given repeat in s1 from l2 to l2 and I am playing l1
     When I skip
     Then the state is playing with play [l2] and the effects hold stop
 
-  @todo
   Scenario: start after the range plays on
     Given repeat in s1 from l1 to l2 and I am playing l5
     When audio ends and I tap
     Then the state is playing in scene s2
 
-  @todo
   Scenario: back ignores the range
     Given repeat in s1 from l3 to l4 and I am waiting at l3
     When I go back
     Then the state is playing with play [l2]
 
-  @todo
   Scenario: repeat start on a hidden direction
     Given directions are not shown and repeat in s1 from d1 to l2
     Then the repeat range is l1 to l2
@@ -195,7 +186,6 @@ Feature: Cue engine
     When audio ends
     Then the state is playing with play [l1]
 
-  @todo
   Scenario: unknown id means the scene start
     Given repeat in s1 from x9 to l1 and I am playing l1
     When audio ends
