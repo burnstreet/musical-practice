@@ -1,7 +1,7 @@
 import { css, html, LitElement, svg } from 'lit'
 import { keyed } from 'lit/directives/keyed.js'
-import { CUE_DEFAULTS, type Cue, cueStep, groupTurns, hintText } from '../../core/cue'
-import type { Scene, ScriptItem } from '../../core/types'
+import { CUE_DEFAULTS, type Cue, groupTurns, hintText, repeatRange, type Turn } from '../../core/cue'
+import type { ScriptItem } from '../../core/types'
 import { getContext } from '../context'
 import { type Dialog, type DialogDeps, openDialog, unlockAudio } from '../dialog'
 import { icon, shapes } from '../icons'
@@ -46,6 +46,11 @@ const ALERT = icon(
   svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></g>`,
   18,
 )
+const REPEAT = icon(
+  svg`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 013-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 01-3 3H3"/></g>`,
+  18,
+)
+const CLOSE = icon(svg`<path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`, 16)
 const WAVE = (w: number, h: number) =>
   html`<svg class="wave" width=${w} height=${h} viewBox="0 0 44 20" aria-hidden="true"><g fill="currentColor"><rect x="0" y="7" width="4" height="6" rx="2"/><rect x="8" y="3" width="4" height="14" rx="2"/><rect x="16" y="0" width="4" height="20" rx="2"/><rect x="24" y="5" width="4" height="10" rx="2"/><rect x="32" y="2" width="4" height="16" rx="2"/><rect x="40" y="7" width="4" height="6" rx="2"/></g></svg>`
 
@@ -59,9 +64,10 @@ export class GuRun extends LitElement {
     dialog: { state: true },
     revealed: { state: true },
     settingsOpen: { state: true },
+    sel: { state: true },
   }
   static styles = css`
-    :host { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; height: 100vh; height: 100dvh; padding: 16px; overflow: hidden;
+    :host { position: relative; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; height: 100vh; height: 100dvh; padding: 16px; overflow: hidden;
       background: var(--bg); color: var(--text); font-family: var(--font-body); }
     button { font: inherit; color: inherit; cursor: pointer; border: 0; }
     button:disabled { cursor: default; opacity: 0.5; }
@@ -128,6 +134,38 @@ export class GuRun extends LitElement {
     .controls .pill { height: 52px; padding: 0 14px; border-radius: 26px; background: var(--surface); display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
     .controls .rate { font-size: 13px; font-weight: 700; }
     .controls .weiter { flex: 1; margin: 0 12px; height: 60px; border-radius: 30px; background: var(--card); color: var(--ink); font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .controls .spacer { width: 52px; flex: none; }
+    /* paused scene view (artboards T1–T3) */
+    .paused-hint { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 0 4px; flex: none; }
+    .flow { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; display: flex; flex-direction: column; gap: 4px; }
+    .flow.open::after { content: ''; flex: none; height: 150px; } /* the last rows can scroll above the sheet */
+    .row { display: block; width: 100%; min-height: 44px; box-sizing: border-box; flex: none; text-align: left; background: transparent; border-left: 4px solid transparent; border-radius: 0 12px 12px 0; padding: 6px 10px; }
+    .row.in { border-left-color: var(--accent); }
+    .row[aria-pressed='true'] { background: var(--surface); }
+    .row.before { opacity: 0.7; }
+    .row .who, .row .said, .row .dir { display: block; }
+    .row .said { color: var(--text); }
+    .bars i { display: block; width: 70%; height: 12px; margin: 5px 0 3px; border-radius: 6px; background: var(--text); opacity: 0.3; }
+    .song-row { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted); }
+    .here { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; padding: 6px 4px 2px; flex: none; }
+    .here i { flex: 1; border-top: 1.5px dashed currentColor; }
+    .tag { align-self: flex-start; flex: none; height: 20px; padding: 0 8px; margin-top: 4px; border-radius: 6px; background: var(--accent); color: var(--ink); font-size: 11px; font-weight: 700; display: flex; align-items: center; }
+    .repeat { display: flex; align-items: center; gap: 8px; height: 44px; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 22px; padding: 0 4px 0 14px; color: var(--accent); flex: none; }
+    .repeat span { flex: 1; font-size: 14px; font-weight: 700; }
+    .repeat .round { width: 36px; height: 36px; border-radius: 18px; }
+    .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; max-width: 760px; margin: 0 auto; box-sizing: border-box; background: var(--surface); border-radius: 22px 22px 0 0;
+      padding: 10px 16px calc(22px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -10px 28px rgba(8, 30, 60, 0.5); animation: sheet-up 220ms ease-out; }
+    @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+    .grip { width: 40px; height: 4px; border-radius: 2px; background: var(--line); align-self: center; }
+    .first { display: flex; flex-wrap: wrap; padding: 0 4px; font-size: 14px; line-height: 1.35; }
+    .first .who { flex-basis: 100%; }
+    .first .said, .first .dir, .first .song-row { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .first .bars { flex: 1; }
+    .first .more { flex: none; white-space: pre; color: var(--muted); }
+    .sheet-acts { display: flex; gap: 6px; }
+    .sheet-acts button { flex: 1; height: 48px; border-radius: 24px; background: var(--line); color: var(--text); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .sheet-acts button[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
+    .sheet-acts .here-btn { flex: 1.2; background: var(--card); color: var(--ink); }
     /* phone turned sideways: less chrome, more text */
     @media (max-height: 500px) {
       :host { padding: 8px 16px; gap: 6px; }
@@ -154,6 +192,7 @@ export class GuRun extends LitElement {
       .big { font-size: 24px; }
       .controls { justify-content: flex-start; gap: 10px; }
       .controls .weiter { flex: none; margin: 0; padding: 0 28px; }
+      .controls .spacer { display: none; }
     }
   `
 
@@ -163,11 +202,15 @@ export class GuRun extends LitElement {
   /** First item id of the turn whose line was revealed. */
   declare revealed: string | null
   declare settingsOpen: boolean
+  /** Item tapped in the paused scene view: its turn has the sheet. */
+  declare sel: string | null
   /** Controller seams; tests swap them. */
   deps?: DialogDeps
   private opening = 0
   /** `showDirections` when the sheet opened. */
   private directionsBefore: boolean | null = null
+  /** Paused position the flow last scrolled to. */
+  private scrolledTo = ''
 
   constructor() {
     super()
@@ -176,6 +219,11 @@ export class GuRun extends LitElement {
     this.dialog = null
     this.revealed = null
     this.settingsOpen = false
+    this.sel = null
+    // a tap outside the rows and the sheet closes the sheet
+    this.addEventListener('click', (e) => {
+      if (this.sel && !e.composedPath().some((n) => n instanceof Element && n.hasAttribute('data-keep'))) this.sel = null
+    })
   }
 
   connectedCallback() {
@@ -197,12 +245,25 @@ export class GuRun extends LitElement {
 
   updated(changed: Map<string, unknown>) {
     if ((changed.has('sceneId') || changed.has('itemId')) && this.sceneId) this.open().catch(console.error)
+    this.scrollToHere()
+  }
+
+  /** Paused at a new position: the flow scrolls the `here` marker into the upper third. */
+  private scrollToHere() {
+    const cue = this.dialog?.cue
+    const key = cue?.state === 'paused' ? `${cue.sceneId}/${cue.position().itemId}` : ''
+    if (key === this.scrolledTo) return
+    this.scrolledTo = key
+    const here = this.renderRoot.querySelector<HTMLElement>('.here')
+    const flow = here?.parentElement
+    if (here && flow) flow.scrollTop = here.offsetTop - flow.clientHeight / 4
   }
 
   private async open() {
     const n = ++this.opening
     this.dialog?.dispose()
     this.dialog = null
+    this.sel = null
     // back from `Lied üben`: resume at the song item instead of paused
     const ctx = getContext()
     const back = ctx.returnTo === `#/text/${this.sceneId}/${this.itemId}`
@@ -222,6 +283,7 @@ export class GuRun extends LitElement {
 
   private send(type: 'tap' | 'skip' | 'back' | 'prompt' | 'pause' | 'resume') {
     if (type === 'resume' || type === 'tap') unlockAudio()
+    this.sel = null
     this.dialog?.send({ type })
   }
 
@@ -230,8 +292,9 @@ export class GuRun extends LitElement {
     return s === 'waiting' || s === 'speaking' || s === 'prompting'
   }
 
-  /** Space bar: `Weiter` in my turn, pause/resume elsewhere. */
+  /** Space bar: `Weiter` in my turn, pause/resume elsewhere. Escape closes the sheet. */
   private onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && !this.settingsOpen) this.sel = null
     if (e.key !== ' ' || e.repeat || !this.dialog || this.settingsOpen) return
     e.preventDefault() // no scrolling, no click on a focused button
     if (this.mine()) this.send('tap')
@@ -289,6 +352,14 @@ export class GuRun extends LitElement {
     const mine = (i: ScriptItem) => i.type === 'line' && s.roles.includes(i.role)
     const myNames = s.roles.map((id) => names.get(id) ?? id)
     const no = sceneNo(scene, si)
+    // the cue keeps the repeat of the scene it started in; past that scene there is none
+    const range = d.options.repeat?.sceneId === cue.sceneId ? repeatRange(d.loaded.script, d.options) : null
+    const lo = range ? flow.findIndex((x) => x.id === range.from) : -1
+    const hi = range ? flow.findIndex((x) => x.id === range.to) : -1
+    const stored = s.dialogRepeats[cue.sceneId]
+    const ends: Ends = { from: stored?.from && range?.from, to: stored?.to && range?.to }
+    const paused = cue.state === 'paused'
+    const sel = paused ? turns.find((t) => t.some((i) => i.id === this.sel)) : undefined
     return html`<header>
         <button class="round" aria-label="Zurück zur Auswahl" @click=${() => getContext().route('#/text')}>${BACK}</button>
         <div>
@@ -315,13 +386,100 @@ export class GuRun extends LitElement {
           )}
         </nav>
         <main>
-          <div class="past">${past.map((i, k) => this.pastItem(i, mine(i) || (i.type === 'direction' && forMe(i.text, myNames)), names, 0.35 + (0.5 * (k + 1)) / past.length))}</div>
-          ${this.current(names, myNames)}
-          ${this.upNext(cue, scenes, mine, names)}
+          ${
+            paused
+              ? html`<div class="paused-hint">${icon(shapes.pause, 14)}<span>Pausiert · Zeile antippen für Von, Bis oder Ab hier</span></div>
+                <div class="flow ${sel ? 'open' : ''}">${turns.map((t, ti) =>
+                  t.map((i) => {
+                    const k = flow.indexOf(i)
+                    return this.row(i, ti < turnAt, ti === turnAt && i === t[0], k >= lo && k <= hi, t === sel, ends, names, myNames)
+                  }),
+                )}</div>`
+              : html`<div class="past">${past.map((i, k) => this.pastItem(i, mine(i) || (i.type === 'direction' && forMe(i.text, myNames)), names, 0.35 + (0.5 * (k + 1)) / past.length))}</div>
+                ${this.current(names, myNames)}
+                ${this.upNext(cue, range?.to, mine, names)}`
+          }
         </main>
       </div>
+      ${
+        range
+          ? html`<div class="repeat">${REPEAT}<span>Wiederholung · ${lineLabel(flow.slice(lo, hi + 1).filter((i) => i.type === 'line').length)}</span>
+            <button class="round" aria-label="Wiederholung aufheben" @click=${this.clearRepeat}>${CLOSE}</button></div>`
+          : ''
+      }
       ${this.controls()}
+      ${sel ? this.sheet(sel, turns.indexOf(sel) < turnAt, ends, names, myNames) : ''}
       ${this.settingsOpen ? html`<gu-text-settings @close=${this.closeSettings}></gu-text-settings>` : ''}`
+  }
+
+  /** Who and text of an item in the paused view: my lines before the current turn in full, from it on through the hint. */
+  private said(i: ScriptItem, before: boolean, names: Map<string, string>, myNames: string[]) {
+    if (i.type === 'direction') return html`<span class="dir ${forMe(i.text, myNames) ? 'me' : ''}">${i.text}</span>`
+    if (i.type === 'song') return html`<span class="song-row">${NOTE}${this.songTitle(i.songId)}</span>`
+    const name = names.get(i.role) ?? i.role
+    const s = getContext().settings.get()
+    if (!s.roles.includes(i.role)) return html`<span class="who">${name}</span><span class="said">${inline(i.text)}</span>`
+    const mode = before ? 'show' : s.dialog.hint
+    return html`<span class="who me">${name} · du</span>${
+      mode === 'hide'
+        ? html`<span class="said bars" role="img" aria-label="Zeile verdeckt"><i></i></span>`
+        : html`<span class="said">${inline(hintText(i.text, mode))}</span>`
+    }`
+  }
+
+  /** One item of the paused scene view, with the `here` marker and the `Von` / `Bis` tags. */
+  private row(i: ScriptItem, before: boolean, here: boolean, inRange: boolean, selected: boolean, ends: Ends, names: Map<string, string>, myNames: string[]) {
+    return html`${here ? html`<div class="here">${icon(shapes.go, 12)}<span>Hier geht es weiter</span><i></i></div>` : ''}
+      ${ends.from === i.id ? html`<span class="tag">Von</span>` : ''}
+      <button class="row ${inRange ? 'in' : ''} ${before && !selected ? 'before' : ''}" data-id=${i.id} data-keep aria-pressed=${selected} @click=${() => (this.sel = i.id)}>${this.said(i, before, names, myNames)}</button>
+      ${ends.to === i.id ? html`<span class="tag">Bis</span>` : ''}`
+  }
+
+  /** Sheet for the tapped turn (artboard T2): `Von`, `Bis`, `Ab hier`. */
+  private sheet(t: Turn, before: boolean, ends: Ends, names: Map<string, string>, myNames: string[]) {
+    const isFrom = ends.from === t[0].id
+    const isTo = ends.to === t.at(-1)!.id
+    const more = t.length - 1
+    return html`<div class="sheet" role="dialog" aria-label="Zeile: Wiederholung oder Einstieg" data-keep>
+      <i class="grip"></i>
+      <div class="first">${t[0].type === 'line' ? '' : html`<span class="who">${t[0].type === 'direction' ? 'Regie' : 'Lied'}</span>`}${this.said(t[0], before, names, myNames)}${more ? html`<span class="more"> (+${lineLabel(more)})</span>` : ''}</div>
+      <div class="sheet-acts">
+        <button aria-pressed=${isFrom} aria-label="Wiederholung von hier" @click=${() => this.setEnd('from', t)}>${REPEAT}Von</button>
+        <button aria-pressed=${isTo} aria-label="Wiederholung bis hier" @click=${() => this.setEnd('to', t)}>${REPEAT}Bis</button>
+        <button class="here-btn" @click=${() => this.jump(t[0].id)}>${icon(shapes.go, 14)}Ab hier</button>
+      </div>
+    </div>`
+  }
+
+  /** `Von` / `Bis`: set that end to the turn, clear an opposite end on the wrong side, move a position outside the new range to its start. */
+  private setEnd(end: 'from' | 'to', t: Turn) {
+    const d = this.dialog!
+    const { settings } = getContext()
+    const { sceneId } = d.cue
+    const items = d.loaded.script.scenes.find((x) => x.id === sceneId)!.items
+    const at = (id?: string) => items.findIndex((x) => x.id === id)
+    const repeats = settings.get().dialogRepeats
+    const r = { ...repeats[sceneId] }
+    r[end] = end === 'from' ? t[0].id : t.at(-1)!.id
+    if (r.from && r.to && at(r.from) > at(r.to)) delete r[end === 'from' ? 'to' : 'from']
+    settings.set({ dialogRepeats: { ...repeats, [sceneId]: r } })
+    this.jump()
+    const range = repeatRange(d.loaded.script, d.options)!
+    const pos = at(d.cue.position().itemId)
+    if (pos < at(range.from) || pos > at(range.to)) d.restart(range.from)
+  }
+
+  /** `Ab hier` (or a moved range): the cue starts again at `itemId`, default where it stands. */
+  private jump(itemId?: string) {
+    this.sel = null
+    this.dialog?.restart(itemId)
+  }
+
+  private clearRepeat() {
+    const { settings } = getContext()
+    const { [this.dialog!.cue.sceneId]: _, ...rest } = settings.get().dialogRepeats
+    settings.set({ dialogRepeats: rest })
+    this.jump()
   }
 
   private pastItem(i: ScriptItem, me: boolean, names: Map<string, string>, fade: number) {
@@ -344,10 +502,9 @@ export class GuRun extends LitElement {
     const first = cue.turn[0]
     if (!first) return ''
     const s = getContext().settings.get()
-    const paused = cue.state === 'paused'
     if (first.type === 'direction')
       return html`<div class="current direction ${forMe(first.text, myNames) ? 'me' : ''}"><span class="label">Regie</span><p>${first.text}</p>
-        ${paused ? '' : html`<div class="run">${keyed(first.id + cue.state, html`<i style="animation-duration:${CUE_DEFAULTS.directionMs}ms"></i>`)}</div>`}</div>`
+        <div class="run">${keyed(first.id + cue.state, html`<i style="animation-duration:${CUE_DEFAULTS.directionMs}ms"></i>`)}</div></div>`
     if (first.type === 'song') {
       const { library } = getContext()
       const song = library.songs().find((x) => x.id === first.songId)
@@ -359,7 +516,7 @@ export class GuRun extends LitElement {
         <div class="top"><span class="disc">${NOTE}</span><span><small>Jetzt kommt ein Lied${singers.length ? ` · ${singers.join(', ')} ${singers.length > 1 ? 'singen' : 'singt'} mit` : ''}</small><strong>${this.songTitle(first.songId)}</strong></span></div>
         <div class="acts">
           <button class="go" ?disabled=${!library.isReady(first.songId)} @click=${() => this.practiceSong(first.songId)}>${icon(shapes.go, 14)}Lied üben</button>
-          <button @click=${() => this.send(paused ? 'resume' : 'tap')}>Weiter im Text</button>
+          <button @click=${() => this.send('tap')}>Weiter im Text</button>
         </div>
       </div>`
     }
@@ -406,15 +563,11 @@ export class GuRun extends LitElement {
     </div>`
   }
 
-  /** While playing: `Gleich du` when the next turn is mine, `dann wieder von vorn` when the repeat starts over after it. */
-  private upNext(cue: Cue, scenes: Scene[], mine: (i: ScriptItem) => boolean, names: Map<string, string>) {
+  /** While playing: `Gleich du` when the next turn is mine, `dann wieder von vorn` when it is the repeat's last turn. */
+  private upNext(cue: Cue, rangeTo: string | undefined, mine: (i: ScriptItem) => boolean, names: Map<string, string>) {
     const { next } = cue
     if (cue.state !== 'playing' || !next[0] || !mine(next[0])) return ''
-    // one turn further: landing at or before my turn means the repeat wraps there
-    const after = cueStep(cue, { type: 'audioEnded' }, 0)
-    const items = scenes.find((x) => x.id === after.sceneId)?.items ?? []
-    const wrapTo = items.indexOf(after.next[0])
-    const wraps = wrapTo >= 0 && wrapTo <= items.indexOf(next[0])
+    const wraps = next.at(-1)!.id === rangeTo
     const who = [...new Set(next.map((i) => (i.type === 'line' ? (names.get(i.role) ?? i.role) : '')))].join(', ')
     return html`<div class="next">${MIC}<b>Gleich du · ${who}, ${lineLabel(next.length)}${wraps ? ' · dann wieder von vorn' : ''}</b><span>Mikro noch aus</span></div>`
   }
@@ -422,8 +575,11 @@ export class GuRun extends LitElement {
   private controls() {
     const { cue } = this.dialog!
     const rate = getContext().settings.get().dialog.rate
-    const paused = cue.state === 'paused'
-    const back = html`<button class="round" aria-label="Zurück zum vorigen Eintrag" ?disabled=${paused} @click=${() => this.send('back')}>${PREV}</button>`
+    const speed = html`<button class="round rate" aria-label="Sprechtempo der anderen ${oneDecimalDe(rate)}-fach" @click=${this.openSettings}>${oneDecimalDe(rate)}×</button>`
+    if (cue.state === 'paused')
+      return html`<div class="controls"><span class="spacer"></span>
+        <button class="round main" aria-label="Weiter abspielen" @click=${() => this.send('resume')}>${PLAY}</button>${speed}</div>`
+    const back = html`<button class="round" aria-label="Zurück zum vorigen Eintrag" @click=${() => this.send('back')}>${PREV}</button>`
     if (this.mine())
       return html`<div class="controls">${back}
         <button class="weiter" @click=${() => this.send('tap')}>Weiter${NEXT}</button>
@@ -442,13 +598,15 @@ export class GuRun extends LitElement {
           ? html`<button class="pill" aria-label="Rest von ${speaker} überspringen" @click=${() => this.send('skip')}>${SKIP}Überspringen</button>`
           : ''
       }
-      <button class="round main" aria-label=${paused ? 'Fortsetzen' : 'Pause'} @click=${() => this.send(paused ? 'resume' : 'pause')}>${paused ? PLAY : PAUSE}</button>
-      <button class="round rate" aria-label="Sprechtempo der anderen ${oneDecimalDe(rate)}-fach" @click=${this.openSettings}>${oneDecimalDe(rate)}×</button>
+      <button class="round main" aria-label="Pause" @click=${() => this.send('pause')}>${PAUSE}</button>${speed}
     </div>`
   }
 }
 
 /** `{n} Zeilen`, one `Zeile`. */
 export const lineLabel = (n: number) => (n === 1 ? '1 Zeile' : `${n} Zeilen`)
+
+/** Item ids of the repeat's ends the actor set; unset ends stay undefined. */
+type Ends = { from?: string; to?: string }
 
 customElements.define('gu-run', GuRun)

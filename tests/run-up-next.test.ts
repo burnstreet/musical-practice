@@ -30,6 +30,7 @@ beforeEach(() => {
 
 /** Run-through playing `itemId` with the cue option `repeat`; returns the `Gleich du` hint, '' when none. */
 async function upNext(itemId: string, repeat: CueRepeat | null) {
+  if (repeat) settings.set({ dialogRepeats: { s1: { from: repeat.from, to: repeat.to } } })
   const deps = { now: () => 0, every: () => () => {}, play: () => ({ ended: new Promise<void>(() => {}), stop: () => {} }) }
   const el = Object.assign(document.createElement('gu-run') as GuRun, { sceneId: 's1', deps })
   document.body.append(el)

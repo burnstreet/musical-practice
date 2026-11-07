@@ -95,9 +95,11 @@ export interface Dialog {
   readonly micFailed: boolean
   /** Mic level 0..1 while my turn is open. */
   level(): number
+  /** Options the cue was last entered with (its repeat is of the scene it entered). */
+  readonly options: CueOptions
   send(ev: CueEvent): void
-  /** Settings changed (directions): enter the current turn again with them. */
-  restart(): void
+  /** Enter the turn holding `itemId` (default: current) again with current settings; paused stays paused. With `itemId` it stores the position. */
+  restart(itemId?: string): void
   /** Leaving the screen: store the position, stop audio, mic off. */
   dispose(): void
 }
@@ -116,6 +118,7 @@ export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => voi
     return { roles, ...CUE_DEFAULTS, showDirections: dialog.showDirections, repeat: r ? { ...r, sceneId } : null }
   }
   let cue: Cue
+  let opts: CueOptions
   let missed = false
   let micFailed = false
   let disposed = false
@@ -210,7 +213,8 @@ export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => voi
   const offTick = deps.every(100, () => dialog.send({ type: 'tick' }))
 
   const enter = (to: CueAt) => {
-    cue = cueStart(loaded.script, options(to.sceneId), to, deps.now())
+    opts = options(to.sceneId)
+    cue = cueStart(loaded.script, opts, to, deps.now())
     run(cue.effects)
   }
   enter(at)
@@ -227,13 +231,16 @@ export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => voi
       return micFailed
     },
     level: () => (micOn ? pitch.level() : 0),
+    get options() {
+      return opts
+    },
     send,
-    restart() {
+    restart(itemId) {
       if (cue.state === 'done') return
-      const paused = cue.state === 'paused'
+      const here = cue.position()
       stopAudio()
-      enter(cue.position())
-      if (paused) send({ type: 'pause' })
+      enter({ sceneId: here.sceneId, itemId: itemId ?? here.itemId, paused: cue.state === 'paused' })
+      if (itemId) store()
       onChange()
     },
     dispose() {

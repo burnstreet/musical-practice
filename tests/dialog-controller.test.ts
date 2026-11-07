@@ -60,6 +60,30 @@ describe('dialog controller', () => {
     expect(t.played).toEqual([['m001', 1.2]])
   })
 
+  it('restart at an item while paused: stays paused, no audio, stores the position', async () => {
+    const { t, ctx, deps } = setup()
+    const d = await openDialog(ctx, { sceneId: 's1', paused: true }, () => {}, deps)
+    d.restart('m002')
+    await flush()
+    expect(d.cue.state).toBe('paused')
+    expect(d.cue.effects).toEqual([])
+    expect(t.played).toEqual([])
+    expect(settings.get().dialogPositions.lena).toMatchObject({ sceneId: 's1', itemId: 'm002' })
+  })
+
+  it('restart while running: the current turn plays again', async () => {
+    const { t, ctx, deps } = setup()
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    d.restart()
+    await flush()
+    expect(d.cue.state).toBe('playing')
+    expect(t.played).toEqual([
+      ['m001', 1.2],
+      ['m001', 1.2],
+    ])
+  })
+
   it("repeats the scene's stored range", async () => {
     settings.set({ dialogRepeats: { s1: { from: 'm001', to: 'a001' } } })
     const { ctx, deps } = setup()

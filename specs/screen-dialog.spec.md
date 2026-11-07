@@ -232,7 +232,6 @@ Feature: Text settings
     Then the sheet shows "Anfang", 1,2 s, 1,0× and directions on
 
 Feature: Paused scene view and repeat
-  @todo
   Scenario: opens paused with the whole scene
     Given the paused-view scene
     When the run-through opens at s1
@@ -241,7 +240,6 @@ Feature: Paused scene view and repeat
     And the flow shows i1 to i5 and "Wir gehen gleich …"
     And there is no back button
 
-  @todo
   Scenario: sheet opens on tap, switches, closes elsewhere
     Given the run-through paused at s1
     When I tap i1
@@ -251,44 +249,37 @@ Feature: Paused scene view and repeat
     When I tap the header
     Then no sheet is shown
 
-  @todo
   Scenario: my turn is one block
     Given the run-through paused at s1
     When I tap i3 and press "Von"
     Then settings.dialogRepeats.s1 is from i2
     And the cue option repeat is from i2 in s1
 
-  @todo
   Scenario: setting a range moves the position into it
     Given the run-through paused at i1
     When I set "Von" at i4 and "Bis" at i5
     Then "Hier geht es weiter" stands above i4 and the chip reads "Wiederholung · 2 Zeilen"
 
-  @todo
   Scenario: Von after Bis clears Bis
     Given repeat in s1 from i1 to i3
     When I set "Von" at i4
     Then settings.dialogRepeats.s1 is from i4 without an end
 
-  @todo
   Scenario: Ab hier keeps the range
     Given repeat in s1 from i4 to i5, paused at i4
     When I tap i1 and press "Ab hier"
     Then "Hier geht es weiter" stands above i1 and the chip is visible
 
-  @todo
   Scenario: chip clears the range
     Given repeat in s1 from i4 to i5
     When I press "Wiederholung aufheben"
     Then no chip is shown and settings.dialogRepeats has no s1
 
-  @todo
   Scenario: repeat per scene, not per role set
     Given repeat in s1 from i4 to i5 stored
     When I change the roles and open s1
     Then the chip is visible
 
-  @todo
   Scenario: play resumes
     Given the run-through paused at s1
     When I press "Weiter abspielen"
