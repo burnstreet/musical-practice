@@ -1,0 +1,74 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Main.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "T1 Pausiert · Szene lesen (zum Ausprobieren)",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "Menu.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "T2 Zeile angetippt · Von / Bis / Ab hier",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "Play.dc.html": {
+      "h": 844,
+      "title": "T4 Läuft in der Wiederholung",
+      "w": 390,
+      "x": 1410,
+      "y": 0
+    },
+    "Range.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "T3 Wiederholung gesetzt",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-07T12:00:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "noteOrder": [
+    "t1",
+    "n1"
+  ],
+  "notes": {
+    "n1": {
+      "fill": "orange",
+      "text": "Entwurf, nicht verbindlich.\n\n• Szene öffnet pausiert, die ganze Szene ist scrollbar.\n• Kommende eigene Zeilen wie unter „Eigene Zeile“ eingestellt (hier: Anfang). Gesprochene voll.\n• Zeile antippen: Feld schiebt sich von unten über den Inhalt (Von · Bis · Ab hier). Andere Zeile antippen: Feld wechselt zu ihr. Daneben tippen: Feld weg.\n• Ganze Redeblöcke: deine aufeinanderfolgenden Zeilen sind ein Block. Nur den letzten Satz der anderen üben: langen Text im Skript in Zeilen teilen.\n• Von/Bis haben das Wiederholungssymbol. Von/Bis gesetzt und die Stelle liegt außerhalb: Stelle springt auf Von. Von hinter Bis löscht Bis (und umgekehrt).\n• Nur Von: bis Szenenende. Nur Bis: ab Szenenanfang.\n• Bereich: Akzentstreifen links, Marken Von/Bis. Chip über den Controls, pausiert und laufend sichtbar, ✕ hebt auf ohne Scrollen.\n• Bereich pro Szene gespeichert, unabhängig von den Rollen.\n• Weiter erst mit Play.\n\nT1 ist klickbar: Zeilen antippen, Von/Bis setzen, ✕.",
+      "w": 380,
+      "x": 1880,
+      "y": 0
+    },
+    "t1": {
+      "kind": "title1",
+      "maxW": 1800,
+      "text": "Text üben: Abschnitt wiederholen",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Menu.dc.html",
+    "Range.dc.html",
+    "Play.dc.html"
+  ],
+  "pages": [],
+  "title": "Text · Abschnitt üben – Entwürfe"
+}

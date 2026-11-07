@@ -55,6 +55,19 @@ https://claude.ai/artifact/JepLkpUgQLtk1PHKB1UrxH.
 | dialog/Editor.dc.html | Admin-Editor · Skript | 1440×1040, fluid |
 | dialog/canvas.json | board index | |
 
+## Dialog repeat (`dialog-repeat/`)
+
+Snapshot of the Claude Design canvas "Text · Abschnitt üben – Entwürfe" (paused run-through as a scrollable scene, tap a line for Von / Bis / Ab hier, repeat range within a scene):
+https://claude.ai/artifact/Gpo361XzAdnDWW3zrG3mSW. Added next to `dialog/`, not replacing it. Roles (Lena, Vater, Erzählerin), lines and the scene are invented placeholders, not from any production.
+
+| file | screen | size |
+|---|---|---|
+| dialog-repeat/Main.dc.html | Handy T1 Pausiert · Szene lesen (interactive) | 390×844 |
+| dialog-repeat/Menu.dc.html | Handy T2 Zeile angetippt · Von / Bis / Ab hier (imports Main) | 390×844 |
+| dialog-repeat/Range.dc.html | Handy T3 Wiederholung gesetzt (imports Main) | 390×844 |
+| dialog-repeat/Play.dc.html | Handy T4 Läuft in der Wiederholung | 390×844 |
+| dialog-repeat/canvas.json | board index, design notes | |
+
 ## Pending
 
 Pending edits (see `specs/overview.spec.md` → Design deltas): remove "Aufnahme anhören", add download size line, progress bar, badges, settings sheet, headphone sheet, install hint, trend line, reduce voicetrack modes to three.

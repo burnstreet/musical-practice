@@ -61,7 +61,9 @@ const deepText = (n: Node): string =>
 const text = (ctx: any) => deepText(ctx.el).replace(/\s+/g, ' ')
 const all = (ctx: any) => deepAll(ctx.el.shadowRoot)
 const clickable = (ctx: any, t: string) =>
-  all(ctx).find((e) => /^(BUTTON|LABEL|A)$/.test(e.tagName) && e.textContent!.replace(/\s+/g, ' ').trim() === t) as HTMLElement | undefined
+  all(ctx).find((e) => /^(BUTTON|LABEL|A)$/.test(e.tagName) && (e.textContent!.replace(/\s+/g, ' ').trim() === t || e.getAttribute('aria-label') === t)) as
+    | HTMLElement
+    | undefined
 const chips = (ctx: any) => all(ctx).filter((e) => e.matches('[aria-pressed]') && e.closest('.chips'))
 const chipNames = (ctx: any) => chips(ctx).map((e) => e.textContent!.trim())
 const card = (ctx: any) => {
@@ -78,9 +80,10 @@ async function mount(ctx: any, tag: string, props: Record<string, unknown> = {})
   return ctx.el
 }
 
-/** Run-through of s1 with fake audio (never ends), a fake clock and a manual tick; records what the cue engine is sent. */
+/** Run-through of s1 with fake audio (never ends), a fake clock and a manual tick; records what the cue engine is sent and what played. */
 async function run(ctx: any, itemId?: string) {
   ctx.sent = [] as string[]
+  ctx.played = 0
   ctx.el = null
   document.body.innerHTML = ''
   const deps = {
@@ -89,7 +92,10 @@ async function run(ctx: any, itemId?: string) {
       ctx.tick = fn
       return () => {}
     },
-    play: () => ({ ended: new Promise<void>(() => {}), stop: () => {} }),
+    play: () => {
+      ctx.played++
+      return { ended: new Promise<void>(() => {}), stop: () => {} }
+    },
   }
   const el = await mount(ctx, 'gu-run', { sceneId: 's1', itemId: itemId ?? '', deps })
   const dialog = el.dialog
@@ -99,6 +105,73 @@ async function run(ctx: any, itemId?: string) {
     send(ev)
   }
   return el
+}
+
+/** The play control of the paused run-through. */
+async function pressPlay(ctx: any) {
+  const b = all(ctx).find((e) => e.matches('.controls .main'))
+  if (!b) throw new Error(`no play control in: ${text(ctx)}`)
+  ;(b as HTMLElement).click()
+  await settle(ctx.el)
+}
+
+/** Paused-view scene of the spec. */
+function pausedScene(ctx: any) {
+  fake(ctx)
+  settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, hint: 'start' } })
+  ctx.script = {
+    scenes: [
+      scene('s1', [
+        line('i1', 'vater', 'Da bist du ja.'),
+        line('i2', 'lena', 'Ich bin gerannt.'),
+        line('i3', 'lena', 'Den ganzen Weg.'),
+        line('i4', 'vater', 'Komm jetzt rein.'),
+        line('i5', 'lena', 'Wir gehen gleich nach Hause'),
+      ]),
+      scene('s2', [line('j1', 'vater', 'Na dann.'), line('j2', 'lena', 'Bis gleich.'), line('j3', 'vater', 'Tschüss.')]),
+    ],
+  }
+}
+const repeatIn = (ctx: any, sceneId: string, from: string, to: string) => {
+  pausedScene(ctx)
+  settings.set({ dialogRepeats: { [sceneId]: { from, to } } })
+}
+const row = (ctx: any, id: string) => {
+  const r = all(ctx).find((e) => e.getAttribute('data-id') === id) as HTMLElement | undefined
+  if (!r) throw new Error(`no row ${id} in: ${text(ctx)}`)
+  return r
+}
+const tap = async (ctx: any, el: HTMLElement) => {
+  el.click()
+  await settle(ctx.el)
+}
+const press = async (ctx: any, t: string) => {
+  const b = clickable(ctx, t)
+  if (!b) throw new Error(`no "${t}" in: ${text(ctx)}`)
+  await tap(ctx, b)
+}
+const tapPress = async (ctx: any, id: string, t: string) => {
+  await tap(ctx, row(ctx, id))
+  await press(ctx, t)
+}
+const sheet = (ctx: any) => all(ctx).find((e) => e.matches('[role=dialog]'))
+const chip = (ctx: any) => all(ctx).find((e) => e.matches('.repeat'))
+/** Row id right below the `Hier geht es weiter` marker. */
+const hereAt = (ctx: any) => {
+  const els = all(ctx)
+  const k = els.findIndex((e) => e.textContent === 'Hier geht es weiter')
+  if (k < 0) throw new Error(`no marker in: ${text(ctx)}`)
+  return els
+    .slice(k)
+    .find((e) => e.hasAttribute('data-id'))
+    ?.getAttribute('data-id')
+}
+
+/** Opens the run-through of s1 at `itemId`, presses play, clears `ctx.sent`. */
+async function running(ctx: any, itemId?: string) {
+  await run(ctx, itemId)
+  await pressPlay(ctx)
+  ctx.sent = []
 }
 
 export default steps(({ Given, When, Then }) => {
@@ -175,7 +248,7 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ['lena'] })
     ctx.script = { scenes: [scene('s1', [line('m001', 'vater', t), line('a001', 'lena', 'Ja.')])] }
-    await run(ctx)
+    await running(ctx)
     expect(ctx.el.dialog.cue.state).toBe('playing')
   })
   Then(/^a card shows "([^"]+)" and "([^"]+)"$/, (ctx, a, b) => {
@@ -197,8 +270,8 @@ export default steps(({ Given, When, Then }) => {
       scenes: [scene('s1', [...[a, b, c].map((text, i): ScriptItem => ({ id: `d00${i + 1}`, type: 'direction', text })), line('m001', 'vater', 'Hallo.')])],
     }
   })
-  When(/^the run-through starts at "([^"]+)"$/, (ctx, t) => run(ctx, ctx.dirs[t]))
-  When(/^the run-through starts at the line$/, (ctx) => run(ctx, 'm001'))
+  When(/^the run-through starts at "([^"]+)" and I press play$/, (ctx, t) => running(ctx, ctx.dirs[t]))
+  When(/^the run-through starts at the line and I press play$/, (ctx) => running(ctx, 'm001'))
   Then(/^the direction card is highlighted$/, (ctx) => {
     expect(ctx.el.dialog.cue.state).toBe('direction')
     expect(
@@ -243,7 +316,7 @@ export default steps(({ Given, When, Then }) => {
     settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, hint: hint as 'start' } })
     ctx.script = { scenes: [scene('s1', [line('a001', 'lena', t), line('m001', 'vater', 'Gut.')])] }
     ctx.full = t
-    await run(ctx)
+    await running(ctx)
   })
   Then(/^the card reads "([^"]+)" and "([^"]+)" and offers "([^"]+)"$/, (ctx, a, b, c) => {
     expect(card(ctx)).toContain(a)
@@ -264,7 +337,7 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ['lena'] })
     ctx.script = { scenes: [scene('s1', [line('a001', 'lena', 'Ich komme.'), line('m001', 'vater', 'Gut.')])] }
-    await run(ctx)
+    await running(ctx)
     expect(ctx.el.dialog.cue.state).toBe('waiting')
   })
   Then(/^the cue engine receives tap$/, (ctx) => {
@@ -275,7 +348,7 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     settings.set({ roles: ['lena'] })
     ctx.script = { scenes: [scene('s1', [line('a001', 'lena', 'Ich komme.'), line('m001', 'vater', 'Gut.')])] }
-    await run(ctx)
+    await running(ctx)
     ctx.now = 20000
     ctx.tick()
     await settle(ctx.el)
@@ -289,7 +362,7 @@ export default steps(({ Given, When, Then }) => {
     settings.set({ roles: ['lena'] })
     ctx.songs = [{ id, number: +id, title: 'Schneelied', durationSec: 60, roles: ['lena'], files: {} }]
     ctx.script = { scenes: [scene('s1', [line('m001', 'vater', 'Hör mal.'), { id: 'g001', type: 'song', songId: id }, line('m002', 'vater', 'Schön.')])] }
-    await run(ctx, 'g001')
+    await running(ctx, 'g001')
     expect(ctx.el.dialog.cue.state).toBe('song')
   })
   Then(/^the route is "([^"]+)"$/, (ctx, hash) => {
@@ -306,10 +379,116 @@ export default steps(({ Given, When, Then }) => {
     expect(ctx.el.dialog.cue.state).toBe('song')
     expect(ctx.el.dialog.cue.turn[0].id).toBe('g001')
     expect(card(ctx)).toContain('Lied 4 · Schneelied')
+    expect(ctx.c.returnTo).toBe(null) // used up: opening the song item later starts paused
   })
   When(/^I press the space bar$/, async (ctx) => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space' }))
     await settle(ctx.el)
+  })
+  Given(/^scene s1 with m1 of vater, a1 of lena, m2 and m3 of vater$/, (ctx) => {
+    fake(ctx)
+    ctx.script = { scenes: [scene('s1', [line('m1', 'vater', 'Na?'), line('a1', 'lena', 'Ja.'), line('m2', 'vater', 'Gut.'), line('m3', 'vater', 'Schön.')])] }
+  })
+  Given(/^the repeat in s1 is from (\w+) to (\w+)$/, (_ctx, from, to) => settings.set({ dialogRepeats: { s1: { from, to } } }))
+  When(/^the run-through (?:plays|runs at) (\w+)$/, (ctx, id) => running(ctx, id))
+  Then(/^the up-next hint reads "([^"]+)"$/, (ctx, t) => {
+    expect(
+      all(ctx)
+        .find((e) => e.matches('.next b'))
+        ?.textContent?.replace(/\s+/g, ' '),
+    ).toBe(t)
+  })
+  Then(/^no up-next hint is shown$/, (ctx) => {
+    expect(ctx.el.dialog.cue.state).toBe('playing')
+    expect(all(ctx).some((e) => e.matches('.next'))).toBe(false)
+  })
+
+  // Paused scene view and repeat
+  Given(/^the paused-view scene$/, (ctx) => pausedScene(ctx))
+  When(/^the run-through opens at s1$/, (ctx) => run(ctx))
+  Given(/^the run-through paused at (s1|i\d)$/, (ctx, at) => {
+    pausedScene(ctx)
+    return run(ctx, at === 's1' ? undefined : at)
+  })
+  Given(/^repeat in s1 from (i\d) to (i\d)$/, (ctx, from, to) => {
+    repeatIn(ctx, 's1', from, to)
+    return run(ctx)
+  })
+  Given(/^repeat in s1 from (i\d) to (i\d), paused at (i\d)$/, (ctx, from, to, at) => {
+    repeatIn(ctx, 's1', from, to)
+    return run(ctx, at)
+  })
+  Given(/^repeat in (s\d) from (\w\d) to (\w\d) stored$/, (ctx, sceneId, from, to) => repeatIn(ctx, sceneId, from, to))
+  Then(/^the cue state is paused and no effect ran$/, (ctx) => {
+    expect(ctx.el.dialog.cue.state).toBe('paused')
+    expect(ctx.el.dialog.cue.effects).toEqual([])
+    expect(ctx.played).toBe(0)
+  })
+  Then(/^"Hier geht es weiter" stands above (i\d)$/, (ctx, id) => {
+    expect(hereAt(ctx)).toBe(id)
+  })
+  Then(/^the flow shows i1 to i5 and "([^"]+)"$/, (ctx, hint) => {
+    expect(all(ctx).flatMap((e) => e.getAttribute('data-id') ?? [])).toEqual(['i1', 'i2', 'i3', 'i4', 'i5'])
+    expect(row(ctx, 'i5').textContent).toContain(hint)
+    expect(text(ctx)).not.toContain('nach Hause')
+  })
+  Then(/^there is no back button$/, (ctx) => {
+    expect(clickable(ctx, 'Zurück zum vorigen Eintrag')).toBeUndefined()
+  })
+  When(/^I tap (i\d)$/, (ctx, id) => tap(ctx, row(ctx, id)))
+  When(/^I tap the header$/, (ctx) => tap(ctx, all(ctx).find((e) => e.tagName === 'HEADER') as HTMLElement))
+  When(/^I tap (i\d) and press "([^"]+)"$/, (ctx, id, t) => tapPress(ctx, id, t))
+  When(/^I set "Von" at (i\d) and "Bis" at (i\d)$/, async (ctx, a, b) => {
+    await tapPress(ctx, a, 'Von')
+    await tapPress(ctx, b, 'Bis')
+  })
+  When(/^I set "Von" at (i\d)$/, (ctx, id) => tapPress(ctx, id, 'Von'))
+  When(/^I change the roles and open s1$/, (ctx) => {
+    settings.set({ roles: ['vater'] })
+    return run(ctx)
+  })
+  Then(/^a sheet shows "([^"]+)", "([^"]+)" and "([^"]+)"$/, (ctx, a, b, c) => {
+    const s = sheet(ctx)
+    expect(s).toBeTruthy()
+    for (const t of [a, b, c]) expect(clickable(ctx, t)?.closest('[role=dialog]')).toBe(s)
+  })
+  Then(/^the sheet shows the text of (i\d)$/, (ctx, id) => {
+    const item = ctx.script.scenes[0].items.find((i: ScriptItem) => i.id === id)
+    expect(sheet(ctx)?.textContent).toContain(item.text)
+  })
+  Then(/^no sheet is shown$/, (ctx) => {
+    expect(sheet(ctx)).toBeUndefined()
+  })
+  Then(/^settings\.dialogRepeats\.s1 is from (i\d)( without an end)?$/, (ctx, id, noEnd) => {
+    expect(settings.get().dialogRepeats.s1).toStrictEqual({ from: id })
+    if (noEnd) expect(all(ctx).some((e) => e.matches('.tag') && e.textContent === 'Bis')).toBe(false)
+  })
+  Then(/^the cue option repeat is from (i\d) in s1$/, (ctx, id) => {
+    expect(ctx.el.dialog.options.repeat).toEqual({ sceneId: 's1', from: id })
+  })
+  Then(/^the chip reads "([^"]+)"$/, (ctx, t) => {
+    expect(chip(ctx)?.textContent?.replace(/\s+/g, ' ').trim()).toBe(t)
+  })
+  Then(/^the card is marked in the range$/, (ctx) => {
+    expect(
+      all(ctx)
+        .find((e) => e.matches('.current'))
+        ?.classList.contains('in'),
+    ).toBe(true)
+  })
+  Then(/^the tag "(Von|Bis)" is shown$/, (ctx, tag) => {
+    expect(all(ctx).some((e) => e.matches('.tag') && e.textContent === tag)).toBe(true)
+  })
+  Then(/^no chip is shown and settings\.dialogRepeats has no s1$/, (ctx) => {
+    expect(chip(ctx)).toBeUndefined()
+    expect(settings.get().dialogRepeats).not.toHaveProperty('s1')
+  })
+  Then(/^the chip is visible$/, (ctx) => {
+    expect(chip(ctx)).toBeTruthy()
+  })
+  Then(/^the cue engine receives resume$/, (ctx) => {
+    expect(ctx.sent).toEqual(['resume'])
+    expect(ctx.el.dialog.cue.state).not.toBe('paused')
   })
 
   // Text settings
@@ -317,12 +496,12 @@ export default steps(({ Given, When, Then }) => {
     fake(ctx)
     await mount(ctx, 'gu-text-settings')
   })
-  Then(/^the sheet shows "([^"]+)", ([\d,]+ s), ([\d,]+×), directions on and loop off$/, (ctx, hint, silence, rate) => {
+  Then(/^the sheet shows "([^"]+)", ([\d,]+ s), ([\d,]+×) and directions on$/, (ctx, hint, silence, rate) => {
     expect(clickable(ctx, hint)!.getAttribute('aria-pressed')).toBe('true')
     expect(text(ctx)).toContain(silence)
     expect(clickable(ctx, rate)!.getAttribute('aria-pressed')).toBe('true')
-    const box = (t: string) => (clickable(ctx, t) as HTMLLabelElement).querySelector('input') as HTMLInputElement
-    expect(box('Regieanweisungen anzeigen').checked).toBe(true)
-    expect(box('Szene wiederholen').checked).toBe(false)
+    const box = (clickable(ctx, 'Regieanweisungen anzeigen') as HTMLLabelElement).querySelector('input') as HTMLInputElement
+    expect(box.checked).toBe(true)
+    expect(text(ctx)).not.toContain('Szene wiederholen')
   })
 })

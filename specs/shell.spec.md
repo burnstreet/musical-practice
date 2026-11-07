@@ -28,6 +28,7 @@ export interface Settings {
   tab: 'songs' | 'text'           // last tab of the mode switch, default 'songs'
   dialog: DialogSettings          // text settings, screen-dialog
   dialogPositions: Record<string, DialogPosition>  // last run-through position per role set (roleSetKey: sorted ids joined by ',')
+  dialogRepeats: Record<string, Omit<CueRepeat, 'sceneId'>>  // repeat per scene id, same for every role set (screen-dialog)
 }
 export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset(): void }  // localStorage key "<storageId>.settings" (storageId from the production)
 ```
@@ -38,6 +39,7 @@ export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset
 - Unlocked app start (and any unknown route): the last tab, `#/text` when `settings.tab` is `text` and the library has a script, else songs. Practice and results routes need a ready song, else redirect to songs.
 - Results route: only with the live session of that song; otherwise practice of that song.
 - Text routes need a script in the library, else songs. A run-through (`#/text/{sceneId}…`) needs the script ready (`library.scriptReady`), else `#/text`.
+- `ctx.returnTo`: back target a screen sets before it routes to practice (practice's back button goes there). Routing to anything but practice or results clears it, except routing to `returnTo` itself: the run-through reads it there (screen-dialog, `songPractice`) and clears it.
   `[@test] ../tests/steps/shell.steps.ts`
 
 ```gherkin
@@ -71,6 +73,20 @@ Feature: Guards
     Given vault unlocked and a script not ready
     When I open "#/text/s1"
     Then the route is "#/text"
+
+  Scenario: back target kept when routing to it
+    Given vault state unlocked
+    And returnTo "#/songs"
+    When I open "#/practice/05"
+    Then the route is "#/songs"
+    And returnTo is "#/songs"
+
+  Scenario: back target cleared elsewhere
+    Given vault state unlocked
+    And returnTo "#/text/s1/g001"
+    When I open "#/practice/05"
+    Then the route is "#/songs"
+    And returnTo is null
 ```
 
 ## PWA

@@ -119,8 +119,10 @@ Playback speed as a percentage of the original, pitch unchanged. 100, 90, 80 or 
 _Avoid_: Speed, rate
 
 **Repeat**:
-Playing one range of the song again and again until switched off, one kind at a time: *Phrase*, *Abschnitt* (a Section), *Einsatz* (an Own span) or *A–B* (two bar-snapped points the singer sets). The range is fixed when the repeat is switched on; everything outside it is dimmed on screen. The UI heading is *Wiederholen*; "Loop" is kept only as the engine event and method name.
-_Avoid_: Loop (as a domain noun)
+Playing one range again and again until switched off.
+In a song, one kind at a time: *Phrase*, *Abschnitt* (a Section), *Einsatz* (an Own span) or *A–B* (two bar-snapped points the singer sets). The range is fixed when the repeat is switched on; everything outside it is dimmed on screen. The UI heading is *Wiederholen*; "Loop" is kept only as the engine event and method name.
+In the text run-through: a range of whole Turns in one scene, set with *Von* and *Bis*, shown as *Wiederholung*.
+_Avoid_: Loop, scene loop (as domain nouns)
 
 **Lead-in**:
 The run-up before a skip or a Section or Own-span repeat: 3 s before the target, snapped back to the previous bar line, never before 0. Phrase and A–B repeats start exactly at their start.

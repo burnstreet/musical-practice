@@ -114,7 +114,7 @@ export class GuApp extends LitElement {
     if (to !== location.hash) history.replaceState(null, '', to)
     if (!/^#\/(practice|results)\//.test(to)) {
       leaveSession(this.ctx) // clears live
-      this.ctx.returnTo = null
+      if (to !== this.ctx.returnTo) this.ctx.returnTo = null
     }
     this.hash = to
   }

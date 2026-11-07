@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit'
 import type { RoleId } from '../../core/content'
 import type { Scene, Script } from '../../core/types'
-import { getContext } from '../context'
+import { getContext, type Route } from '../context'
 import { unlockAudio } from '../dialog'
 import { icon, shapes } from '../icons'
 import { roleSetKey } from '../settings'
@@ -11,6 +11,9 @@ import { topHeader, topStyles } from './roles'
 /** Scene number: from an id `s{n}`, else the place in the script. */
 export const sceneNo = (scene: Scene, index: number) => Number(scene.id.match(/^s(\d+)$/)?.[1] ?? index + 1)
 /** Lines of the given roles in a scene. */
+/** Route of the run-through of a scene, at an item when given. */
+export const runRoute = (sceneId: string, itemId?: string): Route => (itemId ? `#/text/${sceneId}/${itemId}` : `#/text/${sceneId}`)
+
 export const lineCount = (scene: Scene, roles: RoleId[]) => scene.items.filter((i) => i.type === 'line' && roles.includes(i.role)).length
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
@@ -80,7 +83,7 @@ export class GuText extends LitElement {
 
   private go(sceneId: string, itemId?: string) {
     unlockAudio()
-    getContext().route(itemId ? `#/text/${sceneId}/${itemId}` : `#/text/${sceneId}`)
+    getContext().route(runRoute(sceneId, itemId))
   }
 
   render() {

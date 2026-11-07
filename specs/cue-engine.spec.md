@@ -1,6 +1,6 @@
 ---
 name: Cue engine
-description: Pure state machine of a dialog run-through. Turns, playing other roles, waiting for the actor, skip, back, prompt, pause, scene loop, hard timeout. Own-line hint text.
+description: Pure state machine of a dialog run-through. Turns, playing other roles, waiting for the actor, skip, back, prompt, pause, paused start, repeat of a turn range, hard timeout. Own-line hint text.
 targets:
   - ../src/core/cue.ts
 ---
@@ -16,8 +16,10 @@ export interface CueOptions {
   hardTimeoutMs: number      // default 20000
   directionMs: number        // default 2500
   showDirections: boolean    // false: directions are left out of the flow
-  loopScene: boolean
+  repeat: CueRepeat | null
 }
+/** Item ids within one scene. */
+export interface CueRepeat { sceneId: string; from?: string; to?: string }
 export type CueEvent =
   | { type: 'audioEnded' } | { type: 'speechStart' } | { type: 'speechEnd' }
   | { type: 'tap' } | { type: 'skip' } | { type: 'back' } | { type: 'prompt' }
@@ -31,11 +33,16 @@ export interface Cue {
   state: CueState
   sceneId: string
   turn: ScriptItem[]                      // items shown as current
+  next: ScriptItem[]                      // turn a tap or audio end enters, repeat applied; [] after the last scene
   effects: CueEffect[]                    // of the last step only
   position(): { sceneId: string; itemId: string }   // first item of the turn; host stores it per role set
 }
-export function cueStart(script: Script, opts: CueOptions, at: { sceneId: string; itemId?: string }, now: number): Cue
+/** Where a run-through opens; `paused`: no effects until resume. */
+export interface CueAt { sceneId: string; itemId?: string; paused?: boolean }
+export function cueStart(script: Script, opts: CueOptions, at: CueAt, now: number): Cue
 export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue
+/** First item of the range's first turn, last item of its last turn; null without a range. */
+export function repeatRange(script: Script, opts: CueOptions): { from: string; to: string } | null
 export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string
 ```
 
@@ -43,7 +50,7 @@ export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string
 
 - Flow of a scene = its items in order, without directions when `showDirections` is false.
 - Turn = one item. Exception: consecutive lines of roles in `roles` form one turn, the actor's turn.
-- `cueStart` enters the turn holding `itemId`, else the scene's first turn.
+- `cueStart` enters the turn holding `itemId`, else the scene's first turn. With `paused`: state `paused` at that turn, no effects.
 
 ## Per turn
 
@@ -59,14 +66,20 @@ export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string
 - `skip` in `playing`: jump to the next turn whose role differs from the current line's role (skips the rest of that speaker). Elsewhere `skip` = `tap`.
 - `back`: start of the previous turn. At the first turn of a scene: last turn of the previous scene. At the very first turn: same turn again.
 - Leaving a turn while audio plays adds effect `stop`.
-- End of scene: `loopScene` true: first turn of the same scene. Else first turn of the next scene. After the last scene: `done`, `mic off`.
+- End of scene: first turn of the next scene. After the last scene: `done`, `mic off`.
 - `pause` from any state but `done`: `paused`, effects `stop`, `mic off`. `resume`: the paused turn entered again from its start.
+
+## Repeat
+
+- Range = every turn of `repeat.sceneId` that holds an item between `from` and `to` (scene order, both included). A missing end, or an id not in the scene, means the scene's start or end. No such turn: no repeat.
+- A forward move (any event that goes to a next turn, `skip` included) from a turn at or before the last turn of the range that would land after it: the first turn of the range instead.
+- `back` ignores the range. A repeat of another scene than the current has no effect.
 
 ## Hint text
 
 - `show`: the text. `hide`: `""`. `start`: the first 3 words plus ` …`; 3 words or fewer: the text. An inline direction `[…]` counts as no word and stays where it is when it comes before the cut.
 
-Sample script of the scenarios: scene s1 = direction d1, lines l1 and l2 of vater, lines l3 and l4 of lena, line l5 of vater, song g1; scene s2 = line m1 of vater. Unless a scenario says otherwise: roles [lena], directionMs 2500, hardTimeoutMs 20000, directions shown, no loop.
+Sample script of the scenarios: scene s1 = direction d1, lines l1 and l2 of vater, lines l3 and l4 of lena, line l5 of vater, song g1; scene s2 = line m1 of vater. Unless a scenario says otherwise: roles [lena], directionMs 2500, hardTimeoutMs 20000, directions shown, no repeat.
   `[@test] ../tests/steps/cue.steps.ts`
 
 ```gherkin
@@ -87,6 +100,12 @@ Feature: Cue engine
     Then the state is song
     When I tap
     Then the state is playing in scene s2
+
+  Scenario: paused start
+    When I start at s1 l3 paused
+    Then the state is paused with turn [l3, l4] and no effects
+    When I resume
+    Then the state is waiting with turn [l3, l4] and mic on
 
   Scenario: skip jumps past the rest of the speaker
     Given I am playing l1
@@ -122,10 +141,57 @@ Feature: Cue engine
     When I go back
     Then the state is playing with play [l2]
 
-  Scenario: scene loop
-    Given loop is on and I am at the song g1
+  Scenario: repeat wraps after the last turn
+    Given repeat in s1 from l2 to l3 and I am waiting at l3
+    Then the next turn is [l2]
+    When speech starts and speech ends
+    Then the state is playing with play [l2]
+
+  Scenario: repeat ends snap to the actor's whole turn
+    Given repeat in s1 from l4 to l5
+    Then the repeat range is l3 to l5
+    Given I am playing l5
+    When audio ends
+    Then the state is waiting with turn [l3, l4]
+
+  Scenario: repeat without an end runs to the scene end
+    Given repeat in s1 from l5 and I am at the song g1
     When I tap
-    Then the state is direction in scene s1
+    Then the state is playing with play [l5]
+
+  Scenario: start before the range plays into it, then repeats
+    Given repeat in s1 from l3 to l4 and I am playing l2
+    When audio ends
+    Then the state is waiting with turn [l3, l4]
+    When speech starts and speech ends
+    Then the state is waiting with turn [l3, l4]
+
+  Scenario: skip past the last turn wraps
+    Given repeat in s1 from l2 to l2 and I am playing l1
+    When I skip
+    Then the state is playing with play [l2] and the effects hold stop
+
+  Scenario: start after the range plays on
+    Given repeat in s1 from l1 to l2 and I am playing l5
+    When audio ends and I tap
+    Then the state is playing in scene s2
+
+  Scenario: back ignores the range
+    Given repeat in s1 from l3 to l4 and I am waiting at l3
+    When I go back
+    Then the state is playing with play [l2]
+
+  Scenario: repeat start on a hidden direction
+    Given directions are not shown and repeat in s1 from d1 to l2
+    Then the repeat range is l1 to l2
+    Given I am playing l2
+    When audio ends
+    Then the state is playing with play [l1]
+
+  Scenario: unknown id means the scene start
+    Given repeat in s1 from x9 to l1 and I am playing l1
+    When audio ends
+    Then the state is direction
 
   Scenario: end of script
     Given I am playing m1

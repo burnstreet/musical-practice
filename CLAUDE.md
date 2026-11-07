@@ -1,3 +1,7 @@
+# general
+always use caveman
+use ponytail skill when writing code
+
 ## Developer tasks
 
 Use `./mp.ps1 <command>` (PowerShell 7, repo root) for every common operation instead of calling npm, npx, vite, vitest, biome, ruff, pytest or tools/pack.py directly. `./mp.ps1 help` lists the commands.
@@ -21,3 +25,13 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+# process
+
+before every commit run, as subagent(s)
+- claudy-code-detector
+- simplify
+
+and when the commit changes code also
+- security-review
+- code-review

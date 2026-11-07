@@ -12,6 +12,18 @@ describe('gherkin runner', () => {
     expect(features[0].scenarios[0].steps).toEqual(['the number "2"', 'the number "3"', 'I add them', 'the sum is "5"', 'I add "4" more', 'the sum is "9"'])
   })
 
+  it('marks only a scenario tagged @todo as todo', () => {
+    const [, second] = parseSpec('tests/fixtures/sample.spec.md', 'tests/fixtures/sample.steps.ts')
+    expect(second.scenarios.map((s) => [s.name, s.todo])).toEqual([
+      ['also selected', false],
+      ['not built yet', true],
+    ])
+  })
+
+  it('throws on @todo that does not precede a scenario', () => {
+    expect(() => parseSpec('tests/fixtures/misplaced-todo.spec.md', 'tests/fixtures/sample.steps.ts')).toThrow('@todo must precede Scenario:')
+  })
+
   it('throws on an unmatched step', async () => {
     const registry = steps(({ Given }) => Given(/^known$/, () => {}))
     await expect(runSteps(registry, ['known', 'unknown thing'])).rejects.toThrow('Unmatched step: unknown thing')

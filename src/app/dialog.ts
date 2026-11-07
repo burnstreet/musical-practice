@@ -1,4 +1,4 @@
-import { CUE_DEFAULTS, type Cue, type CueEffect, type CueEvent, cueStart, cueStep } from '../core/cue'
+import { CUE_DEFAULTS, type Cue, type CueAt, type CueEffect, type CueEvent, type CueOptions, cueStart, cueStep, repeatRange } from '../core/cue'
 import type { LoadedScript } from '../core/types'
 import { createVoiceDetect, type VoiceDetect } from '../core/voice-detect'
 import type { AppContext } from './context'
@@ -95,28 +95,29 @@ export interface Dialog {
   readonly micFailed: boolean
   /** Mic level 0..1 while my turn is open. */
   level(): number
+  /** Options the cue was entered with; its repeat is the stored one of the cue's scene. */
+  readonly options: CueOptions
   send(ev: CueEvent): void
-  /** Settings changed (directions, loop): enter the current turn again with them. */
-  restart(): void
+  /** Enter the turn holding `itemId` (default: current) again with current settings; paused stays paused. With `itemId` it stores the position. */
+  restart(itemId?: string): void
+  /** `Von` / `Bis`: that end of the scene's repeat at `itemId`, an opposite end on the wrong side cleared, a position outside the new range moved to its start; restarts the cue. */
+  setRepeatEnd(end: 'from' | 'to', itemId: string): void
   /** Leaving the screen: store the position, stop audio, mic off. */
   dispose(): void
 }
 
-/** Opens a run-through of the selected roles at `at`. `onChange` fires after every step and every tick of my turn (level). */
-export async function openDialog(
-  ctx: AppContext,
-  at: { sceneId: string; itemId?: string },
-  onChange: () => void,
-  deps: DialogDeps = browserDeps,
-): Promise<Dialog> {
+/** Opens a run-through of the selected roles at `at`, with the scene's stored repeat. `onChange` fires after every step and every tick of my turn (level). */
+export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => void, deps: DialogDeps = browserDeps): Promise<Dialog> {
   const { library, pitch, settings } = ctx
   const loaded = await library.getScript()
   const roles = settings.get().roles
-  const options = () => {
-    const d = settings.get().dialog
-    return { roles, ...CUE_DEFAULTS, showDirections: d.showDirections, loopScene: d.loopScene }
+  const options = (sceneId: string): CueOptions => {
+    const { dialog, dialogRepeats } = settings.get()
+    const r = dialogRepeats[sceneId]
+    return { roles, ...CUE_DEFAULTS, showDirections: dialog.showDirections, repeat: r ? { ...r, sceneId } : null }
   }
   let cue: Cue
+  let opts: CueOptions
   let missed = false
   let micFailed = false
   let disposed = false
@@ -196,8 +197,14 @@ export async function openDialog(
     if (disposed) return
     const before = cue
     cue = cueStep(cue, ev, deps.now())
+    let effects = cue.effects
+    if (cue.sceneId !== before.sceneId) {
+      // new scene: re-enter with its repeat; of the step keep only stop and missed, the rest is entering
+      const kept = effects.filter((e) => e.type === 'stop' || e.type === 'missed')
+      effects = [...kept, ...enter(cue.position()).effects]
+    }
     if (cue.state === 'waiting' && !mine(before)) missed = false
-    run(cue.effects)
+    run(effects)
     const moved = cue.state !== before.state || cue.position().itemId !== before.position().itemId
     if (moved && (cue.state === 'paused' || cue.turn !== before.turn)) store()
     if (moved || (ev.type === 'tick' && mine(cue))) onChange()
@@ -210,11 +217,13 @@ export async function openDialog(
   })
   const offTick = deps.every(100, () => dialog.send({ type: 'tick' }))
 
-  const enter = (to: { sceneId: string; itemId?: string }) => {
-    cue = cueStart(loaded.script, options(), to, deps.now())
-    run(cue.effects)
+  /** Replaces the cue with one entered at `to` with the options of its scene; the caller runs its effects. */
+  const enter = (to: CueAt): Cue => {
+    opts = options(to.sceneId)
+    cue = cueStart(loaded.script, opts, to, deps.now())
+    return cue
   }
-  enter(at)
+  run(enter(at).effects)
 
   const dialog: Dialog = {
     loaded,
@@ -228,14 +237,30 @@ export async function openDialog(
       return micFailed
     },
     level: () => (micOn ? pitch.level() : 0),
+    get options() {
+      return opts
+    },
     send,
-    restart() {
+    restart(itemId) {
       if (cue.state === 'done') return
-      const paused = cue.state === 'paused'
+      const here = cue.position()
       stopAudio()
-      enter(cue.position())
-      if (paused) send({ type: 'pause' })
+      run(enter({ sceneId: here.sceneId, itemId: itemId ?? here.itemId, paused: cue.state === 'paused' }).effects)
+      if (itemId) store()
       onChange()
+    },
+    setRepeatEnd(end, itemId) {
+      const { sceneId } = cue
+      const items = loaded.script.scenes.find((x) => x.id === sceneId)!.items
+      const indexOf = (id?: string) => items.findIndex((x) => x.id === id)
+      const repeats = settings.get().dialogRepeats
+      const r = { ...repeats[sceneId] }
+      r[end] = itemId
+      if (r.from && r.to && indexOf(r.from) > indexOf(r.to)) delete r[end === 'from' ? 'to' : 'from']
+      settings.set({ dialogRepeats: { ...repeats, [sceneId]: r } })
+      const range = repeatRange(loaded.script, options(sceneId))
+      const pos = indexOf(cue.position().itemId)
+      dialog.restart(range && (pos < indexOf(range.from) || pos > indexOf(range.to)) ? range.from : undefined)
     },
     dispose() {
       if (disposed) return
