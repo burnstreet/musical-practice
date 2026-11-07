@@ -50,4 +50,8 @@ Feature: Second block
   Scenario: also selected
     Given the number "1"
     Then the sum is "1"
+
+  @todo
+  Scenario: not built yet
+    Given a step nobody defines
 ```

@@ -114,7 +114,7 @@ One seam per module, all at the public API named in each spec. Tests drive the A
 
 - Good test: drives the module API with inputs, asserts outputs or emitted events. Never asserts internals, DOM structure of business modules, or timing of private calls.
 - Every requirement in a module spec has a Gherkin scenario in a fenced `gherkin` block right below it. The scenario is the acceptance test.
-- TypeScript: `tests/gherkin.ts` reads `specs/*.spec.md`, extracts fenced `gherkin` blocks, maps `Feature`/`Scenario`/steps onto Vitest `describe`/`it`. Steps resolve against regex registries in `tests/steps/<module>.steps.ts`. Unmatched step = failing test. `[@test]` links point at the step file.
+- TypeScript: `tests/gherkin.ts` reads `specs/*.spec.md`, extracts fenced `gherkin` blocks, maps `Feature`/`Scenario`/steps onto Vitest `describe`/`it`. Steps resolve against regex registries in `tests/steps/<module>.steps.ts`. Unmatched step = failing test. `[@test]` links point at the step file. `@todo` on the line before `Scenario:`: specified, not built yet; runs as `it.todo` (TS runner only).
 - Python: `tools/tests/conftest.py` extracts the blocks of the Python-targeted specs (`SPECS`) into a temp dir as `.feature` files, pytest-bdd runs them with steps in `tools/tests/steps_*.py`.
 - Screens: rendering smoke tests only (mount, strings present, actions dispatch). Device behaviour: manual checklist below.
 - Implementation order: TDD, failing scenario first. Use ponytail: smallest code that passes.

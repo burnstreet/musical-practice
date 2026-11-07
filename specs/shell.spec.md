@@ -28,6 +28,7 @@ export interface Settings {
   tab: 'songs' | 'text'           // last tab of the mode switch, default 'songs'
   dialog: DialogSettings          // text settings, screen-dialog
   dialogPositions: Record<string, DialogPosition>  // last run-through position per role set (roleSetKey: sorted ids joined by ',')
+  dialogRepeats: Record<string, Omit<CueRepeat, 'sceneId'>>  // repeat per scene id, same for every role set (screen-dialog)
 }
 export const settings: { get(): Settings; set(p: Partial<Settings>): void; reset(): void }  // localStorage key "<storageId>.settings" (storageId from the production)
 ```

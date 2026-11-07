@@ -15,6 +15,7 @@ type Define = (re: RegExp, fn: StepFn) => void
 export interface Scenario {
   name: string
   steps: string[]
+  todo: boolean // tagged @todo; runs as it.todo
 }
 export interface Feature {
   name: string
@@ -54,14 +55,19 @@ export function parseSpec(specPath: string, stepsPath: string): Feature[] {
 
 function parseGherkin(text: string): Feature[] {
   const features: Feature[] = []
+  let todo = false
   for (const raw of text.split('\n')) {
     const line = raw.trim()
     const feature = line.match(/^Feature:\s*(.*)$/)
     const scenario = line.match(/^Scenario:\s*(.*)$/)
     const step = line.match(/^(?:Given|When|Then|And|But|\*)\s+(.*)$/)
-    if (feature) features.push({ name: feature[1], scenarios: [] })
-    else if (scenario) features.at(-1)!.scenarios.push({ name: scenario[1], steps: [] })
-    else if (step) features.at(-1)!.scenarios.at(-1)!.steps.push(step[1])
+    if (todo && line && !scenario) throw new Error(`@todo must precede Scenario:, got: ${line}`)
+    if (line === '@todo') todo = true
+    else if (feature) features.push({ name: feature[1], scenarios: [] })
+    else if (scenario) {
+      features.at(-1)!.scenarios.push({ name: scenario[1], steps: [], todo })
+      todo = false
+    } else if (step) features.at(-1)!.scenarios.at(-1)!.steps.push(step[1])
   }
   return features
 }
@@ -73,6 +79,6 @@ export function runSpec(specName: string, stepsPath: string, specsDir = 'specs')
   const load = async () => (await import(/* @vite-ignore */ pathToFileURL(resolve(ROOT, stepsPath)).href)).default as Registry
   for (const f of features)
     describe(f.name, () => {
-      for (const s of f.scenarios) it(s.name, async () => runSteps(await load(), s.steps))
+      for (const s of f.scenarios) s.todo ? it.todo(s.name) : it(s.name, async () => runSteps(await load(), s.steps))
     })
 }
