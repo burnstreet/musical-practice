@@ -2,21 +2,33 @@
 // Code: Vite hot reload. Songs: packed with the local password "dev" into <root>/work/dev-content (git-ignored), served as
 // content/, packed again when web/data or sources/config.json change, then the page reloads (its boot syncs the library).
 // Only on localhost: the dev password guards nothing. `--lan` (a phone in the same network): listens on every address over
-// HTTPS (the mic needs a secure context) with a mkcert certificate in <root>/work/dev-cert, and packs with a random password.
+// HTTPS (the mic needs a secure context) with a mkcert certificate in <root>/work/dev-cert, and packs into
+// <root>/work/dev-content-lan with a random password made once and kept in <root>/work/dev-lan-password, so the phone's
+// stored key stays valid across restarts.
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, statSync, watch } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
 import { networkInterfaces } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { createServer } from 'vite'
 
 const root = process.env.MP_PRODUCTION
 if (!root) throw new Error('MP_PRODUCTION is not set: run ./mp.ps1 dev in the content repo')
-const out = resolve(root, 'work/dev-content')
 const venv = resolve(process.platform === 'win32' ? 'tools/.venv/Scripts/python.exe' : 'tools/.venv/bin/python')
 const python = existsSync(venv) ? venv : 'python'
 const lan = process.argv.includes('--lan')
-const password = lan ? randomBytes(3).toString('hex') : 'dev'
+const out = resolve(root, lan ? 'work/dev-content-lan' : 'work/dev-content')
+const password = lan ? lanPassword() : 'dev'
+
+function lanPassword() {
+  const file = resolve(root, 'work/dev-lan-password')
+  const kept = existsSync(file) && readFileSync(file, 'utf8').trim()
+  if (kept) return kept
+  const made = randomBytes(3).toString('hex')
+  mkdirSync(resolve(root, 'work'), { recursive: true })
+  writeFileSync(file, made)
+  return made
+}
 
 function lanServer() {
   const dir = resolve(root, 'work/dev-cert')
