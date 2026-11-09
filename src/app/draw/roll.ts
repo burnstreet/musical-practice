@@ -42,6 +42,13 @@ export function foldToTargetOctave(midi: number, t: number, mine: Note[]): numbe
   return target ? target.midi + foldCents(midi, target.midi) / 100 : midi
 }
 
+/** The notes `foldToTargetOctave` can pick for a time in t0…t1: those in it, the last one before, the first one after. Order kept. */
+export function nearWindow(mine: Note[], t0: number, t1: number): Note[] {
+  const before = mine.reduce<Note | undefined>((a, n) => (n.end < t0 && (!a || n.end > a.end) ? n : a), undefined)
+  const after = mine.reduce<Note | undefined>((a, n) => (n.start > t1 && (!a || n.start < a.start) ? n : a), undefined)
+  return mine.filter((n) => n === before || n === after || (n.end >= t0 && n.start <= t1))
+}
+
 /** Semitones (whole octaves) that put a sung pitch into the octave of my note sounding at `t`; null between notes. */
 export function octaveVote(midi: number, t: number, mine: Note[]): number | null {
   const n = mine.find((n) => n.start <= t && t <= n.end)
@@ -137,8 +144,9 @@ export function draw(ctx: CanvasRenderingContext2D | null, state: DrawState): vo
   const phrases = new Set(mineInView.map((n) => n.phrase))
   const myPhrases = notes.filter((n) => roles.includes(n.role) && !n.spoken && phrases.has(n.phrase))
   const mine = notes.filter((n) => roles.includes(n.role) && !n.spoken)
+  const near = nearWindow(mine, t0, t1)
   const { octave } = state
-  const pitch = (midi: number, time: number) => (octave == null ? foldToTargetOctave(midi, time, mine) : midi + octave)
+  const pitch = (midi: number, time: number) => (octave == null ? foldToTargetOctave(midi, time, time >= t0 && time <= t1 ? near : mine) : midi + octave)
   // Sung points in view, slips folded per take, with each point's level; hidden ones left out
   const takes = state.takes ?? [{ from: frames[0]?.t ?? 0, to: frames.at(-1)?.t ?? 0, t: frames.map((f) => f.t), midi: frames.map((f) => f.midi) }]
   const lines = takes.flatMap((take, k) => {

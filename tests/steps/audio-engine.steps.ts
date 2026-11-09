@@ -12,6 +12,8 @@ class FakeMedia extends EventTarget {
   preservesPitch = false
   paused = true
   sets = 0
+  /** Wall-clock seconds between the element's time updates, as some phones do; 0 = continuous. */
+  step = 0
   private base = 0
   private at = 0
   private rate = 1
@@ -19,7 +21,8 @@ class FakeMedia extends EventTarget {
     super()
   }
   get currentTime() {
-    return this.base + (this.paused ? 0 : (this.clock.t - this.at) * this.rate)
+    const ran = this.paused ? 0 : this.clock.t - this.at
+    return this.base + (this.step ? Math.floor(ran / this.step) * this.step : ran) * this.rate
   }
   set currentTime(v: number) {
     this.sets++
@@ -118,6 +121,7 @@ async function setup(ctx: any, notes: Note[] = [], roles: RoleId[] = ['clara'], 
         }),
       }) as any,
     requestFrame: (cb) => void frames.push(cb),
+    now: () => clock.t * 1000,
     createObjectURL: (b) => `blob:${(b as Blob).type}`,
     revokeObjectURL: () => {},
   })
@@ -198,6 +202,24 @@ export default steps(({ Given, When, Then }) => {
     for (const el of [ctx.voices, ctx.backing]) expect(el).toMatchObject({ playbackRate: +r, preservesPitch: true })
   })
   Then(/^time\(\) is about ([\d.]+)$/, (ctx, t) => expect(ctx.engine.time()).toBeCloseTo(+t, 1))
+
+  Given(/^playing at 100 and the voices element steps its time only every ([\d.]+) s$/, async (ctx, step) => {
+    await setup(ctx)
+    ctx.voices.step = +step
+    await ctx.engine.play()
+  })
+  When(/^ticks run every 1\/60 s for 1 second$/, (ctx) => {
+    ctx.ticks = [] as [number, number][]
+    ctx.engine.on('tick', (t: number) => ctx.ticks.push([ctx.clock.t, t]))
+    run(ctx, 1)
+  })
+  Then(/^each tick's time is later than the one before and within ([\d.]+) s of the real song time$/, (ctx, tol) => {
+    expect(ctx.ticks.length).toBeGreaterThan(50)
+    ctx.ticks.forEach(([real, t]: [number, number], i: number) => {
+      if (i) expect(t).toBeGreaterThan(ctx.ticks[i - 1][1])
+      expect(Math.abs(t - real)).toBeLessThanOrEqual(+tol)
+    })
+  })
 
   Given(/^(?:playing at 100 and )?the backing element reports ([\d.]+) s behind voices$/, async (ctx, d) => {
     await setup(ctx)
@@ -348,6 +370,7 @@ export default steps(({ Given, When, Then }) => {
           },
         }) as any,
       requestFrame: () => {},
+      now: () => 0,
       createObjectURL: () => '',
       revokeObjectURL: () => {},
     })

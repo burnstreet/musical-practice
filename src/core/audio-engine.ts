@@ -52,6 +52,8 @@ export interface AudioEngineDeps {
   createElement(): HTMLMediaElement
   createContext(): AudioContext
   requestFrame(cb: () => void): void
+  /** Wall clock in ms (performance.now). */
+  now(): number
   createObjectURL(b: Blob): string
   revokeObjectURL(url: string): void
 }
@@ -60,6 +62,7 @@ const browser: AudioEngineDeps = {
   createElement: () => new Audio(),
   createContext: () => new AudioContext({ latencyHint: 'interactive' }),
   requestFrame: (cb) => void requestAnimationFrame(() => cb()),
+  now: () => performance.now(),
   createObjectURL: (b) => URL.createObjectURL(b),
   revokeObjectURL: (u) => URL.revokeObjectURL(u),
 }
@@ -68,6 +71,8 @@ const RAMP = 0.03
 const LEAD = 0.15 // fade out starts this long before a span
 const DRIFT = 0.025
 const CLICK = 0.02
+/** How far `time()` may run on past the voices element's last value, s: a stalled element (buffering) stops it there. */
+const RUN_ON = 0.25
 
 export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine {
   let ac: AudioContext | undefined
@@ -81,6 +86,12 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
   let bars: number[] = []
   let isPlaying = false
   let prev = -1 // song time of the last tick; enter fires for notes starting in (prev, now]
+  let anchor: { media: number; at: number } | null = null // the element's last value and when it was first seen
+  let shown = 0 // song time last returned while playing
+  const resetSmoothing = () => {
+    anchor = null
+    shown = 0
+  }
   const listeners: Record<string, ((x?: any) => void)[]> = {}
   const emit = (ev: string, x?: unknown) =>
     listeners[ev]?.forEach((fn) => {
@@ -120,16 +131,27 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     return to
   }
 
+  /** The voices element's time, run on with the wall clock between its updates while playing, never backwards. */
+  function songTime(): number {
+    const media = voices.currentTime
+    if (!isPlaying) return media
+    const at = deps.now() / 1000
+    if (anchor?.media !== media) anchor = { media, at }
+    shown = Math.max(shown, media + Math.min(RUN_ON, (at - anchor.at) * voices.playbackRate))
+    return shown
+  }
+
   function frame() {
     if (!isPlaying) return
-    let t = voices.currentTime
+    let t = songTime()
     if (loop && prev < loop.end && t >= loop.end) {
       t = wrap(loop)
     } else {
       for (const n of notes) if (n.start > prev && n.start <= t) emit('enter', n)
       prev = t
     }
-    if (Math.abs(backing.currentTime - t) > DRIFT) backing.currentTime = t
+    // raw element times: the smoothed time would trigger needless resyncs
+    if (Math.abs(backing.currentTime - voices.currentTime) > DRIFT) backing.currentTime = voices.currentTime
     emit('tick', t)
     deps.requestFrame(frame)
   }
@@ -178,12 +200,14 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
       await ac!.resume()
       backing.currentTime = voices.currentTime
       await Promise.all([voices.play(), backing.play()])
+      resetSmoothing()
       isPlaying = true
       schedule()
       deps.requestFrame(frame)
     },
     pause() {
       isPlaying = false
+      resetSmoothing()
       voices.pause()
       backing.pause()
       voicesGain.gain.cancelScheduledValues(ac!.currentTime)
@@ -191,6 +215,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     },
     seek(sec) {
       voices.currentTime = backing.currentTime = sec
+      resetSmoothing()
       prev = sec
       for (const n of notes) if (n.start <= sec && sec < n.end) emit('enter', n)
       if (isPlaying) schedule()
@@ -201,6 +226,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     },
     setTempo(t) {
       voices.playbackRate = backing.playbackRate = t / 100
+      resetSmoothing()
       if (isPlaying) schedule()
     },
     setLoop(r) {
@@ -209,7 +235,7 @@ export function createAudioEngine(deps: AudioEngineDeps = browser): AudioEngine 
     seekLeadIn: (sec) => engine.seek(leadInStart(sec, bars)),
     tempo: () => (voices ? Math.round(voices.playbackRate * 100) : 100) as Tempo,
     loop: () => loop,
-    time: () => voices.currentTime,
+    time: songTime,
     playing: () => isPlaying,
     latency: () => (ac?.baseLatency ?? 0) + (ac?.outputLatency ?? 0),
     ctxTime() {
