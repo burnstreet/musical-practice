@@ -44,7 +44,8 @@ export interface AudioEngine {
 
 - Voices gain: `all` 1, `backing` 0, `others` 1 outside selected-role spans, 0 inside. Spans from `roleSpans(notes, roles)`. Fade out begins 150 ms before span start, 30 ms ramp. Fade in at span end, 30 ms ramp. Backing gain always 1.
 - Mode change while playing applies at once with 30 ms ramp.
-- Tempo: both elements `playbackRate = t / 100`, `preservesPitch = true`. `time()` reads the voices element.
+- Tempo: both elements `playbackRate = t / 100`, `preservesPitch = true`.
+- `time()` = the voices element's time. While playing it runs on with the wall clock × playbackRate between the element's updates (some platforms update it coarsely), at most 0.25 s past the element's last value, and never goes backwards until the next play, pause, seek or tempo change.
 - Sync: each tick compare backing to voices. Drift over 25 ms: set backing time to voices time.
 - Repeat: when `time()` reaches `range.end`, seek to `range.start` (to `leadInStart(range.start, song.bars)` when `range.leadIn`). Emit `loop` with `range.phrase` only when the range has one. Null clears. The range is only what the caller set: the engine never moves it.
 - A seek outside the range keeps the range. The wrap happens only when playback crosses `range.end` coming from before it: a seek before the range plays on to `range.end`, then wraps; a seek past `range.end` plays on (to the song end) without wrapping.
@@ -79,6 +80,17 @@ Feature: Tempo
     When I set tempo 80 and play for 1 real second
     Then both elements report playbackRate 0.8 and preservesPitch true
     And time() is about 0.8
+
+Feature: Smooth time
+  Scenario: the voices element steps its time coarsely
+    Given playing at 100 and the voices element steps its time only every 0.08 s
+    When ticks run every 1/60 s for 1 second
+    Then each tick's time is later than the one before and within 0.08 s of the real song time
+
+  Scenario: a stalled voices element stops it 0.25 s on
+    Given playing at 100 and the voices element steps its time only every 10 s
+    When ticks run every 1/60 s for 1 second
+    Then time() is about 0.25
 
 Feature: Sync
   Scenario: drift corrected
