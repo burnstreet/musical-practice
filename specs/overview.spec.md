@@ -92,6 +92,7 @@ Password-protected PWA. Unlock once, whole library downloads to device, practise
 - Song list badge: last session hit % for current role set.
 - iOS install hint once.
 - Key id in public manifest detects password change.
+- Every animation at least 15 fps on a mid-range phone (reference: Motorola edge 60, Android Chrome). Worst case: practice screen, longest song, playing and singing.
 
 ## Module seams
 
@@ -130,6 +131,7 @@ Run on iOS Safari (installed PWA and browser tab) and Android Chrome before each
 5. Lock screen and return: playback paused, app state intact.
 6. iOS: install hint shown once, app installed from Safari share sheet, data survives 8 days unused.
 7. New deploy: toast appears on next launch, not during practice.
+8. Practice screen, longest song, playing and singing: staff and roll move at 15 fps or more, no visible stutter (Android: reference phone Motorola edge 60).
 
 ## Design deltas
 

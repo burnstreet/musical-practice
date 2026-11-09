@@ -15,7 +15,7 @@ export function parseManifest(json: unknown): Manifest       // throws ContentEr
 export function parseLibrary(json: unknown): Library         // throws ContentError
 export function parseSong(json: unknown): Song               // throws ContentError
 export function roleSpans(notes: Note[], roles: RoleId[]): Span[]
-export function visibleNotes(notes: Note[], roles: RoleId[]): Note[]
+export function visibleNotes(notes: Note[], roles: RoleId[]): readonly Note[]
 ```
 
 ## Crypto
@@ -208,6 +208,7 @@ Feature: Role spans
 - My notes (role in `roles`) with the same start, end and midi as an earlier one of mine are dropped.
 - Other roles' notes overlapping in time any of my notes are dropped. Elsewhere other roles' notes stay.
 - Order kept. No role of `roles` sings in the song: notes unchanged.
+- Computed once per notes array and roles (the canvases ask every frame), so the result is shared and read-only. A note list is never changed in place after it is first shown.
   `[@test] ../tests/steps/content-format.steps.ts`
 
 ```gherkin

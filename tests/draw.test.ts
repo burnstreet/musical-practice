@@ -6,6 +6,7 @@ import {
   foldToTargetOctave,
   inWindow,
   lyricXs,
+  nearWindow,
   octaveVote,
   rollTimeAt,
   rollWindow,
@@ -767,6 +768,13 @@ describe('roll layout', () => {
 
   it('leaves the pitch alone without any note', () => {
     expect(foldToTargetOctave(46, 0, [])).toBe(46)
+  })
+
+  it('folds against the notes near the window as against all of them, ties included', () => {
+    const all = [n(0, 1, 50), n(0.5, 1, 60), n(2, 3, 62), n(2, 3, 74), n(5, 6, 70)] // two end at 1, two start at 2
+    const near = nearWindow(all, 1.2, 1.8)
+    expect(near).toEqual([all[0], all[2]])
+    for (const t of [1.2, 1.35, 1.5, 1.65, 1.8]) for (const m of [46, 58, 74]) expect(foldToTargetOctave(m, t, near)).toBe(foldToTargetOctave(m, t, all))
   })
 
   // frames every 5 ms from 0, one midi per piece of [midi, seconds]

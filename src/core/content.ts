@@ -190,8 +190,20 @@ export function parseSong(input: unknown): Song {
   return { ...json, sections } as Song
 }
 
-/** Notes staff, roll and session use: my unison duplicates once, other roles hidden while I sing. Order kept. */
-export function visibleNotes(notes: Note[], roles: RoleId[]): Note[] {
+const visibleCache = new WeakMap<Note[], Map<string, Note[]>>()
+/**
+ * Notes staff, roll and session use: my unison duplicates once, other roles hidden while I sing. Order kept.
+ * Cached per notes array and roles: the canvases ask every frame.
+ */
+export function visibleNotes(notes: Note[], roles: RoleId[]): readonly Note[] {
+  const byRoles = visibleCache.get(notes) ?? new Map<string, Note[]>()
+  visibleCache.set(notes, byRoles)
+  const key = roles.join()
+  if (!byRoles.has(key)) byRoles.set(key, computeVisible(notes, roles))
+  return byRoles.get(key)!
+}
+
+function computeVisible(notes: Note[], roles: RoleId[]): Note[] {
   const mine = notes.filter((n) => roles.includes(n.role))
   const seen = new Set<string>()
   return notes.filter((n) => {
@@ -207,7 +219,7 @@ export function visibleNotes(notes: Note[], roles: RoleId[]): Note[] {
  * Index of the note a tie or slur of `notes[i]` leads to, -1 if none: the later note of its role whose start is nearest
  * to its end. Not simply the next one, as aligned notes can overlap and a later note may start first.
  */
-export function arcTarget(notes: Note[], i: number): number {
+export function arcTarget(notes: readonly Note[], i: number): number {
   let best = -1
   const gap = (k: number) => Math.abs(notes[k].start - notes[i].end)
   for (let k = i + 1; k < notes.length; k++) if (notes[k].role === notes[i].role && (best < 0 || gap(k) < gap(best))) best = k
