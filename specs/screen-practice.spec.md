@@ -163,6 +163,7 @@ Selector row `repeatLabel` with chips `repeatValues`. One kind active at a time;
 - `tempo`: cycles 100 → 90 → 80 → 70 → 100.
 - `pause`: engine.pause, `session.endPass`, stay paused on practice. A pass result goes to `history.recordPass` right away (the day survives closing the app).
 - Play again after pause: `session.startPass`, engine.play.
+- The screen stays awake while playing: the lock is taken after engine.play and released on pause and on leaving the screen.
 - The transport follows the engine: its `pause` event (settings calibration, song end) runs the same pause as the button.
 - Session glue: engine `enter` → `session.enter`, pitch `frame` → `session.frame`.
 - Redraw: a pitch frame only joins the buffer. While playing, the engine tick redraws every animation frame; while paused, frames schedule at most one redraw per animation frame (`requestFrame`, injectable). The newest frame is drawn on the next animation frame; only the readout's mean spans the last 1 s. Paused frames feed only the readout: no take, no octave vote.

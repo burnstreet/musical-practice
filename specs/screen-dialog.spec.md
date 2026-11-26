@@ -136,11 +136,14 @@ Artboard D5. Sheet opened from the run-through and the scene selection.
 | silence | `Pause bis weiter` / `So lange still, dann geht es weiter.` |
 | rate | `Sprechtempo der anderen` |
 | directions | `Regieanweisungen anzeigen` |
+| shortSongs | `Lieder kürzen (5 s)` |
 | headphones | `Mit Kopfhörern üben. Sonst hört das Mikro die anderen Stimmen und geht zu früh weiter.` |
 | micTest | `Mikro testen` / `sprich etwas` |
 | done | `Fertig` |
 
-- Values in `settings.dialog`: `hint` (`show` / `start` / `hide`, default `start`), `silenceMs` (500–3000, step 100, default 1200), `rate` (0.8–1.3, step 0.1, default 1.0), `showDirections` (default true).
+- Values in `settings.dialog`: `hint` (`show` / `start` / `hide`, default `start`), `silenceMs` (500–3000, step 100, default 1200), `rate` (0.8–1.3, step 0.1, default 1.0), `showDirections` (default true), `shortSongs` (default false).
+- `shortSongs` on: a song cue plays 5 s of the song from the start of `Strophe 1` (else its first sung note, else 0) with a 0.5 s fade in and out, then the run-through moves on by itself. The card shows the title as before. A song that is not downloaded keeps the card waiting for a tap. Off: the card waits for a tap. Closing the sheet with a changed value starts the cue again at the current turn.
+- The screen stays awake while the run-through is not paused (screen lock off); paused, done or left, the lock is released.
 - The own-line mode is set only here, never on the run-through.
   `[@test] ../tests/steps/screen-dialog.steps.ts`
 

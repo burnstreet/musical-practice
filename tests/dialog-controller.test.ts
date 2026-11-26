@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { AppContext } from '../src/app/context'
-import { type DialogDeps, openDialog } from '../src/app/dialog'
+import { type DialogDeps, openDialog, verseStart } from '../src/app/dialog'
 import { settings } from '../src/app/settings'
 import type { PitchFrame, Script, ScriptItem } from '../src/core/types'
 
@@ -38,9 +38,89 @@ function setup(s: Script = script) {
       void blob.text().then((id) => t.played.push([id, rate]))
       return { ended: new Promise<void>((r) => t.end.push(r)), stop: () => {} }
     },
+    snippet: () => ({ ended: new Promise<void>(() => {}), stop: () => {} }),
   }
   return { t, ctx, deps }
 }
+
+const songScript: Script = { scenes: [{ id: 's1', title: '', items: [{ id: 'g1', type: 'song', songId: '01' }, line('m002', 'vater')] }] }
+const note = (start: number, syllable: string) => ({ start, syllable })
+const withSong = (s: Record<string, unknown>) => ({ song: { sections: [], notes: [], ...s }, voices: new Blob(), backing: new Blob() })
+
+describe('song snippet', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    settings.set({ roles: ['lena'], dialog: { ...settings.get().dialog, shortSongs: true } })
+  })
+
+  function snippetSetup(ready = true, song = withSong({ sections: [{ name: 'Strophe 1', start: 12, end: 20 }] })) {
+    const { t, ctx, deps } = setup(songScript)
+    const snippets: [number, number][] = []
+    const ends: (() => void)[] = []
+    ;(ctx.library as any).isReady = () => ready
+    ;(ctx.library as any).getSong = async () => song
+    deps.snippet = (_song, start, ms) => {
+      snippets.push([start, ms])
+      return { ended: new Promise<void>((r) => ends.push(r)), stop: () => {} }
+    }
+    return { t, ctx, deps, snippets, ends }
+  }
+
+  it('plays 5 s from verse 1, then moves on by itself', async () => {
+    const { ctx, deps, snippets, ends } = snippetSetup()
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    expect(snippets).toEqual([[12, 5000]])
+    expect(d.cue.state).toBe('song')
+    ends[0]()
+    await flush()
+    expect(d.cue.state).toBe('playing')
+    expect(d.cue.position().itemId).toBe('m002')
+  })
+
+  it('a snippet of an older cue stays silent after pause', async () => {
+    const { ctx, deps, ends } = snippetSetup()
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    d.send({ type: 'pause' })
+    ends[0]()
+    await flush()
+    expect(d.cue.state).toBe('paused')
+  })
+
+  it('a song that is not ready keeps the card waiting', async () => {
+    const { ctx, deps, snippets } = snippetSetup(false)
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    expect(snippets).toEqual([])
+    expect(d.cue.state).toBe('song')
+  })
+
+  it('a snippet that cannot load keeps the card waiting', async () => {
+    const { ctx, deps, snippets } = snippetSetup()
+    ;(ctx.library as any).getSong = async () => {
+      throw new Error('broken')
+    }
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    expect(snippets).toEqual([])
+    expect(d.cue.state).toBe('song')
+  })
+
+  it('without the setting no snippet plays', async () => {
+    settings.set({ dialog: { ...settings.get().dialog, shortSongs: false } })
+    const { ctx, deps, snippets } = snippetSetup()
+    const d = await openDialog(ctx, { sceneId: 's1' }, () => {}, deps)
+    await flush()
+    expect(snippets).toEqual([])
+    expect(d.cue.state).toBe('song')
+  })
+
+  it('starts at the first sung note without a verse 1, else at 0', () => {
+    expect(verseStart(withSong({ notes: [note(3, ''), note(5, 'La')] }).song as any)).toBe(5)
+    expect(verseStart(withSong({ notes: [note(3, '')] }).song as any)).toBe(0)
+  })
+})
 
 describe('dialog controller', () => {
   beforeEach(() => {

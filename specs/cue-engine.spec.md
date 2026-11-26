@@ -16,6 +16,7 @@ export interface CueOptions {
   hardTimeoutMs: number      // default 20000
   directionMs: number        // default 2500
   showDirections: boolean    // false: directions are left out of the flow
+  songMs?: number            // play this many ms of a song cue, then move on; unset: wait for a tap
   repeat: CueRepeat | null
 }
 /** Item ids within one scene. */
@@ -26,6 +27,7 @@ export type CueEvent =
   | { type: 'pause' } | { type: 'resume' } | { type: 'tick' }
 export type CueEffect =
   | { type: 'play'; itemIds: string[] }   // audio of these lines, in order, then the host sends audioEnded
+  | { type: 'song'; songId: string; ms: number }  // a snippet of that song, then the host sends audioEnded
   | { type: 'stop' }                      // stop playback
   | { type: 'mic'; on: boolean }
   | { type: 'missed' }                    // hard timeout passed: show a hint
@@ -56,7 +58,7 @@ export function hintText(text: string, mode: 'show' | 'hide' | 'start'): string
 
 - Line of another role: `playing`, effects `mic off`, `play [id]`. `audioEnded`: next turn.
 - Direction: `direction`. `tick` at `directionMs` after entering: next turn.
-- Song: `song`. Waits. `tap`: next turn. Jumping to the song is the screen's business; coming back, the host calls `cueStart` at the song item.
+- Song: `song`. Waits. `tap`: next turn. With `songMs` set it also has effect `song` (song id, `songMs`) to play a snippet of the song; `audioEnded`: next turn. Pause stops it, resume enters the song again, so the snippet starts anew. Jumping to the song is the screen's business; coming back, the host calls `cueStart` at the song item.
 - Actor's turn: `waiting`, effect `mic on`. `speechStart`: `speaking`. `speechEnd` (voice detect already waited the silence time): next turn. `tap` in `waiting` or `speaking`: next turn. `tick` in `waiting` with `hardTimeoutMs` passed since entering: effect `missed`, next turn. While `speaking` there is no hard timeout.
 - `prompt` in `waiting` or `speaking`: `prompting`, effects `mic off`, `play` the turn's item ids. `audioEnded`: back to `waiting`, `mic on`, hard timeout counts anew.
 - Speech events outside `waiting` and `speaking` are ignored. The mic is on only there.
@@ -204,6 +206,33 @@ Feature: Cue engine
     Then the state is paused with stop and mic off
     When I resume
     Then the state is playing with play [l2]
+
+  Scenario: a song waits for a tap
+    Given I am at the song g1
+    Then the state is song
+    When audio ends
+    Then the state is song
+
+  Scenario: a song snippet plays and moves on
+    Given song snippets of 5000 ms
+    And I am at the song g1
+    Then the state is song with snippet g1 for 5000 ms
+    When audio ends
+    Then the state is playing in scene s2
+
+  Scenario: a song snippet starts again after pause and resume
+    Given song snippets of 5000 ms
+    And I am at the song g1
+    When I pause
+    Then the state is paused with stop and mic off
+    When I resume
+    Then the state is song with snippet g1 for 5000 ms
+
+  Scenario: back from a song snippet stops it
+    Given song snippets of 5000 ms
+    And I am at the song g1
+    When I go back
+    Then the state is playing with play [l5] and the effects hold stop
 
   Scenario: directions hidden
     Given directions are not shown

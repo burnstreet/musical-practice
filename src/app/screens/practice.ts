@@ -11,6 +11,7 @@ import { barsPerPage, draw as drawStaff, pageOf, staffSpot, staffTimeAt } from '
 import { icon, shapes } from '../icons'
 import { abRange, einsatzRange, leadInRange, ownSpans, phraseRange, type RepeatKind, sectionAt, snapToBar } from '../repeat'
 import { Takes } from '../takes'
+import { wake } from '../wake-lock'
 
 const MODES: Record<Mode, [label: string, next: Mode]> = {
   all: ['alle Stimmen', 'others'],
@@ -280,6 +281,7 @@ export class GuPractice extends LitElement {
     super.disconnectedCallback()
     this.resize?.disconnect()
     this.stopCoast()
+    wake.set(false)
     if (current === this) current = null
     const live = getContext().live
     if (live?.songId === this.songId) live.repeat = { kind: this.kind, section: this.section, pointA: this.pointA }
@@ -369,11 +371,13 @@ export class GuPractice extends LitElement {
     this.takes.cut()
     await engine.play()
     this.playing = true
+    if (this.isConnected) wake.set(true) // left the screen during engine.play: nobody would release it
   }
 
   private pause() {
     const { engine, history, settings } = getContext()
     this.playing = false // before engine.pause: its 'pause' event comes back here
+    wake.set(false)
     engine.pause()
     const passed = this.mic && this.session.endPass()
     if (passed) history.recordPass(this.songId, settings.get().roles, passed).catch(console.error)
