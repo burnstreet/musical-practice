@@ -355,6 +355,7 @@ export class GuTextSettings extends LitElement {
 
         <div class="box">
           <label>Regieanweisungen anzeigen<input type="checkbox" .checked=${d.showDirections} @change=${(e: Event) => this.set({ showDirections: (e.target as HTMLInputElement).checked })} /></label>
+          <label>Lieder kürzen (5 s)<input type="checkbox" .checked=${d.shortSongs} @change=${(e: Event) => this.set({ shortSongs: (e.target as HTMLInputElement).checked })} /></label>
         </div>
 
         <div class="phones">

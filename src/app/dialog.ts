@@ -1,5 +1,6 @@
+import type { Song } from '../core/content'
 import { CUE_DEFAULTS, type Cue, type CueAt, type CueEffect, type CueEvent, type CueOptions, cueStart, cueStep, repeatRange } from '../core/cue'
-import type { LoadedScript } from '../core/types'
+import type { LoadedScript, LoadedSong } from '../core/types'
 import { createVoiceDetect, type VoiceDetect } from '../core/voice-detect'
 import type { AppContext } from './context'
 import { roleSetKey } from './settings'
@@ -18,7 +19,18 @@ export interface DialogDeps {
   every(ms: number, fn: () => void): () => void
   /** Plays a line at `rate`, pitch kept; rejects when the browser refuses (autoplay). */
   play(blob: Blob, rate: number): LinePlay
+  /** Plays `ms` of a song from `startSec` with a fade in and out. */
+  snippet(song: LoadedSong, startSec: number, ms: number): LinePlay
 }
+
+/** Verse 1 of the song: the section "Strophe 1", else the first sung note, else the start. */
+export const verseStart = (song: Song): number =>
+  song.sections.find((s) => s.name === 'Strophe 1')?.start ?? song.notes.find((n) => n.syllable !== '')?.start ?? 0
+
+const SNIPPET_MS = 5000
+const FADE_S = 0.5
+let snippetCtx: AudioContext | null = null
+const snippetAc = () => (snippetCtx ??= new AudioContext())
 
 /** One audio element for all lines: once it played inside a tap, iOS lets it play later lines without one. */
 let audioEl: HTMLAudioElement | null = null
@@ -32,6 +44,7 @@ const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfA
 /** Call in the click handler that starts a run-through (scene row, resume, `Weiter`), so later lines may play. */
 export function unlockAudio(): void {
   if (typeof Audio === 'undefined') return
+  if (typeof AudioContext !== 'undefined') void snippetAc().resume() // snippets start later, outside a tap
   const el = audio()
   if (el.src && el.src !== SILENCE) return
   el.src = SILENCE
@@ -83,6 +96,50 @@ export const browserDeps: DialogDeps = {
       },
     }
   },
+  snippet(song, startSec, ms) {
+    const ac = snippetAc()
+    void ac.resume()
+    const gain = ac.createGain()
+    gain.connect(ac.destination)
+    const end = ac.currentTime + ms / 1000
+    gain.gain.setValueAtTime(0, ac.currentTime)
+    gain.gain.linearRampToValueAtTime(1, ac.currentTime + FADE_S)
+    gain.gain.setValueAtTime(1, end - FADE_S)
+    gain.gain.linearRampToValueAtTime(0, end)
+    const urls: string[] = []
+    const els = [song.voices, song.backing].map((b) => {
+      const el = new Audio()
+      el.src = URL.createObjectURL(b)
+      urls.push(el.src)
+      el.currentTime = startSec
+      ac.createMediaElementSource(el).connect(gain)
+      return el
+    })
+    let timer = 0
+    let done = () => {}
+    let fail = (_e: unknown) => {}
+    const ended = new Promise<void>((res, rej) => {
+      done = res
+      fail = rej
+    })
+    const stop = () => {
+      clearTimeout(timer)
+      for (const el of els) el.pause()
+      gain.disconnect()
+      for (const u of urls) URL.revokeObjectURL(u)
+    }
+    timer = window.setTimeout(() => {
+      stop()
+      done()
+    }, ms)
+    for (const el of els) {
+      el.play().catch((e) => {
+        stop()
+        fail(e)
+      })
+    }
+    return { ended, stop }
+  },
 }
 
 /** A run-through: owns the cue, carries out its effects (audio, mic) and feeds voice detect. Screens render `cue` and call `send`. */
@@ -114,7 +171,13 @@ export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => voi
   const options = (sceneId: string): CueOptions => {
     const { dialog, dialogRepeats } = settings.get()
     const r = dialogRepeats[sceneId]
-    return { roles, ...CUE_DEFAULTS, showDirections: dialog.showDirections, repeat: r ? { ...r, sceneId } : null }
+    return {
+      roles,
+      ...CUE_DEFAULTS,
+      showDirections: dialog.showDirections,
+      songMs: dialog.shortSongs ? SNIPPET_MS : undefined,
+      repeat: r ? { ...r, sceneId } : null,
+    }
   }
   let cue: Cue
   let opts: CueOptions
@@ -163,6 +226,25 @@ export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => voi
     send({ type: 'audioEnded' })
   }
 
+  /** A snippet that cannot start (song not downloaded, load error) leaves the song card waiting for a tap. */
+  async function playSnippet(songId: string, ms: number) {
+    stopAudio()
+    const gen = playGen
+    if (!library.isReady(songId)) return
+    try {
+      const song = await library.getSong(songId)
+      if (gen !== playGen) return
+      playing = deps.snippet(song, verseStart(song.song), ms)
+      await playing.ended
+      if (gen !== playGen) return
+    } catch (e) {
+      console.error(e)
+      return
+    }
+    playing = null
+    send({ type: 'audioEnded' })
+  }
+
   async function mic(on: boolean) {
     const gen = ++micGen
     micOn = on
@@ -186,6 +268,7 @@ export async function openDialog(ctx: AppContext, at: CueAt, onChange: () => voi
     for (const e of effects) {
       if (e.type === 'stop') stopAudio()
       else if (e.type === 'play') void play(e.itemIds)
+      else if (e.type === 'song') void playSnippet(e.songId, e.ms)
       else if (e.type === 'mic') void mic(e.on)
       else if (e.type === 'missed') missed = true
     }

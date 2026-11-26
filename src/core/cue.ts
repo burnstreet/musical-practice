@@ -7,6 +7,8 @@ export interface CueOptions {
   hardTimeoutMs: number
   directionMs: number
   showDirections: boolean
+  /** Play this many ms of a song cue, then move on; unset: it waits for a tap. */
+  songMs?: number
   repeat: CueRepeat | null
 }
 /** Item ids within one scene. */
@@ -26,7 +28,12 @@ export type CueEvent =
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'tick' }
-export type CueEffect = { type: 'play'; itemIds: string[] } | { type: 'stop' } | { type: 'mic'; on: boolean } | { type: 'missed' }
+export type CueEffect =
+  | { type: 'play'; itemIds: string[] }
+  | { type: 'song'; songId: string; ms: number }
+  | { type: 'stop' }
+  | { type: 'mic'; on: boolean }
+  | { type: 'missed' }
 export interface Cue {
   state: CueState
   sceneId: string
@@ -146,10 +153,11 @@ function enter(x: CueRun, to: TurnPos | null, now: number, effects: CueEffect[] 
   if (isMine(y, turn)) return make(y, 'waiting', turn, [...effects, mic(true)])
   const first = turn[0]
   if (first.type === 'line') return make(y, 'playing', turn, [...effects, mic(false), { type: 'play', itemIds: ids(turn) }])
-  return make(y, first.type, turn, [...effects, mic(false)])
+  const snippet: CueEffect[] = first.type === 'song' && y.opts.songMs ? [{ type: 'song', songId: first.songId, ms: y.opts.songMs }] : []
+  return make(y, first.type, turn, [...effects, mic(false), ...snippet])
 }
 
-const stopIf = (c: Cue): CueEffect[] => (c.state === 'playing' || c.state === 'prompting' ? [{ type: 'stop' }] : [])
+const stopIf = (c: Cue): CueEffect[] => (c.state === 'playing' || c.state === 'prompting' || c.state === 'song' ? [{ type: 'stop' }] : [])
 
 /** Where a run-through opens; `paused`: no effects until resume. */
 export interface CueAt {
@@ -181,7 +189,7 @@ export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue {
   const { state } = cue
   switch (ev.type) {
     case 'audioEnded':
-      if (state === 'playing') return next()
+      if (state === 'playing' || (state === 'song' && x.opts.songMs)) return next()
       if (state === 'prompting') return make({ ...x, since: now }, 'waiting', cue.turn, [mic(true)])
       break
     case 'speechStart':
@@ -206,7 +214,7 @@ export function cueStep(cue: Cue, ev: CueEvent, now: number): Cue {
         }
         return enter(x, wrap(x, to), now, stopIf(cue))
       }
-      if (state === 'direction' || state === 'song' || state === 'waiting' || state === 'speaking') return next()
+      if (state === 'direction' || state === 'song' || state === 'waiting' || state === 'speaking') return next(stopIf(cue))
       break
     case 'back': {
       if (state === 'done' || state === 'paused') break

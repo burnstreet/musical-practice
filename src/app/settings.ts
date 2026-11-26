@@ -15,6 +15,8 @@ export interface DialogSettings {
   /** Playback rate of the other roles, 0.8..1.3. */
   rate: number
   showDirections: boolean
+  /** A song cue plays a short snippet from verse 1 and moves on, instead of waiting for a tap. */
+  shortSongs: boolean
 }
 
 /** Where a role set stopped last; `at` = epoch ms. */
@@ -47,7 +49,7 @@ export interface Settings {
 export const roleSetKey = (roles: RoleId[]): string => [...roles].sort().join(',')
 
 const KEY = `${production.storageId}.settings`
-const DIALOG: DialogSettings = { hint: 'start', silenceMs: 1200, rate: 1, showDirections: true }
+const DIALOG: DialogSettings = { hint: 'start', silenceMs: 1200, rate: 1, showDirections: true, shortSongs: false }
 const DEFAULTS: Settings = {
   tolerance: 50,
   delayMs: null,

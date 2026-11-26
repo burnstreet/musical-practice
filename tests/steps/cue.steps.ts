@@ -50,7 +50,10 @@ export default steps(({ Given, When, Then }) => {
   Given(/^roles \[(.*)\]$/, (ctx, r) => {
     env(ctx).roles = list(r)
   })
-  Given(/^I am playing (\w+)$/, (ctx, id) => start(ctx, id))
+  Given(/^song snippets of (\d+) ms$/, (ctx, ms) => {
+    env(ctx).songMs = +ms
+  })
+  Given(/^I am (?:playing|at the song) (\w+)$/, (ctx, id) => start(ctx, id))
   Given(/^I am waiting at (\w+)(?: since (\d+) ms)?$/, (ctx, id, ms) => start(ctx, id, +(ms ?? 0)))
   Given(
     /^(directions are not shown and )?repeat in (\w+) from (\w+)(?: to (\w+))?(?: and I am (?:playing|waiting at|at the song) (\w+))?$/,
@@ -107,6 +110,10 @@ export default steps(({ Given, When, Then }) => {
   Then(/^the state is (\w+) with mic (on|off)$/, (ctx, s, m) => {
     expect(ctx.cue.state).toBe(s)
     hasEffect(ctx, { type: 'mic', on: m === 'on' })
+  })
+  Then(/^the state is song with snippet (\w+) for (\d+) ms$/, (ctx, songId, ms) => {
+    expect(ctx.cue.state).toBe('song')
+    hasEffect(ctx, { type: 'song', songId: ctx.script.scenes[0].items.find((i: any) => i.id === songId).songId, ms: +ms })
   })
   Then(/^the state is paused with stop and mic off$/, (ctx) => {
     expect(ctx.cue.state).toBe('paused')

@@ -9,6 +9,7 @@ import { icon, shapes } from '../icons'
 import type { DialogSettings } from '../settings'
 import { oneDecimalDe } from '../settings-sheet'
 import '../settings-sheet'
+import { wake } from '../wake-lock'
 import { lineCount, runRoute, sceneNo } from './text'
 
 /** Line text with its inline directions `[x]` as italic direction spans, brackets removed. */
@@ -215,8 +216,8 @@ export class GuRun extends LitElement {
   /** Controller seams; tests swap them. */
   deps?: DialogDeps
   private opening = 0
-  /** `showDirections` when the sheet opened. */
-  private directionsBefore: boolean | null = null
+  /** Cue-affecting settings when the sheet opened. */
+  private optionsBefore = ''
   /** Paused position the flow last scrolled to. */
   private scrolledTo = ''
 
@@ -249,6 +250,7 @@ export class GuRun extends LitElement {
     this.opening++
     this.dialog?.dispose()
     this.dialog = null
+    wake.set(false)
   }
 
   updated(changed: Map<string, unknown>) {
@@ -282,7 +284,9 @@ export class GuRun extends LitElement {
   }
 
   private changed() {
-    if (this.dialog?.cue.state === 'done') {
+    const state = this.dialog?.cue.state
+    wake.set(state !== undefined && state !== 'paused' && state !== 'done')
+    if (state === 'done') {
       getContext().route('#/text')
       return
     }
@@ -321,14 +325,20 @@ export class GuRun extends LitElement {
   private openSettings() {
     const s = this.dialog?.cue.state
     if (s && s !== 'paused' && s !== 'done') this.send('pause')
-    this.directionsBefore = getContext().settings.get().dialog.showDirections
+    this.optionsBefore = this.cueOptions()
     this.settingsOpen = true
   }
 
-  /** Directions changed: the cue starts again at the current turn with them. */
+  /** The settings the cue is entered with. */
+  private cueOptions() {
+    const { showDirections, shortSongs } = getContext().settings.get().dialog
+    return `${showDirections}/${shortSongs}`
+  }
+
+  /** Directions or short songs changed: the cue starts again at the current turn with them. */
   private closeSettings() {
     this.settingsOpen = false
-    if (getContext().settings.get().dialog.showDirections !== this.directionsBefore) this.dialog?.restart()
+    if (this.cueOptions() !== this.optionsBefore) this.dialog?.restart()
   }
 
   private practiceSong(songId: string) {
