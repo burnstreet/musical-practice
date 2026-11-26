@@ -148,7 +148,9 @@ class Handler(RangeRequestHandler):
         edits.mkdir(parents=True, exist_ok=True)
         backup = edits / f"{dst.stem}-{time.strftime('%Y%m%d-%H%M%S')}.json"
         backup.write_bytes(body)
-        dst.write_bytes(body)
+        # pretty-print so script.json diffs stay readable (matches script_parse)
+        out = json.dumps(data, ensure_ascii=False, indent=2).encode() if name == "script.json" else body
+        dst.write_bytes(out)
         self.reply(200, {"ok": True, "saved": str(dst.relative_to(ROOT)), "backup": str(backup.relative_to(ROOT))})
         print(f"saved {dst.name} ({len(data[key])} {key}) -> {backup.name}")
 
