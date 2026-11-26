@@ -63,7 +63,8 @@ def test_script_is_saved_like_a_song(tmp_path, monkeypatch):
     try:
         (tmp_path / "web" / "data").mkdir(parents=True)
         assert post(srv, "/save/script.json", SCRIPT)["ok"]
-        assert json.loads((tmp_path / "web" / "data" / "script.json").read_text(encoding="utf-8")) == SCRIPT
+        saved = (tmp_path / "web" / "data" / "script.json").read_text(encoding="utf-8")
+        assert saved == json.dumps(SCRIPT, ensure_ascii=False, indent=2)
     finally:
         srv.shutdown()
 
